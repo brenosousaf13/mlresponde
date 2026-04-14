@@ -22,6 +22,8 @@ export async function POST(request: Request) {
           .insert({
             question_id: questionId,
             seller_id: sellerId,
+            item_id: 'buscando_item',
+            question_text: 'Baixando detalhes da pergunta...',
             status: 'pending',
           })
           

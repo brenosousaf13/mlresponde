@@ -14,15 +14,22 @@ export async function POST(request: Request) {
   const supabase = createAdminClient()
 
   try {
-    // 1. Marcar como "processing"
+    // 2. Coletar a pergunta bruta primeiro para sabermos os IDs reais
+    const question = await fetchQuestion(seller_id, question_id)
+    const item = await fetchItem(seller_id, question.item_id)
+
+    // 1. Marcar como "processing" e salvar a pergunta de verdade no banco (substituindo o placeholder)
     await supabase
       .from('question_jobs')
-      .update({ status: 'processing' })
+      .update({ 
+        status: 'processing',
+        item_id: item.id,
+        item_title: item.title,
+        item_url: item.permalink,
+        question_text: question.text
+      })
       .eq('question_id', question_id)
 
-    // 2. Coletar a pergunta bruta
-    const question = await fetchQuestion(seller_id, question_id)
-    
     // Evitar responder perguntas que já foram respondidas no passado (Status !== UNANSWERED)
     if (question.status !== 'UNANSWERED') {
       await supabase
@@ -32,9 +39,6 @@ export async function POST(request: Request) {
       
       return NextResponse.json({ success: true, message: 'Already answered' })
     }
-
-    // 3. Coletar detalhes do anúncio para contexto
-    const item = await fetchItem(seller_id, question.item_id)
 
     // 4. Magia Pura: Passar pra IA entender a pergunta baseada nas regras da loja 
     const finalAnswer = await generateAnswer(seller_id, question, item)
