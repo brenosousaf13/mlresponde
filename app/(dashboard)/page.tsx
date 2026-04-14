@@ -1,6 +1,9 @@
 import { createAdminClient } from '@/lib/supabase/server'
 import LiveQuestions, { QuestionJob } from './live-questions'
 
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
+
 export default async function DashboardPage() {
   const supabase = createAdminClient() // Usar admin pra ler os jobs de todo o ambiente sem ter dor de cabeça com RLS temporariamente
 
