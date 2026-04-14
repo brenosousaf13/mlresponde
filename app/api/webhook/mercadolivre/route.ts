@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/server'
 import { processQuestionWorkflow } from '@/lib/mercadolivre/workflow'
 
+export const maxDuration = 60 // Liberar 1 minuto completo pra nossa IA responder calmamente sem a Vercel matar o processo!
+
 export async function POST(request: Request) {
   try {
     const body = await request.json()
