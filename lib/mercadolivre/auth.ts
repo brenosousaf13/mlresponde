@@ -5,7 +5,7 @@ const ML_CLIENT_SECRET = process.env.ML_CLIENT_SECRET
 const ML_REDIRECT_URI = process.env.ML_REDIRECT_URI
 
 export function getAuthorizationUrl() {
-  return `https://auth.mercadolivre.com.br/authorization?response_type=code&client_id=${ML_CLIENT_ID}&redirect_uri=${ML_REDIRECT_URI}`
+  return `https://auth.mercadolivre.com.br/authorization?response_type=code&client_id=${ML_CLIENT_ID}&redirect_uri=${encodeURIComponent(ML_REDIRECT_URI!)}`
 }
 
 export async function exchangeCodeForToken(code: string) {
