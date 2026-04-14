@@ -39,7 +39,7 @@ export async function GET(request: Request) {
 
     if (upsertError) {
       console.error('Error saving ML credentials:', upsertError)
-      return NextResponse.redirect(new URL('/settings?error=Database+error', request.url))
+      return NextResponse.redirect(new URL(`/settings?error=DB_Error:+${encodeURIComponent(upsertError.message || upsertError.details || 'Unknown')}`, request.url))
     }
 
     return NextResponse.redirect(new URL('/settings?success=ml_connected', request.url))
