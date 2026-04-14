@@ -1,5 +1,5 @@
 import { createAdminClient } from '@/lib/supabase/server'
-import Link from 'next/link'
+import KnowledgeForm from './knowledge-form'
 
 export default async function SettingsPage(props: {
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>
@@ -14,6 +14,16 @@ export default async function SettingsPage(props: {
     .from('ml_credentials')
     .select('seller_id, updated_at')
     .single()
+
+  let kb_data = null
+  if (credentials?.seller_id) {
+    const { data } = await supabase
+      .from('knowledge_base')
+      .select('content')
+      .eq('seller_id', credentials.seller_id)
+      .single()
+    kb_data = data
+  }
 
   const isConnected = !!credentials
 
@@ -69,6 +79,20 @@ export default async function SettingsPage(props: {
              Conectar conta do Mercado Livre
           </a>
         )}
+      </div>
+
+      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden text-left p-6">
+        <h3 className="text-lg font-semibold flex items-center gap-2 text-gray-900 dark:text-white mb-2">
+          Base de Conhecimento da IA (GPT-4o)
+        </h3>
+        <p className="text-gray-500 dark:text-gray-400 text-sm mb-6">
+          Preencha o manual de comportamento e atendimento que a Inteligência artificial deverá obedecer antes de gerar respostas.
+        </p>
+
+        <KnowledgeForm 
+          sellerId={credentials?.seller_id?.toString()} 
+          initialContent={kb_data?.content || ''} 
+        />
       </div>
     </div>
   )
