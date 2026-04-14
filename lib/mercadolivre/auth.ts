@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/server'
 
 const ML_CLIENT_ID = process.env.ML_CLIENT_ID
 const ML_CLIENT_SECRET = process.env.ML_CLIENT_SECRET
@@ -35,7 +35,7 @@ export async function exchangeCodeForToken(code: string) {
 }
 
 export async function getValidToken(sellerId: string) {
-  const supabase = await createClient()
+  const supabase = createAdminClient()
 
   const { data: credentials, error: credentialsError } = await supabase
     .from('ml_credentials')
