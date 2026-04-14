@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server'
 import { exchangeCodeForToken } from '@/lib/mercadolivre/auth'
 import { createClient } from '@/lib/supabase/server'
 
+export const dynamic = 'force-dynamic'
+
 export async function GET(request: Request) {
   const url = new URL(request.url)
   const code = url.searchParams.get('code')
@@ -40,8 +42,8 @@ export async function GET(request: Request) {
     }
 
     return NextResponse.redirect(new URL('/settings?success=ml_connected', request.url))
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error during ML OAuth callback:', error)
-    return NextResponse.redirect(new URL('/settings?error=OAuth+error', request.url))
+    return NextResponse.redirect(new URL(`/settings?error=OAuth+error:+${encodeURIComponent(error?.message || 'Unknown')}`, request.url))
   }
 }

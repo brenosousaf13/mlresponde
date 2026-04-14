@@ -25,7 +25,9 @@ export async function exchangeCodeForToken(code: string) {
   })
 
   if (!response.ok) {
-    throw new Error('Failed to exchange code for token')
+    const errorBody = await response.text()
+    console.error("ML OAuth Error Response:", errorBody)
+    throw new Error(`ML API Error: ${response.status} - ${errorBody}`)
   }
 
   const data = await response.json()
