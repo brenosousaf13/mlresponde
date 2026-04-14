@@ -1,9 +1,9 @@
-import Anthropic from '@anthropic-ai/sdk'
+import OpenAI from 'openai'
 import { createAdminClient } from '@/lib/supabase/server'
 import { MLQuestion, MLItem } from '../mercadolivre/questions'
 
-const anthropic = new Anthropic({
-  apiKey: process.env.ANTHROPIC_API_KEY || '',
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY || '',
 })
 
 export async function generateAnswer(
@@ -11,8 +11,8 @@ export async function generateAnswer(
   question: MLQuestion,
   item: MLItem
 ) {
-  if (!process.env.ANTHROPIC_API_KEY) {
-    throw new Error('Chave da API da Anthropic não está configurada (ANTHROPIC_API_KEY)')
+  if (!process.env.OPENAI_API_KEY) {
+    throw new Error('Chave da API da OpenAI não está configurada (OPENAI_API_KEY)')
   }
 
   // 1. Opcional: Buscar a base de conhecimento (Knowledge Base) desse vendedor no Supabase
@@ -64,21 +64,20 @@ Por favor, elabore a resposta final e me entregue apenas o texto que eu devo env
   `
 
   // 5. Chamar a IA para inferência
-  const response = await anthropic.messages.create({
-    model: 'claude-3-5-haiku-20241022', // Haiku é excelente, extremamente rápido e barato para perguntas assim
+  const response = await openai.chat.completions.create({
+    model: 'gpt-4o-mini', // Modelo rápido e inteligente para tarefas de resposta
+    messages: [
+      { role: 'system', content: systemPrompt },
+      { role: 'user', content: userPrompt }
+    ],
     max_tokens: 400,
     temperature: 0.3,
-    system: systemPrompt,
-    messages: [
-      { role: 'user', content: userPrompt }
-    ]
   })
 
   // Obtendo o texto gerado
-  // O formato da resposta Message.content é Array. O bloco zero costuma ser o 'text'.
-  const firstBlock = response.content[0]
-  if (firstBlock.type === 'text') {
-    return firstBlock.text.trim()
+  const finalMessage = response.choices[0]?.message?.content
+  if (finalMessage) {
+    return finalMessage.trim()
   }
 
   return 'Olá! Não conseguimos processar sua solicitação no momento. Por favor tente novamente.'
