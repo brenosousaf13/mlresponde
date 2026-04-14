@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/server'
+import { processQuestionWorkflow } from '@/lib/mercadolivre/workflow'
 
 export async function POST(request: Request) {
   try {
@@ -9,38 +10,31 @@ export async function POST(request: Request) {
     // Validar se é uma pergunta
     if (body.topic === 'questions' || body.resource?.startsWith('/questions/')) {
       const resourceUrl = body.resource as string
-      // "/questions/123456" => "123456"
       const questionId = resourceUrl.split('/').pop()
       const sellerId = body.user_id?.toString()
 
       if (questionId && sellerId) {
         const supabase = createAdminClient()
 
-        // 1. Criar o Job Pendente no banco de dados para segurança
+        // 1. Criar o Job Pendente no banco de dados
         const { error: insertError } = await supabase
           .from('question_jobs')
           .insert({
             question_id: questionId,
             seller_id: sellerId,
             item_id: 'buscando_item',
-            question_text: 'Baixando detalhes da pergunta...',
+            question_text: 'Buscando do Mercado Livre...',
             status: 'pending',
           })
           
         if (insertError) {
-          // Se já existir por duplicate hook do ML, vai falhar (unique index/PK), podemos ignorar.
           console.log(`Aviso ao inserir job: ${insertError.message}`)
         }
 
-        // 2. Disparar a nossa rota interna de processamento pesadão.
-        // NÃO daremos AWAIT para que a resposta HTTP 200 volte imediatamente 
-        // pro Mercado Livre, evitando de tomar timeout da plataforma deles!
-        const appUrl = process.env.NEXT_PUBLIC_APP_URL || request.url.split('/api')[0]
-        fetch(`${appUrl}/api/process`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ question_id: questionId, seller_id: sellerId }),
-        }).catch(err => console.error("Falha ao invocar backend worker:", err))
+        // 2. Aguarda o processamento de forma síncrona. 
+        // A Vercel mata a execução de fetch() em background não-awaitted nas suas functions serverless (Hobby).
+        // Como o GPT-4o-mini responde em ~2-3s e o limite de HTTP do Webhook da ML é 20s, podemos e devemos usar await!
+        await processQuestionWorkflow(questionId, sellerId)
       }
     }
 
