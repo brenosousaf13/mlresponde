@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/server'
 import Link from 'next/link'
 
 export default async function SettingsPage(props: {
@@ -8,7 +8,7 @@ export default async function SettingsPage(props: {
   const success = searchParams?.success;
   const error = searchParams?.error;
 
-  const supabase = await createClient()
+  const supabase = createAdminClient()
   
   const { data: credentials } = await supabase
     .from('ml_credentials')

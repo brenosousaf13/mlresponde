@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { exchangeCodeForToken } from '@/lib/mercadolivre/auth'
-import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/server'
 
 export const dynamic = 'force-dynamic'
 
@@ -23,7 +23,8 @@ export async function GET(request: Request) {
     const expiresAt = new Date()
     expiresAt.setSeconds(expiresAt.getSeconds() + expiresIn)
 
-    const supabase = await createClient()
+    // Usando admin client para dar bypass no RLS
+    const supabase = createAdminClient()
 
     const { error: upsertError } = await supabase
       .from('ml_credentials')
