@@ -48,11 +48,11 @@ export default function KnowledgeForm({
   return (
     <form onSubmit={handleSave} className="flex flex-col gap-4">
       {message && (
-        <div className={\`p-3 rounded-lg text-sm font-medium \${
+        <div className={`p-3 rounded-lg text-sm font-medium ${
           message.type === 'success' 
             ? 'bg-green-50 text-green-700 border border-green-200 dark:bg-green-900/30 dark:border-green-800 dark:text-green-400' 
             : 'bg-red-50 text-red-700 border border-red-200 dark:bg-red-900/30 dark:border-red-800 dark:text-red-400'
-        }\`}>
+        }`}>
           {message.text}
         </div>
       )}
