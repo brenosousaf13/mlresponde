@@ -10,7 +10,32 @@ export async function processQuestionWorkflow(question_id: string, seller_id: st
     const question = await fetchQuestion(seller_id, question_id)
     const item = await fetchItem(seller_id, question.item_id)
 
-    // 2. Marcar como "processing" e salvar a pergunta de verdade no banco
+    // 2. Antes de mexer no banco com status de processamento, verificar se o ML diz que já não está pendente!
+    // (O ML manda webhooks repetidos. Se a gente setar "processing" de cara, a pergunta q já tava verde vai voltar pra azul antes de abortar!)
+    if (question.status !== 'UNANSWERED') {
+      const { data: existing } = await supabase.from('question_jobs').select('ai_response').eq('question_id', question_id).single()
+      
+      if (!existing?.ai_response || existing.ai_response.includes('Buscando')) {
+        await supabase
+          .from('question_jobs')
+          .update({ 
+            status: 'done', 
+            ai_response: 'Respondida manualmente pelo vendedor na plataforma.',
+            item_id: item.id,
+            item_title: item.title,
+            item_url: item.permalink,
+            question_text: question.text
+          })
+          .eq('question_id', question_id)
+      } else {
+        // Se já tem a nossa resposta perfeita lá, força manter o status "done" só por garantia
+         await supabase.from('question_jobs').update({ status: 'done' }).eq('question_id', question_id)
+      }
+      
+      return { success: true, message: 'Already answered' }
+    }
+
+    // 3. Como a pergunta é virgem, vamos marcar como "processing" e salvar a pergunta de verdade no banco
     await supabase
       .from('question_jobs')
       .update({ 
@@ -21,22 +46,6 @@ export async function processQuestionWorkflow(question_id: string, seller_id: st
         question_text: question.text
       })
       .eq('question_id', question_id)
-
-    // Evitar tentar postar resposta se o ML diz que já não está como pendente lá na loja
-    if (question.status !== 'UNANSWERED') {
-      // Vamos verificar se nós mesmos acabamos de responder isso no disparo anterior do ML
-      const { data: existing } = await supabase.from('question_jobs').select('ai_response').eq('question_id', question_id).single()
-      
-      // Se tiver vazio, significa que o humano foi lá no app do ML e respondeu com o dedo
-      if (!existing?.ai_response || existing.ai_response.includes('Buscando')) {
-        await supabase
-          .from('question_jobs')
-          .update({ status: 'done', ai_response: 'Respondida manualmente pelo vendedor na plataforma.' })
-          .eq('question_id', question_id)
-      }
-      
-      return { success: true, message: 'Already answered' }
-    }
 
     // 3. IA Formula a resposta baseada nas regras
     const finalAnswer = await generateAnswer(seller_id, question, item)
