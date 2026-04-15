@@ -22,12 +22,19 @@ export async function processQuestionWorkflow(question_id: string, seller_id: st
       })
       .eq('question_id', question_id)
 
-    // Evitar responder perguntas que já foram respondidas
+    // Evitar tentar postar resposta se o ML diz que já não está como pendente lá na loja
     if (question.status !== 'UNANSWERED') {
-      await supabase
-        .from('question_jobs')
-        .update({ status: 'done', ai_response: 'Pergunta já respondida antes ou arquivada.' })
-        .eq('question_id', question_id)
+      // Vamos verificar se nós mesmos acabamos de responder isso no disparo anterior do ML
+      const { data: existing } = await supabase.from('question_jobs').select('ai_response').eq('question_id', question_id).single()
+      
+      // Se tiver vazio, significa que o humano foi lá no app do ML e respondeu com o dedo
+      if (!existing?.ai_response || existing.ai_response.includes('Buscando')) {
+        await supabase
+          .from('question_jobs')
+          .update({ status: 'done', ai_response: 'Respondida manualmente pelo vendedor na plataforma.' })
+          .eq('question_id', question_id)
+      }
+      
       return { success: true, message: 'Already answered' }
     }
 
