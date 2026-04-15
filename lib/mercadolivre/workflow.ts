@@ -26,7 +26,7 @@ export async function processQuestionWorkflow(question_id: string, seller_id: st
     if (question.status !== 'UNANSWERED') {
       await supabase
         .from('question_jobs')
-        .update({ status: 'done', response_generated: 'Pergunta já respondida antes ou arquivada.' })
+        .update({ status: 'done', ai_response: 'Pergunta já respondida antes ou arquivada.' })
         .eq('question_id', question_id)
       return { success: true, message: 'Already answered' }
     }
@@ -42,7 +42,7 @@ export async function processQuestionWorkflow(question_id: string, seller_id: st
       .from('question_jobs')
       .update({ 
         status: 'done',
-        response_generated: finalAnswer,
+        ai_response: finalAnswer,
         updated_at: new Date().toISOString()
       })
       .eq('question_id', question_id)

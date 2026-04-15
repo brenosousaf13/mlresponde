@@ -8,7 +8,7 @@ export interface QuestionJob {
   question_id: string;
   seller_id: string;
   status: 'pending' | 'processing' | 'done' | 'error';
-  response_generated?: string | null;
+  ai_response?: string | null;
   error_message?: string | null;
   created_at: string;
   updated_at: string;
@@ -83,10 +83,10 @@ export default function LiveQuestions({ initialJobs }: { initialJobs: QuestionJo
           </div>
 
           <div className="flex flex-col gap-3">
-            {job.response_generated && (
+            {job.ai_response && (
               <div className="p-4 bg-gray-50 dark:bg-gray-900 rounded-lg border-l-4 border-green-500">
                 <span className="text-xs uppercase tracking-wider text-green-600 font-bold block mb-1">🤖 Resposta da IA</span>
-                <p className="text-gray-900 dark:text-white whitespace-pre-wrap">{job.response_generated}</p>
+                <p className="text-gray-900 dark:text-white whitespace-pre-wrap">{job.ai_response}</p>
               </div>
             )}
             
