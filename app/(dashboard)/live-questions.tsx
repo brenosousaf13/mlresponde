@@ -14,17 +14,23 @@ export interface QuestionJob {
   updated_at: string;
 }
 
-export default function LiveQuestions({ initialJobs }: { initialJobs: QuestionJob[] }) {
+export default function LiveQuestions({ initialJobs, sellerIds }: { initialJobs: QuestionJob[], sellerIds: string[] }) {
   const [jobs, setJobs] = useState<QuestionJob[]>(initialJobs)
   const supabase = createClient()
 
   useEffect(() => {
+    if (sellerIds.length === 0) return
+
+    // O Supabase realtime filter suporta `in` (lista de valores). 
+    // Format: `seller_id=in.(${sellerIds.join(',')})`
+    const filterString = `seller_id=in.(${sellerIds.join(',')})`
+
     // Inscreve no canal "public" da tabela "question_jobs" para Live Updates do Supabase
     const channel = supabase
       .channel('realtime_question_jobs')
       .on(
         'postgres_changes',
-        { event: '*', schema: 'public', table: 'question_jobs' },
+        { event: '*', schema: 'public', table: 'question_jobs', filter: filterString },
         (payload) => {
           if (payload.eventType === 'INSERT') {
             const newJob = payload.new as QuestionJob

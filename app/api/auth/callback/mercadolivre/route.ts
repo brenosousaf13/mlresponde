@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { exchangeCodeForToken } from '@/lib/mercadolivre/auth'
-import { createAdminClient } from '@/lib/supabase/server'
+import { createAdminClient, createClient } from '@/lib/supabase/server'
 
 export const dynamic = 'force-dynamic'
 
@@ -23,12 +23,21 @@ export async function GET(request: Request) {
     const expiresAt = new Date()
     expiresAt.setSeconds(expiresAt.getSeconds() + expiresIn)
 
-    // Usando admin client para dar bypass no RLS
+    // Precisamos do client com cookies pra saber qual usuário do SaaS fez o login
+    const authClient = await createClient()
+    const { data: { user } } = await authClient.auth.getUser()
+
+    if (!user) {
+      return NextResponse.redirect(new URL('/settings?error=User+not+authenticated', request.url))
+    }
+
+    // Usando admin client para dar bypass no RLS e inserir/atualizar as credenciais
     const supabase = createAdminClient()
 
     const { error: upsertError } = await supabase
       .from('ml_credentials')
       .upsert({
+        user_id: user.id,
         seller_id: sellerId,
         access_token: accessToken,
         refresh_token: refreshToken,

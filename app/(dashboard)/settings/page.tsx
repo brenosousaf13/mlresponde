@@ -1,4 +1,5 @@
-import { createAdminClient } from '@/lib/supabase/server'
+import { createClient, createAdminClient } from '@/lib/supabase/server'
+import { redirect } from 'next/navigation'
 import KnowledgeForm from './knowledge-form'
 
 export default async function SettingsPage(props: {
@@ -8,16 +9,25 @@ export default async function SettingsPage(props: {
   const success = searchParams?.success;
   const error = searchParams?.error;
 
-  const supabase = createAdminClient()
+  const authClient = await createClient()
+  const { data: { user } } = await authClient.auth.getUser()
+
+  if (!user) {
+    redirect('/login')
+  }
+
+  const supabaseAdmin = createAdminClient()
   
-  const { data: credentials } = await supabase
+  // Buscar credenciais deste usuário
+  const { data: credentials } = await supabaseAdmin
     .from('ml_credentials')
     .select('seller_id, updated_at')
+    .eq('user_id', user.id)
     .single()
 
   let kb_data = null
   if (credentials?.seller_id) {
-    const { data } = await supabase
+    const { data } = await supabaseAdmin
       .from('knowledge_base')
       .select('content')
       .eq('seller_id', credentials.seller_id)

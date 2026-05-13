@@ -1,6 +1,6 @@
 'use server'
 
-import { createAdminClient } from '@/lib/supabase/server'
+import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 
 export async function saveKnowledgeBase(sellerId: string, content: string) {
@@ -8,13 +8,33 @@ export async function saveKnowledgeBase(sellerId: string, content: string) {
     return { error: 'É necessário conectar o Mercado Livre antes de configurar a IA.' }
   }
 
-  const supabase = createAdminClient()
+  const authClient = await createClient()
+  const { data: { user } } = await authClient.auth.getUser()
 
-  // Salvar a Base de Conhecimento, contornando proteções de RLS caso não feitas pelo usuário ainda
-  const { error } = await supabase
+  if (!user) {
+    return { error: 'Não autenticado.' }
+  }
+
+  const supabaseAdmin = createAdminClient()
+
+  // Validar se o sellerId pertence de fato a este usuário
+  const { data: creds } = await supabaseAdmin
+    .from('ml_credentials')
+    .select('id')
+    .eq('user_id', user.id)
+    .eq('seller_id', sellerId)
+    .single()
+
+  if (!creds) {
+    return { error: 'Permissão negada. Esta conta ML não está vinculada a você.' }
+  }
+
+  // Salvar a Base de Conhecimento vinculada ao seller e ao user
+  const { error } = await supabaseAdmin
     .from('knowledge_base')
     .upsert(
       {
+        user_id: user.id,
         seller_id: sellerId,
         content: content,
         updated_at: new Date().toISOString()
