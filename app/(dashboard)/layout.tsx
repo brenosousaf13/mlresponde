@@ -24,6 +24,9 @@ export default function DashboardLayout({
               <Link href="/" className="px-3 py-2 rounded-md text-sm font-medium text-gray-700 dark:text-gray-200 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-gray-800 transition-colors">
                 Visão Geral
               </Link>
+              <Link href="/training" className="px-3 py-2 rounded-md text-sm font-medium text-gray-700 dark:text-gray-200 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-gray-800 transition-colors">
+                Treinamento da IA
+              </Link>
               <Link href="/settings" className="px-3 py-2 rounded-md text-sm font-medium text-gray-700 dark:text-gray-200 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-gray-800 transition-colors">
                 Configurações
               </Link>

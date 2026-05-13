@@ -25,12 +25,50 @@ export async function generateAnswer(
 
   const knowledgeContent = kb_data?.content || 'Nenhuma regra específica cadastrada no sistema. Use o bom senso comercial.'
 
-  // 2. Extrair os atributos do item para a IA entender o produto de forma rápida
+  // 2. Buscar o Histórico de Respostas deste Produto (Treinamento)
+  const { data: itemExamples } = await supabase
+    .from('training_examples')
+    .select('question_text, answer_text')
+    .eq('seller_id', sellerId)
+    .eq('item_id', item.id)
+    .order('created_at', { ascending: false })
+    .limit(3)
+
+  // Se o item não tiver muitos exemplos, podemos buscar alguns gerais da loja para entender o "Tom de voz"
+  const fetchGeneralLimit = itemExamples ? 5 - itemExamples.length : 5;
+  let generalExamples: any[] = [];
+  
+  if (fetchGeneralLimit > 0) {
+    const { data: genData } = await supabase
+      .from('training_examples')
+      .select('question_text, answer_text')
+      .eq('seller_id', sellerId)
+      .order('created_at', { ascending: false })
+      .limit(fetchGeneralLimit)
+      
+    generalExamples = genData || []
+  }
+
+  // Filtrar duplicados (se os gerais acabarem puxando os do próprio item)
+  const allExamples = [...(itemExamples || []), ...generalExamples].filter(
+    (ex, index, self) => index === self.findIndex((t) => t.question_text === ex.question_text)
+  ).slice(0, 5)
+
+  let trainingPromptBlock = ''
+  if (allExamples.length > 0) {
+    trainingPromptBlock = `\n<EXEMPLOS_HISTORICOS_DO_VENDEDOR>\nAbaixo estão alguns exemplos reais de como o vendedor respondeu aos clientes no passado. Utilize-os para aprender o TOM DE VOZ do vendedor e as políticas de entrega ou garantias:\n`
+    allExamples.forEach((ex, idx) => {
+      trainingPromptBlock += `Exemplo ${idx + 1}:\nQ: ${ex.question_text}\nA: ${ex.answer_text}\n\n`
+    })
+    trainingPromptBlock += `</EXEMPLOS_HISTORICOS_DO_VENDEDOR>\n`
+  }
+
+  // 3. Extrair os atributos do item para a IA entender o produto de forma rápida
   const attributesString = item.attributes
     .map((attr) => `- ${attr.name}: ${attr.value_name}`)
     .join('\n')
 
-  // 3. Montar o Prompt Sistêmico (como a IA deve pensar e agir)
+  // 4. Montar o Prompt Sistêmico (como a IA deve pensar e agir)
   const systemPrompt = `
 Você é um excelente e experiente assistente de vendas no Mercado Livre. 
 Seu papel é responder às perguntas dos clientes de forma direta, clara, cortês e que ajude a concretizar a venda.
@@ -39,7 +77,7 @@ Siga rigidamente as instruções gerais da loja repassadas abaixo. Se a pergunta
 <INSTRUÇÕES_DA_LOJA_E_POLITICAS>
 ${knowledgeContent}
 </INSTRUÇÕES_DA_LOJA_E_POLITICAS>
-
+${trainingPromptBlock}
 Lembre-se:
 1. Comece com uma saudação breve (ex: "Olá!").
 2. Em chamadas para ação use gatilhos sutis (ex: "Aguardamos sua compra!").

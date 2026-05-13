@@ -35,3 +35,10 @@ export async function postAnswer(sellerId: string, questionId: string, text: str
     }),
   })
 }
+
+export async function fetchAnsweredQuestions(sellerId: string, limit: number = 50) {
+  // Busca as perguntas com status ANSWERED ordenadas pelas mais recentes
+  const url = `/my/received_questions/search?status=ANSWERED&limit=${limit}&sort_fields=date_created&sort_types=DESC`
+  const data = await mlFetch(sellerId, url)
+  return data
+}
