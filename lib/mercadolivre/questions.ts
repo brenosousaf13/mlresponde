@@ -15,6 +15,12 @@ export interface MLItem {
   price: number;
   permalink: string;
   attributes: Array<{ name: string; value_name: string }>;
+  variations?: Array<{
+    id: number;
+    price: number;
+    available_quantity: number;
+    attribute_combinations: Array<{ name: string; value_name: string }>;
+  }>;
 }
 
 export async function fetchQuestion(sellerId: string, questionId: string): Promise<MLQuestion> {

@@ -68,11 +68,25 @@ export async function generateAnswer(
     .map((attr) => `- ${attr.name}: ${attr.value_name}`)
     .join('\n')
 
+  let variationsString = ''
+  if (item.variations && item.variations.length > 0) {
+    const activeVariations = item.variations.filter(v => v.available_quantity > 0)
+    if (activeVariations.length > 0) {
+      variationsString = '\n- Variações Disponíveis (Cores/Tamanhos COM ESTOQUE):\n'
+      activeVariations.forEach(v => {
+        const varAttrs = v.attribute_combinations.map(a => `${a.value_name}`).join(', ')
+        variationsString += `  * ${varAttrs} (Estoque: ${v.available_quantity})\n`
+      })
+    } else {
+      variationsString = '\n- Variações: (Todas as outras variações estão ESGOTADAS no momento)\n'
+    }
+  }
+
   // 4. Montar o Prompt Sistêmico (como a IA deve pensar e agir)
   const systemPrompt = `
 Você é um excelente e experiente assistente de vendas no Mercado Livre. 
 Seu papel é responder às perguntas dos clientes de forma direta, clara, cortês e que ajude a concretizar a venda.
-Siga rigidamente as instruções gerais da loja repassadas abaixo. Se a pergunta for sobre um dado técnico ou atributo, e constar nos atributos abaixo, responda informando.
+Siga rigidamente as instruções gerais da loja repassadas abaixo. Se a pergunta for sobre um dado técnico, atributo ou disponibilidade de cor/tamanho, olhe os dados do produto abaixo e responda com base nisso.
 
 <INSTRUÇÕES_DA_LOJA_E_POLITICAS>
 ${knowledgeContent}
@@ -92,8 +106,8 @@ O cliente fez a seguinte pergunta no nosso anúncio.
 DADOS DO PRODUTO:
 - Título: ${item.title}
 - Preço: R$ ${item.price}
-- Atributos:
-${attributesString}
+- Atributos Principais:
+${attributesString}${variationsString}
 
 MENSAGEM/PERGUNTA DO CLIENTE:
 "${question.text}"
