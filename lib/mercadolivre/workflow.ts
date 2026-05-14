@@ -6,6 +6,19 @@ export async function processQuestionWorkflow(question_id: string, seller_id: st
   const supabase = createAdminClient()
 
   try {
+    // 0. Prevenir Race Conditions de Webhooks duplicados do ML
+    const { data: currentJob } = await supabase
+      .from('question_jobs')
+      .select('status, ai_response')
+      .eq('question_id', question_id)
+      .single()
+
+    // Se o job já estiver processando ou finalizado, ignoramos este webhook duplicado!
+    if (currentJob && (currentJob.status === 'processing' || currentJob.status === 'done')) {
+      console.log(`[Webhook Duplicado] A pergunta ${question_id} já está em processamento ou concluída.`)
+      return { success: true, message: 'Already processing or done' }
+    }
+
     // 1. Coletar a pergunta bruta primeiro para sabermos os IDs reais
     const question = await fetchQuestion(seller_id, question_id)
     const item = await fetchItem(seller_id, question.item_id)

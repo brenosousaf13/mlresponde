@@ -18,7 +18,7 @@ export async function POST(request: Request) {
       if (questionId && sellerId) {
         const supabase = createAdminClient()
 
-        // 1. Criar o Job Pendente no banco de dados
+        // 1. Criar o Job Pendente no banco de dados já como processing para bloquear retries
         const { error: insertError } = await supabase
           .from('question_jobs')
           .insert({
@@ -26,7 +26,7 @@ export async function POST(request: Request) {
             seller_id: sellerId,
             item_id: 'buscando_item',
             question_text: 'Buscando do Mercado Livre...',
-            status: 'pending',
+            status: 'processing',
           })
           
         if (insertError) {
