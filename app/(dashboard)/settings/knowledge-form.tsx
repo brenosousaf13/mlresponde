@@ -1,7 +1,8 @@
 'use client'
 
 import { useState } from 'react'
-import { saveKnowledgeBase } from './actions'
+import { saveKnowledgeBase, generateKnowledgeFromHistory } from './actions'
+import { SparklesIcon } from '@heroicons/react/24/solid'
 
 export default function KnowledgeForm({
   sellerId,
@@ -12,7 +13,24 @@ export default function KnowledgeForm({
 }) {
   const [content, setContent] = useState(initialContent)
   const [saving, setSaving] = useState(false)
+  const [isGenerating, setIsGenerating] = useState(false)
   const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null)
+
+  const handleGenerateFromHistory = async () => {
+    if (!sellerId) return
+    setIsGenerating(true)
+    setMessage(null)
+
+    const result = await generateKnowledgeFromHistory(sellerId)
+    setIsGenerating(false)
+
+    if (result.error) {
+      setMessage({ type: 'error', text: result.error })
+    } else if (result.text) {
+      setContent(result.text)
+      setMessage({ type: 'success', text: 'Regras geradas com sucesso! Revise o texto e clique em Salvar.' })
+    }
+  }
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -58,6 +76,32 @@ export default function KnowledgeForm({
       )}
 
       <div>
+        <div className="flex justify-between items-end mb-2">
+          <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+            Regras de Atendimento
+          </label>
+          <button
+            type="button"
+            onClick={handleGenerateFromHistory}
+            disabled={isGenerating}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-purple-700 bg-purple-50 border border-purple-200 rounded-lg hover:bg-purple-100 focus:outline-none focus:ring-2 focus:ring-purple-500 disabled:opacity-50 transition-colors dark:bg-purple-900/30 dark:text-purple-400 dark:border-purple-800"
+          >
+            {isGenerating ? (
+              <>
+                <svg className="w-3.5 h-3.5 animate-spin" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                Analisando Histórico...
+              </>
+            ) : (
+              <>
+                <SparklesIcon className="w-3.5 h-3.5" />
+                Extrair Regras da IA Magicamente
+              </>
+            )}
+          </button>
+        </div>
         <textarea
           value={content}
           onChange={(e) => setContent(e.target.value)}

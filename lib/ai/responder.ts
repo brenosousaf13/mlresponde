@@ -34,8 +34,8 @@ export async function generateAnswer(
     .order('created_at', { ascending: false })
     .limit(3)
 
-  // Se o item não tiver muitos exemplos, podemos buscar alguns gerais da loja para entender o "Tom de voz"
-  const fetchGeneralLimit = itemExamples ? 5 - itemExamples.length : 5;
+  // Se o item não tiver muitos exemplos, vamos buscar uma carga generosa (Amostragem Geral) da loja para entender o "Tom de voz"
+  const fetchGeneralLimit = 20;
   let generalExamples: any[] = [];
   
   if (fetchGeneralLimit > 0) {
@@ -49,14 +49,14 @@ export async function generateAnswer(
     generalExamples = genData || []
   }
 
-  // Filtrar duplicados (se os gerais acabarem puxando os do próprio item)
+  // Filtrar duplicados e unir os do item específico com os gerais
   const allExamples = [...(itemExamples || []), ...generalExamples].filter(
     (ex, index, self) => index === self.findIndex((t) => t.question_text === ex.question_text)
-  ).slice(0, 5)
+  ).slice(0, 25)
 
   let trainingPromptBlock = ''
   if (allExamples.length > 0) {
-    trainingPromptBlock = `\n<EXEMPLOS_HISTORICOS_DO_VENDEDOR>\nAbaixo estão alguns exemplos reais de como o vendedor respondeu aos clientes no passado. Utilize-os para aprender o TOM DE VOZ do vendedor e as políticas de entrega ou garantias:\n`
+    trainingPromptBlock = `\n<EXEMPLOS_HISTORICOS_DO_VENDEDOR>\nAbaixo estão dezenas de exemplos reais de como o vendedor respondeu aos clientes recentemente. Utilize-os estritamente para copiar o TOM DE VOZ, a formatação e as saudações do vendedor:\n`
     allExamples.forEach((ex, idx) => {
       trainingPromptBlock += `Exemplo ${idx + 1}:\nQ: ${ex.question_text}\nA: ${ex.answer_text}\n\n`
     })
