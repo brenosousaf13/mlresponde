@@ -59,6 +59,7 @@ export async function syncHistoricalQuestions(sellerId: string) {
         insertedCount++
       } else {
         console.error('Erro ao inserir training example:', error)
+        return { error: `Erro no Supabase: ${error.message} (Det: ${error.details || ''})` }
       }
     }
 
