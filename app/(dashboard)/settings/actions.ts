@@ -50,3 +50,29 @@ export async function saveKnowledgeBase(sellerId: string, content: string) {
   revalidatePath('/settings') // Dispara um refresh no server componente para os dados mais recentes
   return { success: true }
 }
+
+export async function toggleAutoReply(sellerId: string, enabled: boolean) {
+  if (!sellerId) return { error: 'Seller ID inválido.' }
+
+  const authClient = await createClient()
+  const { data: { user } } = await authClient.auth.getUser()
+
+  if (!user) return { error: 'Não autenticado.' }
+
+  const supabaseAdmin = createAdminClient()
+
+  // Atualizar a coluna auto_reply_enabled
+  const { error } = await supabaseAdmin
+    .from('ml_credentials')
+    .update({ auto_reply_enabled: enabled, updated_at: new Date().toISOString() })
+    .eq('seller_id', sellerId)
+    .eq('user_id', user.id)
+
+  if (error) {
+    console.error('Toggle AutoReply error:', error)
+    return { error: 'Falha ao atualizar o status da automação no Banco de Dados.' }
+  }
+
+  revalidatePath('/settings')
+  return { success: true }
+}

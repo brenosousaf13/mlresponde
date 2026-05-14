@@ -40,6 +40,29 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: true, message: 'Already answered' })
     }
 
+    // 3. Checar se a Automação está ligada para esta loja
+    const { data: creds } = await supabase
+      .from('ml_credentials')
+      .select('auto_reply_enabled')
+      .eq('seller_id', seller_id)
+      .single()
+
+    const isAutoReplyEnabled = creds?.auto_reply_enabled === true
+
+    if (!isAutoReplyEnabled) {
+      // Robô desligado: deixa a pergunta registrada na Dashboard para acompanhamento, mas encerra aqui.
+      await supabase
+        .from('question_jobs')
+        .update({ 
+          status: 'manual', 
+          response_generated: 'Automação pausada. Respondida manualmente.',
+          updated_at: new Date().toISOString()
+        })
+        .eq('question_id', question_id)
+
+      return NextResponse.json({ success: true, message: 'Auto-reply is disabled for this seller. Marked as manual.' })
+    }
+
     // 4. Magia Pura: Passar pra IA entender a pergunta baseada nas regras da loja 
     const finalAnswer = await generateAnswer(seller_id, question, item)
 

@@ -1,6 +1,7 @@
 import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import KnowledgeForm from './knowledge-form'
+import AutoReplyToggle from './auto-reply-toggle'
 
 export default async function SettingsPage(props: {
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>
@@ -21,7 +22,7 @@ export default async function SettingsPage(props: {
   // Buscar credenciais deste usuário
   const { data: credentials } = await supabaseAdmin
     .from('ml_credentials')
-    .select('seller_id, updated_at')
+    .select('seller_id, updated_at, auto_reply_enabled')
     .eq('user_id', user.id)
     .single()
 
@@ -69,6 +70,8 @@ export default async function SettingsPage(props: {
         
         {isConnected ? (
           <div>
+            <AutoReplyToggle sellerId={credentials.seller_id} initialStatus={credentials.auto_reply_enabled === true} />
+            
             <div className="flex items-center gap-3 mb-6 p-4 bg-gray-50 dark:bg-gray-800/50 rounded-lg border border-gray-100 dark:border-gray-700">
               <span className="flex items-center justify-center w-10 h-10 rounded-full bg-green-100 dark:bg-green-900/50 text-green-600 dark:text-green-400">
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path></svg>
