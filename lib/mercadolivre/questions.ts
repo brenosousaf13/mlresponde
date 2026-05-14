@@ -36,9 +36,30 @@ export async function postAnswer(sellerId: string, questionId: string, text: str
   })
 }
 
-export async function fetchAnsweredQuestions(sellerId: string, limit: number = 50) {
+export async function fetchAnsweredQuestions(sellerId: string, limit: number = 50, offset: number = 0) {
   // Busca as perguntas com status ANSWERED ordenadas pelas mais recentes
-  const url = `/my/received_questions/search?status=ANSWERED&limit=${limit}&sort_fields=date_created&sort_types=DESC`
+  const url = `/my/received_questions/search?status=ANSWERED&limit=${limit}&offset=${offset}&sort_fields=date_created&sort_types=DESC`
   const data = await mlFetch(sellerId, url)
   return data
+}
+
+export async function fetchMultipleAnsweredQuestions(sellerId: string, totalTarget: number = 200) {
+  const limit = 50; // Limite máximo da API do ML
+  const pages = Math.ceil(totalTarget / limit);
+  const promises = [];
+  
+  for (let i = 0; i < pages; i++) {
+    promises.push(fetchAnsweredQuestions(sellerId, limit, i * limit));
+  }
+  
+  const results = await Promise.all(promises);
+  let allQuestions: any[] = [];
+  
+  for (const res of results) {
+    if (res && res.questions) {
+      allQuestions = allQuestions.concat(res.questions);
+    }
+  }
+  
+  return { questions: allQuestions };
 }

@@ -1,7 +1,7 @@
 'use server'
 
 import { createClient, createAdminClient } from '@/lib/supabase/server'
-import { fetchAnsweredQuestions } from '@/lib/mercadolivre/questions'
+import { fetchAnsweredQuestions, fetchMultipleAnsweredQuestions } from '@/lib/mercadolivre/questions'
 import { revalidatePath } from 'next/cache'
 
 export async function syncHistoricalQuestions(sellerId: string) {
@@ -27,44 +27,47 @@ export async function syncHistoricalQuestions(sellerId: string) {
       return { error: 'Permissão negada. Esta conta ML não está vinculada a você.' }
     }
 
-    // Puxar as últimas 50 perguntas respondidas
-    const mlData = await fetchAnsweredQuestions(sellerId, 50)
+    // Puxar as últimas 200 perguntas respondidas em paralelo
+    const mlData = await fetchMultipleAnsweredQuestions(sellerId, 200)
     
     if (!mlData || !mlData.questions) {
       return { error: 'Falha ao buscar perguntas do Mercado Livre.' }
     }
 
-    let insertedCount = 0
+    const upsertPayload = []
 
     // Para cada pergunta, preparamos o dado para salvar no banco
     for (const q of mlData.questions) {
       // Ignorar se não tiver texto da pergunta ou texto da resposta
       if (!q.text || !q.answer || !q.answer.text) continue
 
+      upsertPayload.push({
+        user_id: user.id,
+        seller_id: sellerId,
+        question_id: q.id.toString(),
+        item_id: q.item_id,
+        question_text: q.text,
+        answer_text: q.answer.text,
+        updated_at: new Date().toISOString()
+      })
+    }
+
+    if (upsertPayload.length > 0) {
+      // Bulk Upsert de 200 itens numa única tacada de BD!
       const { error } = await supabaseAdmin
         .from('training_examples')
-        .upsert({
-          user_id: user.id,
-          seller_id: sellerId,
-          question_id: q.id.toString(),
-          item_id: q.item_id,
-          question_text: q.text,
-          answer_text: q.answer.text,
-          updated_at: new Date().toISOString()
-        }, {
+        .upsert(upsertPayload, {
           onConflict: 'question_id'
         })
 
-      if (!error) {
-        insertedCount++
-      } else {
-        console.error('Erro ao inserir training example:', error)
+      if (error) {
+        console.error('Erro ao inserir training examples em bulk:', error)
         return { error: `Erro no Supabase: ${error.message} (Det: ${error.details || ''})` }
       }
     }
 
     revalidatePath('/training')
-    return { success: true, count: insertedCount }
+    return { success: true, count: upsertPayload.length }
 
   } catch (err: any) {
     console.error('Erro ao sincronizar treinamento:', err)
