@@ -10,7 +10,6 @@ async function test() {
     const { data: creds, error } = await supabase.from('ml_credentials').select('seller_id, user_id').limit(1).single();
     if (error) throw error;
     
-    console.log('Seller ID:', creds.seller_id, 'User ID:', creds.user_id);
     const sellerId = creds.seller_id;
     const userId = creds.user_id;
     
@@ -18,9 +17,7 @@ async function test() {
     const data = await mlFetch(sellerId, url);
     const q = data.questions[0];
 
-    const { error: upsertError } = await supabase
-      .from('training_examples')
-      .upsert({
+    const payload = {
         user_id: userId,
         seller_id: sellerId,
         question_id: q.id.toString(),
@@ -28,11 +25,18 @@ async function test() {
         question_text: q.text,
         answer_text: q.answer.text,
         updated_at: new Date().toISOString()
-      }, {
+    };
+    
+    console.log('Attempting upsert with:', payload);
+
+    const { error: upsertError, data: upsertData } = await supabase
+      .from('training_examples')
+      .upsert(payload, {
         onConflict: 'question_id'
-      });
+      }).select();
 
     console.log('Upsert Error:', upsertError);
+    console.log('Upsert Data:', upsertData);
   } catch (err) {
     console.error('Error:', err);
   }
