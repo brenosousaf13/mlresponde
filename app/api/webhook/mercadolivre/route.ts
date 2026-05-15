@@ -31,15 +31,15 @@ export async function POST(request: Request) {
           })
           
         if (insertError) {
-          console.log(`Aviso ao inserir job: ${insertError.message}`)
+          console.log(`[Webhook Duplicado] Ignorando pergunta ${questionId}. Erro ao inserir (já existe): ${insertError.message}`)
+        } else {
+          // 2. Colocar o processamento pesadão na fila de background do Next.js!
+          // O `after()` garante que a Vercel não vai matar a função imediatamente após o return 200 OK,
+          // mas permite que a gente devolva o 200 OK pro Mercado Livre em menos de 100ms!
+          after(async () => {
+            await processQuestionWorkflow(questionId, sellerId)
+          })
         }
-
-        // 2. Colocar o processamento pesadão na fila de background do Next.js!
-        // O `after()` garante que a Vercel não vai matar a função imediatamente após o return 200 OK,
-        // mas permite que a gente devolva o 200 OK pro Mercado Livre em menos de 100ms!
-        after(async () => {
-          await processQuestionWorkflow(questionId, sellerId)
-        })
       }
     }
 
