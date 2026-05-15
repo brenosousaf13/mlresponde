@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/server'
 import { processQuestionWorkflow } from '@/lib/mercadolivre/workflow'
+import { after } from 'next/server'
 
 export const maxDuration = 60 // Liberar 1 minuto completo pra nossa IA responder calmamente sem a Vercel matar o processo!
 
@@ -33,10 +34,12 @@ export async function POST(request: Request) {
           console.log(`Aviso ao inserir job: ${insertError.message}`)
         }
 
-        // 2. Aguarda o processamento de forma síncrona. 
-        // A Vercel mata a execução de fetch() em background não-awaitted nas suas functions serverless (Hobby).
-        // Como o GPT-4o-mini responde em ~2-3s e o limite de HTTP do Webhook da ML é 20s, podemos e devemos usar await!
-        await processQuestionWorkflow(questionId, sellerId)
+        // 2. Colocar o processamento pesadão na fila de background do Next.js!
+        // O `after()` garante que a Vercel não vai matar a função imediatamente após o return 200 OK,
+        // mas permite que a gente devolva o 200 OK pro Mercado Livre em menos de 100ms!
+        after(async () => {
+          await processQuestionWorkflow(questionId, sellerId)
+        })
       }
     }
 
