@@ -8,6 +8,9 @@ export interface QuestionJob {
   question_id: string;
   seller_id: string;
   status: 'pending' | 'processing' | 'done' | 'error';
+  question_text?: string | null;
+  item_title?: string | null;
+  item_url?: string | null;
   ai_response?: string | null;
   error_message?: string | null;
   created_at: string;
@@ -83,12 +86,27 @@ export default function LiveQuestions({ initialJobs, sellerIds }: { initialJobs:
         <div key={job.id} className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm border border-gray-200 dark:border-gray-700 animate-in fade-in slide-in-from-bottom-2 duration-500">
           <div className="flex items-center justify-between mb-4">
             <div className="text-sm text-gray-500 dark:text-gray-400">
-              Q-ID: <span className="font-mono text-xs">{job.question_id}</span> • {new Date(job.created_at).toLocaleString('pt-BR')}
+              {job.item_url ? (
+                <a href={job.item_url} target="_blank" rel="noopener noreferrer" className="font-medium text-gray-700 dark:text-gray-300 hover:underline">
+                  {job.item_title || 'Produto sem título'}
+                </a>
+              ) : (
+                <span className="font-medium text-gray-700 dark:text-gray-300">{job.item_title || 'Buscando produto...'}</span>
+              )}
+              <span className="mx-2">•</span>
+              {new Date(job.created_at).toLocaleString('pt-BR')}
             </div>
             <div>{getStatusBadge(job.status)}</div>
           </div>
 
           <div className="flex flex-col gap-3">
+            {job.question_text && !job.question_text.includes('Buscando') && (
+              <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border-l-4 border-blue-400">
+                <span className="text-xs uppercase tracking-wider text-blue-600 dark:text-blue-400 font-bold block mb-1">💬 Pergunta do cliente</span>
+                <p className="text-gray-900 dark:text-white whitespace-pre-wrap">{job.question_text}</p>
+              </div>
+            )}
+
             {job.ai_response && (
               <div className="p-4 bg-gray-50 dark:bg-gray-900 rounded-lg border-l-4 border-green-500">
                 <span className="text-xs uppercase tracking-wider text-green-600 font-bold block mb-1">🤖 Resposta da IA</span>
