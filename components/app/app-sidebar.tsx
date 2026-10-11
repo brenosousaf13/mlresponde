@@ -1,9 +1,11 @@
 "use client"
 
 import {
+  BotIcon,
   CreditCardIcon,
   LayoutDashboardIcon,
   LockIcon,
+  MessageCircleQuestionIcon,
   Settings2Icon,
   StoreIcon,
   type LucideIcon,
@@ -21,6 +23,7 @@ import {
   SidebarGroupLabel,
   SidebarHeader,
   SidebarMenu,
+  SidebarMenuBadge,
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarRail,
@@ -30,12 +33,14 @@ import type { NavItemConfig } from "@/lib/navigation"
 
 const ICONS: Record<NavItemConfig["icon"], LucideIcon> = {
   painel: LayoutDashboardIcon,
+  perguntas: MessageCircleQuestionIcon,
+  respostas: BotIcon,
   contas: StoreIcon,
   assinatura: CreditCardIcon,
   configuracoes: Settings2Icon,
 }
 
-export type SidebarNavItem = NavItemConfig & { lockedReason?: string }
+export type SidebarNavItem = NavItemConfig & { lockedReason?: string; badge?: number }
 
 export function AppSidebar({
   items,
@@ -99,6 +104,11 @@ export function AppSidebar({
                     <Icon />
                     <span>{item.title}</span>
                   </SidebarMenuButton>
+                  {item.badge ? (
+                    <SidebarMenuBadge className="bg-brand-yellow text-brand-navy">
+                      {item.badge > 99 ? "99+" : item.badge}
+                    </SidebarMenuBadge>
+                  ) : null}
                 </SidebarMenuItem>
               )
             })}

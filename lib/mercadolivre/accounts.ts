@@ -114,7 +114,7 @@ export async function connectMlAccount(params: {
   return { kind, accountId: created.id }
 }
 
-async function markTokenInvalid(admin: ServiceClient, accountId: string, message: string) {
+export async function markTokenInvalid(accountId: string, message: string, admin: ServiceClient = createServiceClient()) {
   await admin
     .from("ml_accounts")
     .update({
@@ -176,7 +176,7 @@ export async function getValidAccessToken(accountId: string): Promise<string> {
     } catch (refreshError) {
       await admin.from("ml_account_tokens").update({ refresh_lease_until: null }).eq("ml_account_id", accountId)
       if (refreshError instanceof MlOAuthError && refreshError.code === "invalid_grant") {
-        await markTokenInvalid(admin, accountId, refreshError.message)
+        await markTokenInvalid(accountId, refreshError.message, admin)
         throw new MlAccountUnavailableError("A autorização do Mercado Livre expirou. Reconecte a conta.")
       }
       throw refreshError

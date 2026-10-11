@@ -32,7 +32,13 @@ export function computeAccess(
   return { state: "blocked", ...base }
 }
 
-export type AppSection = "painel" | "contas" | "assinatura" | "configuracoes"
+export type AppSection =
+  | "painel"
+  | "perguntas"
+  | "respostas"
+  | "contas"
+  | "assinatura"
+  | "configuracoes"
 
 export type SectionDecision =
   | { allowed: true }

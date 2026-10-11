@@ -1,6 +1,9 @@
 import { timingSafeEqual } from "node:crypto"
 
-import { NextResponse, type NextRequest } from "next/server"
+import { after, NextResponse, type NextRequest } from "next/server"
+
+import { processQuestion } from "@/lib/answers/engine"
+import { syncUnansweredQuestions } from "@/lib/answers/ingest"
 
 import { getCurrentUser } from "@/lib/dal/app-context"
 import { connectMlAccount } from "@/lib/mercadolivre/accounts"
@@ -13,6 +16,7 @@ import {
 } from "@/lib/mercadolivre/oauth-cookie"
 
 export const dynamic = "force-dynamic"
+export const maxDuration = 60
 
 const RESULT_PARAM: Record<string, string> = {
   connected: "conectada",
@@ -58,6 +62,17 @@ export async function GET(request: NextRequest) {
       tokens,
       mlUser,
     })
+    if (result.kind === "connected" || result.kind === "reconnected") {
+      const accountId = result.accountId
+      after(async () => {
+        try {
+          const { created } = await syncUnansweredQuestions(accountId)
+          for (const id of created) await processQuestion(id)
+        } catch (error) {
+          console.error("[ml-oauth-callback] sync:", error instanceof Error ? error.message : error)
+        }
+      })
+    }
     return finish(RESULT_PARAM[result.kind])
   } catch (error) {
     console.error("[ml-oauth-callback]", error instanceof Error ? error.message : error)

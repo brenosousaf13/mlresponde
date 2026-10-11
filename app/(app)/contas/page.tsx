@@ -31,7 +31,12 @@ import { createClient } from "@/lib/supabase/server"
 export const metadata: Metadata = { title: "Contas do Mercado Livre" }
 
 const NOTICES: Record<string, { ok: boolean; title: string; message: string }> = {
-  conectada: { ok: true, title: "Conta conectada!", message: "Tudo certo. Agora a plataforma já consegue acessar essa conta." },
+  conectada: {
+    ok: true,
+    title: "Conta conectada!",
+    message:
+      "Já estamos trazendo as perguntas sem resposta. As respostas automáticas começam pausadas: configure e ligue em Respostas da IA.",
+  },
   reconectada: { ok: true, title: "Conta reconectada!", message: "A conexão com o Mercado Livre foi renovada." },
   inativa: {
     ok: false,

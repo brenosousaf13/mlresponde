@@ -1,6 +1,6 @@
 import "server-only"
 
-const API_URL = "https://api.mercadolibre.com"
+export const ML_API_URL = "https://api.mercadolibre.com"
 
 export type MlUser = {
   id: number
@@ -11,7 +11,8 @@ export type MlUser = {
 export class MlApiError extends Error {
   constructor(
     message: string,
-    readonly status: number
+    readonly status: number,
+    readonly code?: string
   ) {
     super(message)
     this.name = "MlApiError"
@@ -19,7 +20,7 @@ export class MlApiError extends Error {
 }
 
 export async function fetchMlMe(accessToken: string): Promise<MlUser> {
-  const response = await fetch(`${API_URL}/users/me`, {
+  const response = await fetch(`${ML_API_URL}/users/me`, {
     headers: { authorization: `Bearer ${accessToken}`, accept: "application/json" },
     cache: "no-store",
   })

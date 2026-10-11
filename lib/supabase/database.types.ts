@@ -14,6 +14,109 @@ export type Database = {
   }
   public: {
     Tables: {
+      ai_examples: {
+        Row: {
+          answer_text: string
+          created_at: string
+          created_by: string | null
+          id: string
+          item_id: string | null
+          ml_account_id: string
+          organization_id: string
+          question_text: string
+          source_question_id: string | null
+        }
+        Insert: {
+          answer_text: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          item_id?: string | null
+          ml_account_id: string
+          organization_id: string
+          question_text: string
+          source_question_id?: string | null
+        }
+        Update: {
+          answer_text?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          item_id?: string | null
+          ml_account_id?: string
+          organization_id?: string
+          question_text?: string
+          source_question_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_examples_ml_account_id_fkey"
+            columns: ["ml_account_id"]
+            isOneToOne: false
+            referencedRelation: "ml_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ai_examples_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ai_examples_source_question_id_fkey"
+            columns: ["source_question_id"]
+            isOneToOne: false
+            referencedRelation: "ml_questions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      item_blacklist: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id: string
+          item_id: string
+          item_title: string | null
+          ml_account_id: string
+          organization_id: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          item_id: string
+          item_title?: string | null
+          ml_account_id: string
+          organization_id: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          item_id?: string
+          item_title?: string | null
+          ml_account_id?: string
+          organization_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "item_blacklist_ml_account_id_fkey"
+            columns: ["ml_account_id"]
+            isOneToOne: false
+            referencedRelation: "ml_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "item_blacklist_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       knowledge_base: {
         Row: {
           content: string
@@ -78,6 +181,11 @@ export type Database = {
       }
       ml_accounts: {
         Row: {
+          ai_confidence_threshold: number
+          answer_greeting: string
+          answer_signature: string
+          answer_tone: string
+          auto_reply_enabled: boolean
           connected_by: string | null
           created_at: string
           id: string
@@ -88,10 +196,16 @@ export type Database = {
           organization_id: string
           site_id: string | null
           status: string
+          store_briefing: string
           token_status: string
           updated_at: string
         }
         Insert: {
+          ai_confidence_threshold?: number
+          answer_greeting?: string
+          answer_signature?: string
+          answer_tone?: string
+          auto_reply_enabled?: boolean
           connected_by?: string | null
           created_at?: string
           id?: string
@@ -102,10 +216,16 @@ export type Database = {
           organization_id: string
           site_id?: string | null
           status?: string
+          store_briefing?: string
           token_status?: string
           updated_at?: string
         }
         Update: {
+          ai_confidence_threshold?: number
+          answer_greeting?: string
+          answer_signature?: string
+          answer_tone?: string
+          auto_reply_enabled?: boolean
           connected_by?: string | null
           created_at?: string
           id?: string
@@ -116,6 +236,7 @@ export type Database = {
           organization_id?: string
           site_id?: string | null
           status?: string
+          store_briefing?: string
           token_status?: string
           updated_at?: string
         }
@@ -164,6 +285,114 @@ export type Database = {
           user_id?: string | null
         }
         Relationships: []
+      }
+      ml_questions: {
+        Row: {
+          ai_confidence: number | null
+          ai_draft: string | null
+          ai_model: string | null
+          ai_reason: string | null
+          ai_tokens: number | null
+          answer_source: string | null
+          answer_text: string | null
+          answered_at: string | null
+          answered_by: string | null
+          attempts: number
+          buyer_id: number | null
+          created_at: string
+          id: string
+          item_id: string | null
+          item_permalink: string | null
+          item_thumbnail: string | null
+          item_title: string | null
+          last_error: string | null
+          locked_until: string | null
+          ml_account_id: string
+          ml_question_id: number
+          next_attempt_at: string
+          organization_id: string
+          question_created_at: string | null
+          question_text: string
+          review_reason: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          ai_confidence?: number | null
+          ai_draft?: string | null
+          ai_model?: string | null
+          ai_reason?: string | null
+          ai_tokens?: number | null
+          answer_source?: string | null
+          answer_text?: string | null
+          answered_at?: string | null
+          answered_by?: string | null
+          attempts?: number
+          buyer_id?: number | null
+          created_at?: string
+          id?: string
+          item_id?: string | null
+          item_permalink?: string | null
+          item_thumbnail?: string | null
+          item_title?: string | null
+          last_error?: string | null
+          locked_until?: string | null
+          ml_account_id: string
+          ml_question_id: number
+          next_attempt_at?: string
+          organization_id: string
+          question_created_at?: string | null
+          question_text?: string
+          review_reason?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          ai_confidence?: number | null
+          ai_draft?: string | null
+          ai_model?: string | null
+          ai_reason?: string | null
+          ai_tokens?: number | null
+          answer_source?: string | null
+          answer_text?: string | null
+          answered_at?: string | null
+          answered_by?: string | null
+          attempts?: number
+          buyer_id?: number | null
+          created_at?: string
+          id?: string
+          item_id?: string | null
+          item_permalink?: string | null
+          item_thumbnail?: string | null
+          item_title?: string | null
+          last_error?: string | null
+          locked_until?: string | null
+          ml_account_id?: string
+          ml_question_id?: number
+          next_attempt_at?: string
+          organization_id?: string
+          question_created_at?: string | null
+          question_text?: string
+          review_reason?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ml_questions_ml_account_id_fkey"
+            columns: ["ml_account_id"]
+            isOneToOne: false
+            referencedRelation: "ml_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ml_questions_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       organization_members: {
         Row: {
@@ -358,7 +587,62 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      claim_ml_question: {
+        Args: { p_id: string; p_lock_seconds?: number }
+        Returns: {
+          ai_confidence: number | null
+          ai_draft: string | null
+          ai_model: string | null
+          ai_reason: string | null
+          ai_tokens: number | null
+          answer_source: string | null
+          answer_text: string | null
+          answered_at: string | null
+          answered_by: string | null
+          attempts: number
+          buyer_id: number | null
+          created_at: string
+          id: string
+          item_id: string | null
+          item_permalink: string | null
+          item_thumbnail: string | null
+          item_title: string | null
+          last_error: string | null
+          locked_until: string | null
+          ml_account_id: string
+          ml_question_id: number
+          next_attempt_at: string
+          organization_id: string
+          question_created_at: string | null
+          question_text: string
+          review_reason: string | null
+          status: string
+          updated_at: string
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "ml_questions"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
+      due_ml_questions: { Args: { p_limit?: number }; Returns: string[] }
       is_org_member: { Args: { p_organization_id: string }; Returns: boolean }
+      question_stats: {
+        Args: {
+          p_ml_account_id?: string
+          p_organization_id: string
+          p_since: string
+        }
+        Returns: {
+          answered_ai: number
+          answered_manual: number
+          answered_outside: number
+          avg_ai_seconds: number
+          awaiting_review: number
+          total: number
+        }[]
+      }
     }
     Enums: {
       [_ in never]: never

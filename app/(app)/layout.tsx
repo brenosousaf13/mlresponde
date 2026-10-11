@@ -8,6 +8,7 @@ import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
 import { decideSectionAccess } from "@/lib/access/access"
 import { requireOnboardedContext } from "@/lib/dal/app-context"
 import { LOCK_REASONS, NAV_ITEMS } from "@/lib/navigation"
+import { createClient } from "@/lib/supabase/server"
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const context = await requireOnboardedContext()
@@ -15,12 +16,20 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const defaultOpen = cookieStore.get("sidebar_state")?.value !== "false"
   const hasActiveMlAccount = context.mlAccounts.active > 0
 
+  const supabase = await createClient()
+  const { count: reviewCount } = await supabase
+    .from("ml_questions")
+    .select("id", { count: "exact", head: true })
+    .eq("organization_id", context.organization.id)
+    .in("status", ["needs_review", "failed"])
+
   const items: SidebarNavItem[] = NAV_ITEMS.map((item) => {
     const decision = decideSectionAccess(item.section, {
       access: context.access.state,
       hasActiveMlAccount,
     })
-    return decision.allowed ? item : { ...item, lockedReason: LOCK_REASONS[decision.reason] }
+    if (!decision.allowed) return { ...item, lockedReason: LOCK_REASONS[decision.reason] }
+    return item.section === "perguntas" ? { ...item, badge: reviewCount ?? 0 } : item
   })
 
   return (

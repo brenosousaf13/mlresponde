@@ -73,5 +73,12 @@ describe("decideSectionAccess", () => {
   it("com conta ML e teste ativo libera tudo", () => {
     const ctx = { access: "trial" as const, hasActiveMlAccount: true }
     expect(decideSectionAccess("painel", ctx).allowed).toBe(true)
+    expect(decideSectionAccess("perguntas", ctx).allowed).toBe(true)
+    expect(decideSectionAccess("respostas", ctx).allowed).toBe(true)
+  })
+
+  it("perguntas e respostas exigem conta ML e assinatura em dia", () => {
+    expect(decideSectionAccess("perguntas", { access: "trial", hasActiveMlAccount: false }).allowed).toBe(false)
+    expect(decideSectionAccess("respostas", { access: "blocked", hasActiveMlAccount: true }).allowed).toBe(false)
   })
 })

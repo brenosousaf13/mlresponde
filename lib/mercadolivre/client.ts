@@ -1,38 +1,30 @@
-import { getValidToken } from './auth'
+import "server-only"
 
-/**
- * Função utilitária para fazer chamadas autenticadas na API do Mercado Livre.
- * Ele gerencia o token automaticamente usando o seller_id.
- */
-export async function mlFetch(sellerId: string, endpoint: string, options: RequestInit = {}) {
-  // Pega um token válido (renova se estiver expirado)
-  const token = await getValidToken(sellerId)
+import { MlAccountUnavailableError, getValidAccessToken, markTokenInvalid } from "@/lib/mercadolivre/accounts"
+import { ML_API_URL, MlApiError } from "@/lib/mercadolivre/api"
 
-  // Assegura que passaremos no cabeçalho
-  const headers = new Headers(options.headers || {})
-  headers.set('Authorization', `Bearer ${token}`)
-  headers.set('Content-Type', headers.get('Content-Type') || 'application/json')
-  headers.set('Accept', 'application/json')
+export async function mlRequest<T>(accountId: string, path: string, init: RequestInit = {}): Promise<T> {
+  const accessToken = await getValidAccessToken(accountId)
+  const headers = new Headers(init.headers)
+  headers.set("authorization", `Bearer ${accessToken}`)
+  headers.set("accept", "application/json")
+  if (init.body) headers.set("content-type", "application/json")
 
-  // Chama a API do Mercado Livre
-  const url = endpoint.startsWith('http') ? endpoint : `https://api.mercadolibre.com${endpoint}`
-  
-  const response = await fetch(url, {
-    ...options,
-    headers,
-  })
+  const response = await fetch(`${ML_API_URL}${path}`, { ...init, headers, cache: "no-store" })
 
-  // Tratamento de erro padronizado para as respostas da API deles
-  if (!response.ok) {
-    let errorMessage = `Erro na API do ML (${response.status})`
-    try {
-      const errorData = await response.json()
-      errorMessage = `Erro ML: ${errorData.message || JSON.stringify(errorData)}`
-    } catch {
-      // Ignora erro de parsing
-    }
-    throw new Error(errorMessage)
+  if (response.status === 401) {
+    await markTokenInvalid(accountId, "O Mercado Livre recusou o token (HTTP 401).")
+    throw new MlAccountUnavailableError("A autorização do Mercado Livre expirou. Reconecte a conta.")
   }
 
-  return response.json()
+  const data = (await response.json().catch(() => null)) as (Record<string, unknown> & T) | null
+  if (!response.ok) {
+    const message =
+      (typeof data?.message === "string" && data.message) ||
+      (typeof data?.error === "string" && data.error) ||
+      `HTTP ${response.status}`
+    const code = typeof data?.error === "string" ? data.error : undefined
+    throw new MlApiError(`Mercado Livre: ${message}`, response.status, code)
+  }
+  return data as T
 }
