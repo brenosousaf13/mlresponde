@@ -713,7 +713,9 @@ webhook do ML validado, fila/reprocessamento de jobs, observabilidade, controle 
   configuração completa (19 passos, salvamento e retomada), edição de item, prévia do prompt, estilo, ensinadas,
   bloqueados, ligar IA, Testar com IA real.
 - Para os testes com IA real a chave `OPENAI_API_KEY` foi lida pela API da Vercel (só em memória e num arquivo temporário
-  apagado em seguida). Usuário/organização de QA criados no Supabase de testes e apagados no fim.
+  apagado em seguida). Usuário/organização de QA criados no Supabase de testes e apagados no fim. Staging conferida após o
+  deploy (/respostas → /assistente, Testar com IA real). Contas que já estavam com a IA ligada antes da configuração
+  (ex.: Loja Demonstração) abrem a configuração guiada e podem pausar, mas só religam depois de concluí-la.
 
 ### 2026-10-11 — Sessão 4b · Login de administrador (IA: Claude, via app Codex)
 - Pedido do Breno: login de admin com tudo liberado para ver as telas (e para o futuro painel admin).
