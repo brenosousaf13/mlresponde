@@ -10,6 +10,7 @@ const PUBLIC_PREFIXES = [
   "/termos",
   "/privacidade",
   "/api/webhook",
+  "/api/cron",
 ]
 
 const GUEST_ONLY_PREFIXES = ["/login", "/cadastro", "/verificar-email", "/recuperar-senha"]
