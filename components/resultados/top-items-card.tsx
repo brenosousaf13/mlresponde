@@ -11,9 +11,7 @@ import { formatNumber } from "@/lib/results/format"
 import { share, type ItemRow } from "@/lib/results/metrics"
 
 function questionsHref(item: ItemRow) {
-  const params = new URLSearchParams({ aba: "todas" })
-  if (item.title) params.set("busca", item.title.slice(0, 60))
-  return `/perguntas?${params.toString()}`
+  return `/perguntas?${new URLSearchParams({ aba: "todas", anuncio: item.itemId }).toString()}`
 }
 
 /** Anúncios que mais recebem perguntas, com quanto a IA resolveu em cada um. */

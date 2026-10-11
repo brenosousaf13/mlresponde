@@ -1,6 +1,7 @@
 import {
   ArrowRightIcon,
   BotIcon,
+  ChartColumnIncreasingIcon,
   CheckCircle2Icon,
   CircleIcon,
   InboxIcon,
@@ -83,6 +84,12 @@ export default async function DashboardPage() {
       <PageHeader
         title={firstName ? `Olá, ${firstName}` : "Olá"}
         description={`Aqui está o resumo da ${organization.name}.`}
+        actions={
+          <Link href="/resultados" className={cn(buttonVariants({ variant: "outline", size: "sm" }), "bg-card")}>
+            <ChartColumnIncreasingIcon data-icon="inline-start" />
+            Ver resultados da IA
+          </Link>
+        }
       />
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {metrics.map((metric) => (

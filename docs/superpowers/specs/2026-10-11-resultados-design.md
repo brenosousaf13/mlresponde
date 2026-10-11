@@ -27,7 +27,7 @@
 5. **Quando os compradores perguntam**: mapa de calor dia da semana × hora, com a faixa do horário comercial; % fora do
    horário, noites de dias úteis e fins de semana; horário de pico.
 6. **Anúncios com mais perguntas** (top 8): perguntas, % do total, % resolvidas pela IA, aguardando, link para as
-   perguntas do anúncio (`/perguntas?aba=todas&busca=<título>`) e para o anúncio no ML.
+   perguntas do anúncio (`/perguntas?aba=todas&anuncio=<código>`) e para o anúncio no ML.
 7. **O que os compradores mais perguntam**: assuntos identificados por palavras-chave (frete/prazo, retirada, nota
    fiscal, garantia/troca, preço/pagamento, medidas, compatibilidade, cores/estoque, especificações, outros), com
    exemplo real e dica do que colocar no anúncio. Usa as até 1.000 perguntas mais recentes do período.

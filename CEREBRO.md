@@ -4,7 +4,7 @@
 > inteiro antes de trabalhar e atualizá-lo ao terminar. Se algo aqui divergir do código, o código vence —
 > e este arquivo deve ser corrigido na mesma sessão.
 
-Última atualização: **2026-10-11** (Sessão 6 — menu lateral, Perguntas em escala e Painel com resumo das perguntas, branch `v2`)
+Última atualização: **2026-10-11** (Sessão 7 — tela Resultados: analytics com economia, velocidade e anúncios, branch `v2`)
 
 ---
 
@@ -57,6 +57,10 @@ novas funcionalidades, segurança multi-tenant de verdade — **desenvolvido em 
   computador), espaço entre os itens do menu, Perguntas preparada para milhares de perguntas (colunas com rolagem própria,
   50 por página, filtro por anúncio, ordem, grupos por dia, RLS e índices otimizados) e Painel com "Esperando você",
   "Últimas perguntas" e "Anúncios mais perguntados". Testado com 1.500 perguntas de QA (apagadas depois).
+  **Sessão 7 (2026-10-11): menu Resultados** (`/resultados`) — analytics para o cliente ver o valor da IA: economia
+  estimada em R$ e horas (premissas ajustáveis), projeção anual, tempo de resposta IA × você, espera evitada fora do
+  horário comercial, perguntas por dia, mapa de horários, anúncios com mais perguntas, assuntos mais perguntados e onde a
+  IA pode melhorar. Spec: `docs/superpowers/specs/2026-10-11-resultados-design.md`.
   Falta testar com conta ML real (depende do Breno).
 - **Marca da v2:** logo `MeliLogo.png` = **"MeLi Responde"** (assumido pela IA; confirmar com o Breno). Nome centralizado em
   `lib/config/site.ts`. A v1 em produção usa "Meli Fácil".
@@ -133,7 +137,8 @@ app/
   (app)/                          # área logada: sidebar shadcn (collapsible="icon"), header, barras de aviso, tour
     layout.tsx                    # requireOnboardedContext + menu com cadeados (decideSectionAccess)
     actions.ts                    # completeTour
-    painel/ perguntas/ assistente/ contas/ assinatura/ configuracoes/   # cada page chama requireSection(...)
+    painel/ perguntas/ resultados/ assistente/ contas/ assinatura/ configuracoes/   # cada page chama requireSection(...)
+    resultados/actions.ts         # updateAssumptions (premissas da economia; só dono/admin)
     perguntas/actions.ts          # answerQuestion (+ensinar), generateSuggestion, ignoreQuestion, restoreQuestion,
                                   # retryWithAi, syncQuestions
     assistente/actions.ts         # setAutoReply, saveSetupStep, saveProfileAnswer, copySetupFrom, updateStyle,
@@ -152,6 +157,9 @@ components/
                                   # inbox-row-link, question-detail, answer-composer, question-menu,
                                   # question-search (next/form), live-refresh, sync-button
   painel/question-cards.tsx       # cards do Painel: Esperando você, Últimas perguntas, Anúncios mais perguntados
+  resultados/                     # impact-hero (economia), kpi-cards, daily-chart / speed-chart (shadcn chart = Recharts),
+                                  # hours-heatmap (grade dia × hora), top-items-card, topics-card, improve-card,
+                                  # assumptions-dialog, period-toggle
   assistente/                     # setup-wizard, question-input, style-fields/style-form, knowledge-view,
                                   # edit-answer-dialog, extra-info-form, prompt-preview-dialog, examples-manager,
                                   # blacklist-manager, test-panel, assistant-status, how-it-works
@@ -182,14 +190,19 @@ lib/
   answers/engine.ts             # processQuestion, processDueQuestions, reconcileQuestion, suggestAnswer, sendManualAnswer
   answers/ingest.ts             # registerQuestion, syncUnansweredQuestions
   dal/dashboard.ts              # números do painel (question_stats) + listas Esperando você / Últimas / Anúncios
+  dal/results.ts                # Resultados: rpc analytics_overview + amostra de textos (assuntos) + premissas
+  results/metrics.ts            # Resultados (puro, testado): período, economia, fator de velocidade, horário comercial e
+                                # espera evitada, série diária, distribuição de velocidade, assuntos por palavra-chave
+  results/format.ts             # R$, horas, dias de trabalho, variação
   supabase/server.ts              # createClient (sessão) + createAdminClient (legado v1, sem tipos)
   supabase/admin.ts               # createServiceClient (service role, tipado) + createStatelessAuthClient
   supabase/database.types.ts      # gerado: npx supabase gen types typescript --linked --schema public
   http/site-url.ts                # NEXT_PUBLIC_SITE_URL → URLs de retorno dos e-mails
 supabase/
-  config.toml, migrations/        # baseline_v1 (espelho de prod) + fundacao_v2 + respostas_v2
-  tests/fundacao_rls.sql, respostas_rls.sql   # testes de RLS (sucesso = erro "TESTES_RLS_OK"/"TESTES_RESPOSTAS_OK")
-tests/unit/                       # vitest: crypto, pkce, access, forms, answers
+  config.toml, migrations/        # baseline_v1 (espelho de prod) + fundacao_v2 + respostas_v2 + assistente_ia +
+                                  # perguntas_escala + resultados
+  tests/fundacao_rls.sql, respostas_rls.sql, resultados_rls.sql   # testes de RLS (sucesso = erro "TESTES_..._OK")
+tests/unit/                       # vitest: crypto, pkce, access, forms, answers, assistant, inbox, results
 tests/integration/ai-live.test.ts # 7 cenários com a IA real; só roda com RUN_LIVE_AI=1 + OPENAI_API_KEY
 vercel.json                       # cron /api/cron/questions a cada minuto (efeito só em produção)
 docs/                             # specs (superpowers/specs), db (inventário/snapshot de prod), v2 (referências)
@@ -283,6 +296,11 @@ localmente, definir no terminal).
   Índices `(organization_id, question_created_at desc nulls first, created_at desc)` (ordem da caixa de entrada) e
   `(organization_id, item_id)` (filtro por anúncio). Realtime e testes de RLS conferidos depois da mudança.
   (Os tipos em `database.types.ts` não mudaram: a função nova não é chamada pelo TypeScript.)
+- **Migração `20261011230000_resultados.sql` (aditiva):** `organizations.analytics_minutes_per_answer` (padrão 3, 0,5–60) e
+  `analytics_hourly_cost` (padrão 20, 1–10.000) = premissas da economia (só o servidor grava). Função
+  `analytics_overview(org, from, to, conta?)` → JSON com totais do período e do período anterior, série diária, faixas de
+  tempo de resposta, mapa dia × hora, top 8 anúncios, causas (IA sem rascunho / com rascunho / sem análise) e total
+  histórico da IA. `security invoker` (RLS), `execute` só para `authenticated`. Testada em `supabase/tests/resultados_rls.sql`.
 
 ### 6.2 v1 — produção (✅ CONFIRMADO em 2026-10-11)
 
@@ -372,7 +390,11 @@ Extensões: pgcrypto, uuid-ossp, pg_stat_statements, pg_graphql, supabase_vault 
    **Painel:** números da semana + Esperando você (5, com atalho para responder) + Últimas perguntas (6) + Anúncios mais
    perguntados (7 dias, amostra das 1.000 mais recentes) + Assinatura; "Primeiros passos" some quando tudo estiver feito. E
    **Assistente de IA** (configuração guiada na 1ª vez; depois abas Sobre a loja, Jeito de responder, Respostas ensinadas,
-   Anúncios bloqueados, Testar; ligar/pausar discreto no cabeçalho).
+   Anúncios bloqueados, Testar; ligar/pausar discreto no cabeçalho). **Resultados** (Sessão 7): `?periodo=7|30|90`
+   (padrão 30, a partir da meia-noite de Brasília) e `?conta=`; economia = respostas da IA × minutos ÷ 60 × custo da hora;
+   tempo de resposta = mediana de `answered_at − question_created_at`, ignorando perguntas importadas ao conectar (mais de
+   15 min entre a pergunta e o registro); horário comercial fixo seg–sex 8h–18h; assuntos por palavra-chave nas até 1.000
+   perguntas mais recentes do período. O Painel tem o botão "Ver resultados da IA".
 7. Prompt: system = travas (Regra 0 da v1 etc.) + regras do vendedor + `<CONHECIMENTO_DA_LOJA>` (compilado do
    `store_profile` + `store_briefing`) + até 12 respostas ensinadas ranqueadas por semelhança; user = anúncio + perguntas
    já respondidas no anúncio (`[MESMO COMPRADOR]` marcado) + pergunta. Quando não sabe, escala com rascunho.
@@ -542,7 +564,10 @@ Legenda: 🔴 P0 crítico · 🟠 P1 importante · 🟡 P2 melhoria. Marcar ✅ 
 - **Admin de testes (2026-10-11):** login do Breno `brenosousaf13@gmail.com` (senha só com o Breno — nunca registrar aqui)
   com `is_platform_admin`, organização **"Loja Demonstração"** (`billing_exempt`, `plan='admin'`, até 10 contas ML) e
   conta ML **fictícia** `LOJA_DEMONSTRACAO` (`ml_user_id 999000000001`, sem tokens) + 12 perguntas, 2 respostas ensinadas
-  e 1 anúncio bloqueado de exemplo (ids `MLB99900000xx`, `ml_question_id 9991000000xx`). Serve para ver as telas; ações
+  e 1 anúncio bloqueado de exemplo (ids `MLB99900000xx`, `ml_question_id 9991000000xx`). **Sessão 7:** + 386 perguntas de
+  histórico (90 dias, todas já respondidas ou arquivadas, `ml_question_id` 9994000000000–9994000000385, anúncios
+  `MLB9990000001`–`08`) para a tela Resultados ter números; apagar só elas:
+  `delete from ml_questions where ml_question_id between 9994000000000 and 9994000000385`. Serve para ver as telas; ações
   que falam com o ML falham nessa conta ("sem tokens"). Para apagar a demonstração: excluir a conta ML fictícia (as
   perguntas/exemplos/bloqueios saem em cascata). A conta "Noord Shop" (Gmail, criada pelo Breno) também é dele.
 - Token da CLI fica no Gerenciador de Credenciais do Windows (`Supabase CLI:supabase`); a IA o usa para a Management API
@@ -722,10 +747,30 @@ webhook do ML validado, fila/reprocessamento de jobs, observabilidade, controle 
 | 2026-10-11 | Caixa de entrada com altura da tela e rolagem por coluna, 50 por página, paginação por número (offset) | Padrão de e-mail/atendimento; aguenta milhares de perguntas sem a página crescer. Offset é suficiente para dezenas de milhares; cursor só se passar disso. |
 | 2026-10-11 | RLS de `ml_questions` no formato `organization_id in (select ...)` | Recomendação do Supabase: evita uma subconsulta por linha nas contagens e listas grandes. Mesma regra de acesso. |
 | 2026-10-11 | Painel focado em ação: o que espera o vendedor e o que chegou por último | Pedido do Breno (resumo das últimas perguntas com acesso rápido). Cada linha abre a pergunta direto na caixa de entrada. |
+| 2026-10-11 | Menu **Resultados** (não "Analytics") com o valor da IA em destaque: economia em R$, horas, projeção anual | Pedido do Breno: o cliente precisa ver que a IA resolve e quanto economiza. Nome em português claro, sem jargão. |
+| 2026-10-11 | Economia = tempo poupado (respostas da IA × 3 min × R$ 20/h), premissas editáveis por organização | Número honesto e explicável; cada loja ajusta à própria realidade. Vendas geradas ficam para quando houver dados de pedidos. |
+| 2026-10-11 | Números de Resultados numa única função SQL (`analytics_overview`, security invoker) | Uma ida ao banco, agregação no Postgres (escala) e o RLS continua valendo. Lógica de apresentação pura em `lib/results`, testada. |
+| 2026-10-11 | Tempo de resposta pela **mediana** e sem as perguntas importadas ao conectar a conta | Média distorce com poucas respostas lentas; as importadas não refletem a velocidade da IA. |
+| 2026-10-11 | Gráficos com o `chart` do shadcn (Recharts); mapa de calor como grade simples | Regra de UI = shadcn; o shadcn não tem heatmap. |
 
 ---
 
 ## 12. Diário de sessões (mais recente no topo)
+
+### 2026-10-11 — Sessão 7 · Tela Resultados (analytics do vendedor) (IA: Claude, via app Codex)
+- Pedido do Breno: faltava no menu uma opção de analytics para o cliente ver que a IA resolve — quanto respondeu mais
+  rápido, quanto economizou (números financeiros), produtos com mais perguntas etc., com os componentes do shadcn.
+- Feito numa worktree separada (`codex/resultados`) enquanto a Sessão 6 rodava em paralelo; rebase sem conflitos.
+- Novo: menu Resultados, `app/(app)/resultados`, `components/resultados/*`, `lib/results/*`, `lib/dal/results.ts`,
+  shadcn `chart` (dependência `recharts`), seção de acesso `resultados`, botão "Ver resultados da IA" no Painel, link
+  "ver perguntas do anúncio" usando o filtro `?anuncio=` da Sessão 6. Spec `2026-10-11-resultados-design.md`.
+- Migração `20261011230000_resultados.sql` aplicada no Supabase de **testes** (antes, durante o desenvolvimento, a mesma
+  SQL idempotente foi aplicada direto para o QA local; depois registrada com `db push`). Tipos regenerados.
+- QA: loja temporária com 613 perguntas em 95 dias (IA ligada no meio do período, perguntas importadas, noites e fins de
+  semana) — desktop 1440 e celular 390: períodos 7/30/90, diálogo "Ajustar cálculo" (validação e salvar), gráficos, mapa,
+  tabela → perguntas do anúncio, Painel → Resultados. Dados de QA apagados. "Loja Demonstração" ganhou histórico (ver §9).
+- Verificação: typecheck, 148 testes (33 novos em `tests/unit/results.test.ts` e 1 em `access.test.ts`), lint 0, build ok; RLS `fundacao`,
+  `respostas` e `resultados` ok.
 
 ### 2026-10-11 — Sessão 6 · Menu lateral, Perguntas em escala e resumo no Painel (IA: Claude, via app Codex)
 - Pedido do Breno (com prints): botão de recolher o menu na própria barra; itens do menu colados no hover; a tela de
@@ -847,8 +892,9 @@ webhook do ML validado, fila/reprocessamento de jobs, observabilidade, controle 
 ## 13. Próximos passos
 
 1. ✅ Infra de staging, inventário de prod, baseline, **Fundação** (sub-projeto 1) e **Respostas v2** (sub-projeto 2).
-2. **Breno: conferir na staging** o menu recolhendo pela barra, a caixa de entrada (filtro por anúncio, ordem, páginas) e o
-   novo Painel. Se quiser ver a tela com volume, dá para popular a "Loja Demonstração" com perguntas de exemplo (pedir).
+2. **Breno: conferir na staging** o menu recolhendo pela barra, a caixa de entrada (filtro por anúncio, ordem, páginas), o
+   novo Painel e a tela **Resultados** (a "Loja Demonstração" já tem 90 dias de histórico). Dizer se as premissas padrão
+   da economia (3 min por resposta, R$ 20/h) fazem sentido para os clientes dele.
 3. **Breno: experimentar o Assistente de IA na staging** (`/assistente`): responder a configuração guiada com dados de uma
    loja real, usar a aba Testar e dizer se falta alguma pergunta/opção no roteiro (`lib/assistant/questions.ts`).
 4. **Breno: teste real na staging** (`https://mlresponde-v2.vercel.app`, a conta "Noord Shop" já existe): conectar uma conta
@@ -868,6 +914,9 @@ webhook do ML validado, fila/reprocessamento de jobs, observabilidade, controle 
     dos produtos"), importar o histórico de respostas do ML como respostas ensinadas, avaliação das respostas da IA.
     Caixa de entrada: ações em lote (arquivar / "IA tenta de novo" em várias), atalhos de teclado (j/k), busca com índice
     trigram (`pg_trgm`) se alguma loja passar de ~100 mil perguntas.
+    Resultados: **vendas após a resposta** (tópico `orders_v2` + `buyer_id` já gravado: quem perguntou e comprou depois,
+    em R$) — é o número financeiro mais forte que falta; relatório mensal por e-mail/WhatsApp; horário comercial vindo do
+    Assistente; assuntos classificados pela IA.
 
 ---
 

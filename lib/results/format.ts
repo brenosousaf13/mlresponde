@@ -3,9 +3,7 @@
 const integer = new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 0 })
 const oneDecimal = new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 1 })
 
-export function formatNumber(value: number) {
-  return integer.format(Math.round(value))
-}
+export { formatNumber } from "@/lib/format"
 
 /** R$ sem centavos a partir de R$ 100 (número de resumo, não de fatura). */
 export function formatCurrency(value: number) {

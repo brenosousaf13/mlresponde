@@ -656,6 +656,7 @@ export type Database = {
           isSetofReturn: true
         }
       }
+      current_user_organization_ids: { Args: never; Returns: string[] }
       due_ml_questions: { Args: { p_limit?: number }; Returns: string[] }
       is_org_member: { Args: { p_organization_id: string }; Returns: boolean }
       question_stats: {
