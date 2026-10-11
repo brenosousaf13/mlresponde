@@ -4,7 +4,7 @@
 > inteiro antes de trabalhar e atualizá-lo ao terminar. Se algo aqui divergir do código, o código vence —
 > e este arquivo deve ser corrigido na mesma sessão.
 
-Última atualização: **2026-10-11** (Sessão 2 — ambientes, Supabase de testes, app ML de teste e staging na Vercel)
+Última atualização: **2026-10-11** (Sessão 3 — Fundação da v2 implementada na branch `v2`)
 
 ---
 
@@ -41,9 +41,13 @@ novas funcionalidades, segurança multi-tenant de verdade — **desenvolvido em 
 **Estado atual (2026-10-11):**
 - v1 **em produção** na Vercel (deploy automático da branch `main`) usando Supabase de produção.
 - Último commit da v1: `ad72bff` (2026-06-08).
-- v2: branch **`v2`** criada e publicada (só documentação até agora; código do app idêntico à `main`).
-  Staging no ar em `https://mlresponde-v2.vercel.app` apontando para o **Supabase de testes** e o **app ML de teste**
-  (§9). Banco de testes ainda **vazio** (falta a baseline do schema de prod). Escopo da v2 a definir (§10).
+- v2 (branch **`v2`**, staging `https://mlresponde-v2.vercel.app` → Supabase de testes + app ML de teste):
+  **sub-projeto 1 (Fundação) implementado** em 2026-10-11 — cadastro/login/recuperação de senha, onboarding, teste de
+  7 dias com bloqueios no servidor, multi-contas ML com OAuth state+PKCE e tokens criptografados, schema multi-tenant
+  com RLS, UI shadcn/ui. Spec: `docs/superpowers/specs/2026-10-11-fundacao-design.md`. O motor de respostas ainda é
+  o da v1 (sub-projeto 2 é o próximo). Detalhes em §3, §4, §6 e §10.
+- **Marca da v2:** logo `MeliLogo.png` = **"MeLi Responde"** (assumido pela IA; confirmar com o Breno). Nome centralizado em
+  `lib/config/site.ts`. A v1 em produção usa "Meli Fácil".
 - P0 de segurança/toggle (§8) **adiados** por decisão do Breno — revisitar antes de abrir para novos clientes.
 
 ---
@@ -51,7 +55,9 @@ novas funcionalidades, segurança multi-tenant de verdade — **desenvolvido em 
 ## 2. Regras de ouro (produção está no ar!)
 
 1. **`main` = produção.** Qualquer push/merge na `main` faz deploy automático para os clientes.
-   Não fazer push/merge na `main` sem aprovação explícita do Breno. Commits e branches só quando o Breno pedir.
+   Não fazer push/merge na `main` sem aprovação explícita do Breno.
+   **Na branch `v2` a IA tem autonomia (decisão do Breno, 2026-10-11):** não precisa apresentar plano de
+   implementação; decide o melhor caminho, implementa, testa, faz commit e push na `v2` (deploy só na staging).
 2. **Banco de produção é sagrado.** Nada de `DROP`, `RENAME`, troca de tipo, `NOT NULL` sem default, ou
    apagar dados direto em prod. Migrações versionadas e **aditivas/retrocompatíveis** (padrão expand → migrate → contract),
    para que a v1 continue funcionando até o cutover.
@@ -67,73 +73,83 @@ novas funcionalidades, segurança multi-tenant de verdade — **desenvolvido em 
 6. **Acesso das IAs ao Supabase:** a CLI fica logada na conta de **testes**. O Supabase de **produção** é acessado
    apenas para leitura/entendimento — nada de `db push`, `migration repair` ou SQL de escrita em prod fora do cutover
    aprovado pelo Breno.
-7. **Vercel:** a CLI está logada na conta do Breno, que tem **vários outros projetos** (outros negócios). Só mexer no
+7. **UI:** toda interface segue o **shadcn/ui** (https://ui.shadcn.com/docs/components) — componentes, blocks
+   (login, sidebar etc.) e padrões visuais. Adicionar componentes com `npx shadcn@latest add <nome>`; não criar
+   componentes "na mão" quando existir equivalente no shadcn.
+8. **Vercel:** a CLI está logada na conta do Breno, que tem **vários outros projetos** (outros negócios). Só mexer no
    projeto `mlresponde`, e nele **nunca** alterar variáveis/configurações de Production sem aprovação explícita.
    Variáveis da v2 sempre com escopo **Preview + branch `v2`**.
 
 ---
 
-## 3. Stack (v1)
+## 3. Stack
 
-| Camada | Tecnologia | Observações |
+| Camada | v2 (branch `v2`) | v1 (produção, `main`) |
 |---|---|---|
-| Framework | **Next.js 16.2.3** (App Router) | Breaking changes vs. versões antigas: `middleware.ts` virou **`proxy.ts`**; `after()` é nativo de `next/server`. Docs locais em `node_modules/next/dist/docs/`. |
-| UI | React 19.2.4 + Tailwind CSS v4 | Sem biblioteca de componentes; HTML + Tailwind puro, SVGs inline. Suporta dark mode. |
-| Linguagem | TypeScript 5 (`strict`) | Alias `@/*` → raiz. |
-| Auth | Supabase Auth (e-mail/senha) | Usuários criados **manualmente** no painel do Supabase (não há cadastro/recuperação de senha). |
-| Banco | Supabase Postgres + Realtime | Cliente `@supabase/ssr` 0.10 / `supabase-js` 2.103. Server usa **service role** + filtros manuais por `user_id`. |
-| IA | OpenAI SDK v4, modelo **`gpt-4o-mini`** | Migrado de Claude a pedido do cliente (2026-04-14). `temperature 0.3`, `max_tokens 400`. |
-| Hospedagem | Vercel | `maxDuration = 60` no webhook. Plano da Vercel: **desconhecido** (confirmar). |
-| Integração | API do Mercado Livre (OAuth2 + webhooks `questions`) | Domínio de auth `auth.mercadolivre.com.br` (MLB). |
+| Framework | **Next.js 16.2.3** (App Router, Turbopack). `middleware` virou **`proxy.ts`**; `after()` nativo; `params`/`searchParams`/`cookies()` são assíncronos; tipos `PageProps<"/rota">` via `next typegen`. Docs locais em `node_modules/next/dist/docs/` (ler antes de codar). | igual |
+| UI | React 19.2 + Tailwind v4 + **shadcn/ui** (preset `base-nova`, primitivos **Base UI** `@base-ui/react`, `cn` do pacote `cn`, ícones `lucide-react`, toasts `sonner`). Componentes em `components/ui/`. Componentes Base UI usam a prop **`render`** (não `asChild`); para links com cara de botão usar `buttonVariants`. | HTML + Tailwind puro |
+| Formulários | Server Actions + `useActionState` + **zod 3** (validação no servidor) + componentes `Field` do shadcn | server actions simples |
+| Auth | Supabase Auth: cadastro com confirmação de e-mail, login, recuperação de senha, onboarding | usuários criados à mão |
+| Banco | Supabase Postgres, migrações em `supabase/migrations/`, tipos gerados em `lib/supabase/database.types.ts` | painel, sem migrações |
+| Segurança | RLS só-leitura para o navegador; escritas via service role no servidor (DAL `server-only`); tokens ML AES-256-GCM | RLS fraca |
+| Testes | **Vitest** (`tests/unit`), testes de RLS em SQL (`supabase/tests`) | nenhum |
+| IA | (sub-projeto 2) — hoje o motor da v1: OpenAI `gpt-4o-mini` | OpenAI `gpt-4o-mini` |
+| Hospedagem | Vercel (Preview da branch `v2`) | Vercel Production |
 
-Ambiente local verificado: Node v24.18.0, npm 11.16.0, Windows + PowerShell 7.
-
-Dependências sobrando: `@anthropic-ai/sdk` (não usada), `jimp` e `dotenv` (só scripts soltos).
+Ambiente local verificado: Node v24.18.0, npm 11.16.0, Windows + PowerShell 7. `@types/node` 24.
+Removidos na v2: `@anthropic-ai/sdk`, `jimp`, `dotenv` e os scripts soltos da raiz.
 
 ---
 
-## 4. Mapa do código
+## 4. Mapa do código (branch `v2`)
+
+> A estrutura da v1 continua na branch `main` (produção). Na `v2`, as telas da v1 foram removidas; o motor de
+> respostas da v1 (`lib/ai`, `lib/mercadolivre/{auth,client,questions,workflow}.ts`, webhook) segue intacto até o
+> sub-projeto 2 e ainda usa as tabelas antigas (`question_jobs`, `ml_credentials` etc.).
 
 ```
-proxy.ts                         # "middleware" do Next 16: renova sessão Supabase e protege rotas
-                                 # (públicas: /login e /api/webhook*)
+proxy.ts                          # renova a sessão (getClaims) e redireciona: sem login → /login?next=; logado em
+                                  # /login|/cadastro|... → /painel. NÃO é a camada de segurança (cada página/ação revalida)
 app/
-  layout.tsx                     # layout raiz (metadata ainda "Create Next App", lang="en")
-  globals.css                    # Tailwind v4
-  login/page.tsx, actions.ts     # login e-mail/senha + logout (server actions)
-  (dashboard)/
-    layout.tsx                   # header Meli Fácil + nav (Visão Geral / Treinamento / Configurações)
-    page.tsx                     # carrega 20 últimos question_jobs dos seller_ids do usuário
-    live-questions.tsx           # client: lista + Supabase Realtime (filtro seller_id=in.(...))
-    settings/
-      page.tsx                   # conexão ML, toggle automação, base de conhecimento
-      actions.ts                 # saveKnowledgeBase, toggleAutoReply, generateKnowledgeFromHistory (IA)
-      auto-reply-toggle.tsx      # switch otimista do auto_reply_enabled
-      knowledge-form.tsx         # textarea + botão "Extrair Regras da IA Magicamente"
-    training/
-      page.tsx                   # lista paginada (10/pág) de training_examples
-      actions.ts                 # syncHistoricalQuestions: puxa 200 perguntas respondidas do ML
-      sync-button.tsx
-  api/
-    auth/connect-ml/route.ts     # redireciona para OAuth do ML
-    auth/callback/mercadolivre/route.ts  # troca code→token, upsert ml_credentials, loga em connection_logs
-    webhook/mercadolivre/route.ts        # recebe notificação, cria job, roda workflow via after()
-    process/route.ts             # ⚠️ LEGADO, ninguém chama (ver §8)
+  layout.tsx                      # pt-BR, Geist, TooltipProvider, Toaster (sonner), metadata da marca
+  page.tsx                        # / → /painel
+  icon.png                        # favicon (balão da logo)
+  (auth)/                         # telas públicas no estilo shadcn login-03 (fundo muted + card)
+    actions.ts                    # signIn, signUp, resendConfirmation, requestPasswordReset, updatePassword, signOut
+    login/ cadastro/ verificar-email/ recuperar-senha/ redefinir-senha/
+  auth/confirm/route.ts           # links dos e-mails: ?code= (padrão Supabase) e ?token_hash=&type= (template próprio)
+  onboarding/                     # nome da loja + WhatsApp (obrigatório) → /contas
+  (app)/                          # área logada: sidebar shadcn (collapsible="icon"), header, barras de aviso, tour
+    layout.tsx                    # requireOnboardedContext + menu com cadeados (decideSectionAccess)
+    actions.ts                    # completeTour
+    painel/ contas/ assinatura/ configuracoes/   # cada page chama requireSection(...) — guarda no servidor
+  (legal)/termos, (legal)/privacidade            # RASCUNHOS (revisar com advogado antes do lançamento)
+  api/ml/oauth/start/route.ts     # inicia OAuth ML: state + PKCE S256, cookie httpOnly criptografado (10 min)
+  api/auth/callback/mercadolivre/route.ts  # retorno do OAuth (URL cadastrada no app ML): valida state/usuário,
+                                  # troca code+verifier, /users/me, connectMlAccount
+  api/webhook/mercadolivre/route.ts        # (v1) webhook de perguntas — será refeito no sub-projeto 2
+components/
+  ui/                             # shadcn (não editar à toa; regenerar com a CLI)
+  app/                            # app-sidebar, nav-user, app-header, access-banners, welcome-tour, page-header...
+  auth/ onboarding/ contas/ configuracoes/ legal/ forms/ brand/
 lib/
-  supabase/client.ts             # browser client (anon)
-  supabase/server.ts             # createClient (cookies, anon) + createAdminClient (service role)
-  supabase/types.ts              # tipos do schema ORIGINAL (desatualizados, não aplicados)
-  mercadolivre/auth.ts           # getAuthorizationUrl, exchangeCodeForToken, getValidToken (refresh 5 min antes)
-  mercadolivre/client.ts         # mlFetch: injeta Bearer token e padroniza erros
-  mercadolivre/questions.ts      # fetchQuestion, fetchItem, postAnswer, fetch(Multiple)AnsweredQuestions
-  mercadolivre/workflow.ts       # processQuestionWorkflow — o CORE do produto
-  ai/responder.ts                # generateAnswer: monta prompt (regras + exemplos + produto) e chama OpenAI
-public/logo.png                  # logo Meli Fácil
-instructions.md                  # guia HISTÓRICO usado para construir a v1 (desatualizado)
-scratch.ts, test_after.js,
-extract_colors.js/.py            # scripts soltos de debug (não fazem parte do app)
-.agents/skills/                  # skills de agentes (supabase-postgres-best-practices,
-                                 # vercel-react-best-practices, frontend-design, vercel-react-native-skills)
+  config/site.ts                  # nome da marca, dias de teste, versão dos termos
+  env.ts                          # leitura de env obrigatória (server-only)
+  access/access.ts                # computeAccess (trial/active/blocked) + decideSectionAccess (puro, testado)
+  dal/app-context.ts              # getCurrentUser, getAppContext (cache por request), requireSection, canManageOrganization
+  validation/forms.ts             # schemas zod, WhatsApp BR, safeRedirectPath, FormState
+  security/crypto.ts, keys.ts     # AES-256-GCM com AAD + chave ML_TOKEN_ENCRYPTION_KEY
+  mercadolivre/pkce.ts, oauth.ts, oauth-cookie.ts, api.ts, accounts.ts   # OAuth v2 + tokens (lease de refresh)
+  supabase/server.ts              # createClient (sessão) + createAdminClient (legado v1, sem tipos)
+  supabase/admin.ts               # createServiceClient (service role, tipado) + createStatelessAuthClient
+  supabase/database.types.ts      # gerado: npx supabase gen types typescript --linked --schema public
+  http/site-url.ts                # NEXT_PUBLIC_SITE_URL → URLs de retorno dos e-mails
+supabase/
+  config.toml, migrations/        # baseline_v1 (espelho de prod) + fundacao_v2
+  tests/fundacao_rls.sql          # testes de RLS (sucesso = erro "TESTES_RLS_OK")
+tests/unit/                       # vitest: crypto, pkce, access, forms
+docs/                             # specs (superpowers/specs), db (inventário/snapshot de prod), v2 (referências)
+public/brand/                     # logo-wordmark.png e logo-icon.png (recortados de MeliLogo.png)
 ```
 
 ---
@@ -151,7 +167,18 @@ Usadas no código:
 | `ML_CLIENT_ID`, `ML_CLIENT_SECRET` | app do Mercado Livre |
 | `ML_REDIRECT_URI` | `https://<dominio>/api/auth/callback/mercadolivre` |
 
+Novas na v2:
+
+| Variável | Uso |
+|---|---|
+| `ML_TOKEN_ENCRYPTION_KEY` | 32 bytes base64; criptografa tokens do ML e o cookie do OAuth. **Trocar a chave invalida os tokens já gravados** (contas precisam reconectar). Prod terá chave própria. |
+| `NEXT_PUBLIC_SITE_URL` | URL base para os links dos e-mails de auth (staging: `https://mlresponde-v2.vercel.app`; local: `http://localhost:3000`) |
+
 Obsoletas (citadas no `instructions.md`, não usadas): `ANTHROPIC_API_KEY`, `NEXT_PUBLIC_APP_URL`.
+
+**Local:** `.env.local` (fora do git) aponta para o ambiente de **testes**, com a mesma `ML_TOKEN_ENCRYPTION_KEY` da
+staging; `ML_CLIENT_SECRET` fica vazio (é variável *sensível* na Vercel, não dá para ler) → OAuth do ML só na staging.
+Modelo: `.env.example` (versionado, exceção `!.env.example` no `.gitignore`).
 
 **Situação na Vercel (verificada em 2026-10-11, só nomes):** as 7 variáveis acima existem no projeto `mlresponde` e
 **todas** valem para Production **e** Preview **e** Development, com os valores de produção. ⚠️ Ou seja: **qualquer
@@ -162,12 +189,31 @@ tirar Preview/Development das variáveis de produção. `OPENAI_API_KEY` pode se
 Projetos Supabase novos podem fornecer chaves no formato novo: `sb_publishable_...` (substitui a anon) e
 `sb_secret_...` (substitui a service_role). Entram nas mesmas variáveis acima, sem mudança de código.
 
-Não existe `.env.example`. Atenção: o `.gitignore` ignora `.env*`, então ao criar um `.env.example` será preciso
-adicionar a exceção `!.env.example`.
+Variáveis da v2 na Vercel (Preview + branch `v2`): `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`,
+`SUPABASE_SERVICE_ROLE_KEY`, `ML_CLIENT_ID`, `ML_CLIENT_SECRET`, `ML_REDIRECT_URI`, `ML_TOKEN_ENCRYPTION_KEY`,
+`NEXT_PUBLIC_SITE_URL`. `OPENAI_API_KEY` herdada da geral.
 
 ---
 
-## 6. Modelo de dados da v1 (✅ CONFIRMADO na produção em 2026-10-11)
+## 6. Modelo de dados
+
+### 6.1 v2 — Fundação (Supabase de testes; migração `20261011160000_fundacao_v2.sql`)
+
+- `organizations` (cliente do SaaS: nome, `trial_ends_at` = cadastro + 7 dias, `subscription_status`
+  `trialing|active|past_due|canceled`, `plan`, `current_period_end`, `billing_exempt` = cortesia, `ml_accounts_limit` padrão 1).
+- `organization_members` (org × usuário, papel `owner|admin|member`). Hoje 1 dono por organização.
+- `profiles` (= `auth.users.id`: nome, WhatsApp 10–11 dígitos sem +55, aceite dos termos com data/versão,
+  `onboarding_completed_at`, `tour_completed_at`, `is_platform_admin`).
+- `ml_accounts` (conta ML: `ml_user_id` **único global** → uma conta ML pertence a uma só organização; `status`
+  `active|inactive|disconnected`; `token_status` `valid|invalid`; erros de refresh).
+- `ml_account_tokens` (tokens **criptografados** + `expires_at` + `refresh_lease_until`; **nenhum** acesso fora do service role).
+- Trigger `on_auth_user_created` → cria perfil + organização (trial) + membro dono. Trigger de limite de contas ativas
+  (erro `ML_ACCOUNTS_LIMIT_REACHED`). Função `is_org_member()` usada nas policies.
+- Privilégios: `anon` nada; `authenticated` só **SELECT** (RLS: membro da organização / próprio perfil); escrita só
+  via servidor. Testado em `supabase/tests/fundacao_rls.sql`.
+- ⚠️ Usuários antigos (sem perfil/organização) são completados na hora por `ensureAccountSetup` (DAL) — útil no cutover.
+
+### 6.2 v1 — produção (✅ CONFIRMADO em 2026-10-11)
 
 > Fonte: inventário só leitura de prod (`docs/db/inventario-schema.sql`, rodado pelo Breno no SQL Editor).
 > Snapshot completo: `docs/db/prod-schema-2026-10-11.json` (estrutura + contagens; **sem dados de clientes**).
@@ -212,7 +258,24 @@ Extensões: pgcrypto, uuid-ossp, pg_stat_statements, pg_graphql, supabase_vault 
 
 ## 7. Fluxos principais
 
-### 7.1 Login
+### 7.0 v2 — Fundação (branch `v2`)
+- **Cadastro** `/cadastro` → `supabase.auth.signUp` (metadata `full_name`, `terms_version`; `emailRedirectTo` =
+  `NEXT_PUBLIC_SITE_URL/auth/confirm?next=/onboarding`) → `/verificar-email` (reenviar). Trigger cria perfil/org/membro.
+- **Confirmação** → `/auth/confirm`: `?code=` → `exchangeCodeForSession` (precisa ser o **mesmo navegador** do cadastro;
+  se não for, o e-mail já fica confirmado e manda para `/login?erro=confirmado`) ou `?token_hash=&type=` → `verifyOtp`.
+- **Login** `/login` (mensagens PT-BR; e-mail não confirmado → botão de reenviar). `next` só aceita caminho interno.
+- **Senha:** `/recuperar-senha` → e-mail → `/auth/confirm?next=/redefinir-senha` → `updateUser`. Em
+  `/configuracoes`, troca exige a senha atual (verificada com cliente sem cookies e sessão descartada).
+- **Onboarding** `/onboarding`: nome da loja + WhatsApp → `onboarding_completed_at` → `/contas` com tour de 4 passos.
+- **Acesso** (`lib/access/access.ts`, checado em toda página/ação/rota): bloqueado (teste vencido sem assinatura) → só
+  `/assinatura` e `/configuracoes`; sem conta ML ativa → também `/contas`; senão tudo. Cortesia (`billing_exempt`) libera.
+- **Conectar ML:** `/api/ml/oauth/start` (dono/admin, não bloqueado) → ML → `/api/auth/callback/mercadolivre` →
+  valida cookie/state/usuário → troca code+verifier → `/users/me` (confere `user_id`) → `connectMlAccount`:
+  conta de outra org → `conflito`; mesma org → reconecta; nova → ativa (ou desativada se passou do limite).
+- **Contas:** verificar conexão (usa `getValidAccessToken` com lease de refresh), ativar/desativar (limite no banco),
+  desconectar (apaga tokens, mantém histórico). O token do ML **não** sai do servidor.
+
+### 7.1 v1 (produção) — Login
 `/login` → server action `login` (`signInWithPassword`) → `/`. `proxy.ts` redireciona não-logados para `/login`
 e logados que acessam `/login` para `/`.
 
@@ -256,6 +319,11 @@ exemplos mais recentes para o `gpt-4o-mini` gerar um manual (o usuário revisa e
 
 Legenda: 🔴 P0 crítico · 🟠 P1 importante · 🟡 P2 melhoria. Marcar ✅ quando resolvido (com data e sessão).
 
+> **Status na v2 (Fundação, 2026-10-11):** resolvidos **no código novo** (não em produção): isolamento por organização com
+> RLS só-leitura; OAuth com state+PKCE e "uma conta ML = uma organização" (sem sequestro); tokens criptografados e fora do
+> navegador; refresh com lease; erros do OAuth sem detalhes técnicos na URL; multi-contas sem `.single()`. Os itens de
+> motor de respostas (toggle, webhook, fila) ficam para o sub-projeto 2. Produção continua com os problemas até o cutover.
+
 ### 🔴 P0
 > ⏸️ **Adiados por decisão do Breno (2026-10-11):** hoje são poucos usuários. **Lembrar o Breno** e resolver antes de
 > abrir o app para novos clientes (no máximo junto com o cutover da v2).
@@ -293,14 +361,13 @@ Legenda: 🔴 P0 crítico · 🟠 P1 importante · 🟡 P2 melhoria. Marcar ✅ 
 - Sync de treinamento sem tratamento de rate limit (429) do ML; tokens refrescados sem lock (refresh concorrente).
 
 ### 🟡 P2
-- Rota legada `app/api/process/route.ts` (usa coluna inexistente `response_generated`) — remover.
-- Sem migrações versionadas, testes, CI, `.env.example`; README é o boilerplate do create-next-app;
-  `instructions.md` desatualizado.
-- `app/layout.tsx` com metadata "Create Next App" e `lang="en"`.
-- `lib/supabase/types.ts` desatualizado e não aplicado aos clientes.
-- Lint: `npx eslint .` → 12 erros / 6 warnings (`any`, `require` em scripts soltos). `npx tsc --noEmit` passa.
-- Arquivos soltos na raiz: `scratch.ts`, `test_after.js`, `extract_colors.js/.py`, `ML Automatizado.code-workspace`.
-- Dependências sem uso: `@anthropic-ai/sdk`, `jimp`.
+- ✅ (v2, 2026-10-11) Rota legada `app/api/process/route.ts` removida.
+- ✅ (v2) Migrações versionadas, testes (Vitest + RLS) e `.env.example`. Ainda falta CI e README; `instructions.md` é histórico.
+- ✅ (v2) `app/layout.tsx` com metadata da marca e `lang="pt-BR"`.
+- ✅ (v2) Tipos gerados do banco (`lib/supabase/database.types.ts`) e aplicados aos clientes.
+- Lint (v2): só 3 `any` no motor de respostas da v1 (`lib/ai/responder.ts`, `lib/mercadolivre/questions.ts`, `workflow.ts`) — some no sub-projeto 2.
+- ✅ (v2) Scripts soltos removidos (resta `ML Automatizado.code-workspace`, inofensivo).
+- ✅ (v2) Dependências sem uso removidas (`@anthropic-ai/sdk`, `jimp`, `dotenv`).
 
 ---
 
@@ -362,6 +429,14 @@ Legenda: 🔴 P0 crítico · 🟠 P1 importante · 🟡 P2 melhoria. Marcar ✅ 
   permissão e pedir reconexão (planejar).
 - Client Secret: nunca no chat; vai direto para as env vars da Vercel (Preview) e para o `.env.local`.
 
+**Supabase de testes — Auth (configurado em 2026-10-11 via Management API)**
+- Site URL `https://mlresponde-v2.vercel.app`; redirects permitidos: `https://mlresponde-v2.vercel.app/**`, `http://localhost:3000/**`;
+  senha mínima 8; confirmação de e-mail ligada; cadastro aberto (é o fluxo do produto).
+- ⚠️ Plano free + SMTP padrão: **não** dá para editar templates de e-mail, o envio é limitado (~2/hora) e **só entrega para
+  e-mails de membros da organização Supabase**. Para testes com outros e-mails ou para lançar: SMTP próprio (ex.: Resend).
+- Token da CLI fica no Gerenciador de Credenciais do Windows (`Supabase CLI:supabase`); a IA o usa para a Management API
+  sem exibir o valor.
+
 **Acesso das IAs ao Supabase (Supabase CLI)**
 - CLI usada via `npx supabase` (v2.120.0 testada em 2026-10-11; sem instalação global).
 - Login: o **Breno** roda `npx supabase login` no terminal dele, com o navegador logado na conta de **testes**.
@@ -414,10 +489,17 @@ Legenda: 🔴 P0 crítico · 🟠 P1 importante · 🟡 P2 melhoria. Marcar ✅ 
 
 ---
 
-## 10. Roadmap v2 (em definição com o Breno — brainstorming iniciado em 2026-10-11)
+## 10. Roadmap v2
 
-**Processo:** projeto **arquitetural** → perguntas (uma por vez) → abordagens → design por partes → spec escrita em
-`docs/superpowers/specs/` → plano de implementação. **Nada de código da v2 antes da spec aprovada pelo Breno.**
+**Processo:** o Breno delegou as decisões técnicas (2026-10-11): para cada sub-projeto a IA escreve a spec em
+`docs/superpowers/specs/` (registro para as próximas IAs) e implementa direto na `v2`, sem pedir aprovação de plano.
+Decisões de **produto** (preços, planos, textos legais, marca, WhatsApp) continuam com o Breno.
+
+**Status dos sub-projetos:**
+- ✅ **1. Fundação** — implementada em 2026-10-11 (spec `2026-10-11-fundacao-design.md`). Pendências: teste real de conexão
+  com conta ML, SMTP próprio, revisar termos/privacidade, PKCE obrigatório no app ML, plano de migração dos dados v1.
+- ⏭️ **2. Respostas automáticas v2** — próximo.
+- ⏳ 3. Módulos de IA/gestão · ⏳ 4. Comercial (planos, Stripe/gateway, admin).
 
 **Referências:**
 - `docs/v2/referencias-mercado.md` (versionado): visão de **produto** do AgilizaPRO (jornada, planos, módulos, regras,
@@ -498,12 +580,37 @@ webhook do ML validado, fila/reprocessamento de jobs, observabilidade, controle 
 | 2026-10-11 | Baseline = espelho exato de prod (inclusive os problemas) como 1ª migração | Ponto de partida das migrações da v2; no cutover é marcada como aplicada em prod. |
 | 2026-10-11 | Jornada: cadastro → teste grátis de 7 dias sem cartão → bloqueado até conectar ML → bloqueado ao vencer → assina dentro do app (mensal) | Decisão do Breno, inspirada no AgilizaPRO. |
 | 2026-10-11 | Engenharia reversa do AgilizaPRO fica fora do git (`docs/v2/privado/`); no repo só a síntese de produto | O repositório é público. |
+| 2026-10-11 | Breno delegou: sem apresentar plano; IA decide e implementa na `v2` (commit/push liberados na `v2`) | "Sempre vou confiar que você está fazendo o melhor e mais seguro". |
+| 2026-10-11 | UI = shadcn/ui (preset `base-nova`, Base UI) sempre | Pedido do Breno: referência visual única. |
+| 2026-10-11 | Tenancy por **organização** (cliente) com membros, desde a Fundação | Prepara equipe/convites e cobrança por cliente sem refazer o schema. |
+| 2026-10-11 | Navegador só lê (RLS SELECT); toda escrita via servidor com service role após checar sessão/permissão | Menor superfície de ataque; corrige a classe de falhas da v1. |
+| 2026-10-11 | Tokens ML criptografados na aplicação (AES-256-GCM, AAD por conta) em tabela sem acesso externo | Tokens nunca chegam ao navegador; vazamento do banco não expõe tokens. |
+| 2026-10-11 | Teste de 7 dias conta a partir do cadastro; WhatsApp obrigatório no onboarding | Jornada definida pelo Breno; WhatsApp será canal de avisos (sub-projeto 2). |
+| 2026-10-11 | Limite padrão de 1 conta ML ativa por organização (ajustável por plano) | Até os planos existirem (sub-projeto 4). |
+| 2026-10-11 | E-mails de auth no formato padrão do Supabase (`?code=`) até haver SMTP próprio | Plano free não permite editar templates sem SMTP próprio. |
 | 2026-10-11 | Variáveis da v2 na Vercel sempre com escopo Preview + branch `v2` | Hoje as variáveis de produção também valem para previews; sem override a v2 usaria o banco de produção. |
 | 2026-10-11 | App ML de teste com permissões amplas (ver §9) e PKCE desligado até o OAuth novo da v2 | v2 vai usar IA em várias áreas (anúncios, vendas, publicidade, promoções); PKCE quebraria o código atual. |
 
 ---
 
 ## 12. Diário de sessões (mais recente no topo)
+
+### 2026-10-11 — Sessão 3 · Fundação da v2 (IA: Claude, via app Codex)
+- Breno: shadcn/ui como referência visual obrigatória; delegou as decisões técnicas (não quer ver plano); desligou o
+  cadastro público no Supabase de prod (confirmado: `disable_signup=true`); repo continua público até o fim do projeto.
+- Spec `docs/superpowers/specs/2026-10-11-fundacao-design.md`; migração `fundacao_v2` aplicada no Supabase de testes;
+  testes de RLS passando; tipos gerados.
+- shadcn init (base-nova) + componentes + blocks login-03/signup-03/sidebar-07 adaptados; tema com as cores da logo
+  (azul `#1858D8`, marinho `#0B1A44`, amarelo `#FCC428`); logo recortada em `public/brand/`.
+- Implementado: auth completa, onboarding, tour, teste de 7 dias + bloqueios no servidor, contas ML (OAuth state+PKCE,
+  tokens criptografados, lease de refresh, ativar/desativar/desconectar/verificar), assinatura (placeholder), configurações,
+  termos/privacidade (rascunho). Telas e rotas da v1 removidas da `v2` (motor de respostas mantido).
+- Supabase de testes: Site URL = staging, redirects (staging + localhost), senha mínima 8. Templates de e-mail **não**
+  editáveis no plano free sem SMTP próprio; o SMTP padrão só entrega para e-mails da equipe do projeto.
+- Vercel (Preview + `v2`): `ML_TOKEN_ENCRYPTION_KEY`, `NEXT_PUBLIC_SITE_URL`.
+- Verificação: 38 testes unitários, `tsc`, `next build` ok; ESLint só com 3 `any` do motor da v1. Teste ponta a ponta local
+  no navegador (login, erros, onboarding, tour, bloqueio de rotas, contas com conta ML simulada, configurações, teste
+  vencido, logout, cadastro) e dos caminhos de erro do callback OAuth. Dados de QA apagados do banco de testes.
 
 ### 2026-10-11 — Sessão 2 · Ambientes e acesso ao Supabase (IA: Claude, via app Codex)
 - Breno aprovou a estratégia de ambientes (§9) e adiou os P0 (§8) por ter poucos usuários.
@@ -549,16 +656,21 @@ webhook do ML validado, fila/reprocessamento de jobs, observabilidade, controle 
 
 ## 13. Próximos passos
 
-1. ✅ Infra de staging pronta (Supabase de testes com baseline, app ML de teste, branch `v2`, `mlresponde-v2.vercel.app`).
-2. ✅ Jornada do cliente definida e engenharia reversa do AgilizaPRO analisada (§10).
-3. **Breno (recomendado já):** (a) tornar o repositório GitHub **privado**; (b) desligar o cadastro público no Supabase
-   de prod (ver §8, agravante do P0). Depois de (a), a IA faz o push dos commits locais pendentes da `v2`.
-4. **IA → Breno: design do sub-projeto 1 (Fundação)** em partes curtas para aprovação (contas/usuários, onboarding e
-   trial, conexão ML, schema novo, migração dos dados da v1) → spec em `docs/superpowers/specs/` → revisão do Breno →
-   plano de implementação (skill writing-plans) → código.
-5. Depois: sub-projetos 2 (Respostas v2), 3 (módulos) e 4 (comercial), cada um com spec própria.
-6. **Lembrete:** P0 (§8) precisam estar resolvidos antes de abrir para novos clientes (a Fundação resolve na v2).
-7. Limpeza recomendada (com aprovação): tirar Preview/Development das variáveis de produção na Vercel.
+1. ✅ Infra de staging, inventário de prod, baseline e **Fundação da v2** (sub-projeto 1).
+2. **Breno:** testar na staging (`https://mlresponde-v2.vercel.app`): criar conta **com o e-mail da conta Supabase de
+   testes** (o SMTP padrão só entrega para membros do projeto), confirmar no **mesmo navegador**, onboarding e conectar uma
+   conta ML **segura** (sem anúncios ativos, que NÃO esteja conectada ao app de produção — ver §9).
+3. **Depois do 1º OAuth bem-sucedido:** marcar "PKCE" como obrigatório no app ML de teste.
+4. **Breno decide:** marca da v2 ("MeLi Responde"?), SMTP próprio (sugestão: Resend + domínio da marca) → depois a IA troca
+   os templates de e-mail para `token_hash` (funciona em qualquer navegador), textos legais (revisão jurídica, razão
+   social/CNPJ/contato), o que fazer com WhatsApp.
+5. **IA: sub-projeto 2 — Respostas automáticas v2** (spec + implementação): webhook validado, fila/reprocessamento,
+   IA com confiança e escalonamento, briefing/ensino/blacklist, histórico por origem, painel de perguntas; tabelas
+   novas ligadas a `organizations`/`ml_accounts`; respeitar "pausar" de verdade.
+6. Planejar a migração dos dados da v1 (usuários → organizações com `billing_exempt`/cortesia, contas ML → reconectar,
+   base de conhecimento, exemplos, histórico) e o cutover.
+7. **Lembrete:** P0 de prod (§8) — vazamento em `question_jobs` segue na v1 (mitigado pelo cadastro fechado).
+8. Limpeza recomendada (com aprovação): tirar Preview/Development das variáveis de produção na Vercel.
 
 ---
 
@@ -566,10 +678,13 @@ webhook do ML validado, fila/reprocessamento de jobs, observabilidade, controle 
 
 ```powershell
 npm ci                 # instalar dependências (lockfile)
-npm run dev            # servidor local em http://localhost:3000 (precisa de .env.local)
-npx tsc --noEmit       # checagem de tipos
+npm run dev            # servidor local em http://localhost:3000 (usa .env.local → ambiente de TESTES)
+npm run typecheck      # next typegen + tsc --noEmit
+npm test               # vitest (tests/unit)
 npm run lint           # ESLint
 npm run build          # build de produção
+npx shadcn@latest add <componente>     # adicionar componente shadcn (preset base-nova)
+npx supabase gen types typescript --linked --schema public | Out-File -Encoding utf8NoBOM lib/supabase/database.types.ts
 ```
 
 Supabase CLI (sempre via `npx`; projeto linkado = **testes**):

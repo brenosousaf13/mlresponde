@@ -1,10 +1,25 @@
-import { createServerClient } from '@supabase/ssr'
-import { NextResponse, type NextRequest } from 'next/server'
+import { createServerClient } from "@supabase/ssr"
+import { NextResponse, type NextRequest } from "next/server"
+
+const PUBLIC_PREFIXES = [
+  "/login",
+  "/cadastro",
+  "/verificar-email",
+  "/recuperar-senha",
+  "/auth/confirm",
+  "/termos",
+  "/privacidade",
+  "/api/webhook",
+]
+
+const GUEST_ONLY_PREFIXES = ["/login", "/cadastro", "/verificar-email", "/recuperar-senha"]
+
+function matches(pathname: string, prefixes: readonly string[]) {
+  return prefixes.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`))
+}
 
 export async function proxy(request: NextRequest) {
-  let supabaseResponse = NextResponse.next({
-    request,
-  })
+  let response = NextResponse.next({ request })
 
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -15,44 +30,42 @@ export async function proxy(request: NextRequest) {
           return request.cookies.getAll()
         },
         setAll(cookiesToSet) {
-          cookiesToSet.forEach(({ name, value }) =>
-            request.cookies.set(name, value)
-          )
-          supabaseResponse = NextResponse.next({
-            request,
-          })
+          cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value))
+          response = NextResponse.next({ request })
           cookiesToSet.forEach(({ name, value, options }) =>
-            supabaseResponse.cookies.set(name, value, options)
+            response.cookies.set(name, value, options)
           )
         },
       },
     }
   )
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
+  const { data } = await supabase.auth.getClaims()
+  const isAuthenticated = Boolean(data?.claims?.sub)
+  const { pathname, search } = request.nextUrl
 
-  const pathname = request.nextUrl.pathname
-  const isPublicRoute = pathname.startsWith('/login') || pathname.startsWith('/api/webhook')
-
-  if (!user && !isPublicRoute) {
+  if (!isAuthenticated && !matches(pathname, PUBLIC_PREFIXES)) {
     const url = request.nextUrl.clone()
-    url.pathname = '/login'
+    url.pathname = "/login"
+    url.search = ""
+    if (pathname !== "/" && !pathname.startsWith("/api/")) {
+      url.searchParams.set("next", `${pathname}${search}`)
+    }
     return NextResponse.redirect(url)
   }
 
-  if (user && pathname.startsWith('/login')) {
+  if (isAuthenticated && matches(pathname, GUEST_ONLY_PREFIXES)) {
     const url = request.nextUrl.clone()
-    url.pathname = '/'
+    url.pathname = "/painel"
+    url.search = ""
     return NextResponse.redirect(url)
   }
 
-  return supabaseResponse
+  return response
 }
 
 export const config = {
   matcher: [
-    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+    "/((?!_next/static|_next/image|favicon.ico|icon.png|brand/|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|txt)$).*)",
   ],
 }

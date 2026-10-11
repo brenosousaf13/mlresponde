@@ -1,87 +1,66 @@
-import { NextResponse } from 'next/server'
-import { exchangeCodeForToken } from '@/lib/mercadolivre/auth'
-import { createAdminClient, createClient } from '@/lib/supabase/server'
+import { timingSafeEqual } from "node:crypto"
 
-export const dynamic = 'force-dynamic'
+import { NextResponse, type NextRequest } from "next/server"
 
-export async function GET(request: Request) {
-  const url = new URL(request.url)
-  const code = url.searchParams.get('code')
+import { getCurrentUser } from "@/lib/dal/app-context"
+import { connectMlAccount } from "@/lib/mercadolivre/accounts"
+import { fetchMlMe } from "@/lib/mercadolivre/api"
+import { exchangeAuthorizationCode } from "@/lib/mercadolivre/oauth"
+import {
+  ML_OAUTH_COOKIE,
+  ML_OAUTH_COOKIE_PATH,
+  unsealOAuthPayload,
+} from "@/lib/mercadolivre/oauth-cookie"
 
-  // Helper para salvar logs silenciosamente (sem quebrar o fluxo)
-  const saveLog = async (errorType: string, errorDetails: any, userId?: string) => {
-    try {
-      const supabaseAdmin = createAdminClient()
-      await supabaseAdmin.from('connection_logs').insert({
-        user_id: userId || null,
-        error_type: errorType,
-        error_details: errorDetails,
-        url_accessed: request.url
-      })
-    } catch (logError) {
-      console.error('Falha crítica ao salvar log no banco:', logError)
-    }
+export const dynamic = "force-dynamic"
+
+const RESULT_PARAM: Record<string, string> = {
+  connected: "conectada",
+  reconnected: "reconectada",
+  connected_inactive: "inativa",
+  conflict: "conflito",
+}
+
+function sameValue(a: string, b: string) {
+  const left = Buffer.from(a)
+  const right = Buffer.from(b)
+  return left.length === right.length && timingSafeEqual(left, right)
+}
+
+export async function GET(request: NextRequest) {
+  const finish = (result: string) => {
+    const response = NextResponse.redirect(new URL(`/contas?ml=${result}`, request.url))
+    response.cookies.set(ML_OAUTH_COOKIE, "", { path: ML_OAUTH_COOKIE_PATH, maxAge: 0 })
+    return response
   }
 
-  if (!code) {
-    await saveLog('NO_CODE_PROVIDED', { message: 'Nenhum código retornado pelo Mercado Livre' })
-    return NextResponse.redirect(new URL('/settings?error=No+code+provided', request.url))
-  }
+  const { searchParams } = request.nextUrl
+  const payload = unsealOAuthPayload(request.cookies.get(ML_OAUTH_COOKIE)?.value)
+  if (!payload || payload.expiresAt < Date.now()) return finish("expirado")
+
+  if (searchParams.get("error")) return finish("cancelado")
+
+  const code = searchParams.get("code")
+  const state = searchParams.get("state")
+  if (!code || !state || !sameValue(state, payload.state)) return finish("invalido")
+
+  const user = await getCurrentUser()
+  if (!user || user.id !== payload.userId) return finish("invalido")
 
   try {
-    const data = await exchangeCodeForToken(code)
-    
-    const sellerId = data.user_id.toString()
-    const accessToken = data.access_token
-    const refreshToken = data.refresh_token
-    const expiresIn = data.expires_in
+    const tokens = await exchangeAuthorizationCode(code, payload.verifier)
+    const mlUser = await fetchMlMe(tokens.access_token)
+    if (mlUser.id !== tokens.user_id) return finish("invalido")
 
-    const expiresAt = new Date()
-    expiresAt.setSeconds(expiresAt.getSeconds() + expiresIn)
-
-    // Precisamos do client com cookies pra saber qual usuário do SaaS fez o login
-    const authClient = await createClient()
-    const { data: { user } } = await authClient.auth.getUser()
-
-    if (!user) {
-      await saveLog('USER_NOT_AUTHENTICATED', { message: 'Usuário do painel Meli Fácil não está logado durante o callback' })
-      return NextResponse.redirect(new URL('/settings?error=User+not+authenticated', request.url))
-    }
-
-    // Usando admin client para dar bypass no RLS e inserir/atualizar as credenciais
-    const supabase = createAdminClient()
-
-    const { error: upsertError } = await supabase
-      .from('ml_credentials')
-      .upsert({
-        user_id: user.id,
-        seller_id: sellerId,
-        access_token: accessToken,
-        refresh_token: refreshToken,
-        expires_at: expiresAt.toISOString(),
-      }, {
-        onConflict: 'seller_id'
-      })
-
-    if (upsertError) {
-      console.error('Error saving ML credentials:', upsertError)
-      await saveLog('DB_UPSERT_ERROR', upsertError, user.id)
-      return NextResponse.redirect(new URL(`/settings?error=DB_Error:+${encodeURIComponent(upsertError.message || upsertError.details || 'Unknown')}`, request.url))
-    }
-
-    return NextResponse.redirect(new URL('/settings?success=ml_connected', request.url))
-  } catch (error: any) {
-    console.error('Error during ML OAuth callback:', error)
-    
-    // Pega o erro completo (seja axios error com response, ou error comum de js)
-    const errDetails = {
-      message: error?.message || 'Unknown Error',
-      stack: error?.stack,
-      response_data: error?.response?.data,
-      response_status: error?.response?.status
-    }
-    
-    await saveLog('OAUTH_EXCHANGE_ERROR', errDetails)
-    return NextResponse.redirect(new URL(`/settings?error=OAuth+error:+${encodeURIComponent(error?.message || 'Unknown')}`, request.url))
+    const result = await connectMlAccount({
+      organizationId: payload.organizationId,
+      userId: user.id,
+      tokens,
+      mlUser,
+    })
+    return finish(RESULT_PARAM[result.kind])
+  } catch (error) {
+    console.error("[ml-oauth-callback]", error instanceof Error ? error.message : error)
+    return finish("erro")
   }
 }

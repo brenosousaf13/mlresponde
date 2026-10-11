@@ -1,11 +1,12 @@
-import { createServerClient } from '@supabase/ssr'
-import { cookies } from 'next/headers'
-import { Database } from './types'
+import { createServerClient } from "@supabase/ssr"
+import { cookies } from "next/headers"
+
+import type { Database } from "./database.types"
 
 export async function createClient() {
   const cookieStore = await cookies()
 
-  return createServerClient(
+  return createServerClient<Database>(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
@@ -19,9 +20,7 @@ export async function createClient() {
               cookieStore.set(name, value, options)
             )
           } catch {
-            // The `setAll` method was called from a Server Component.
-            // This can be ignored if you have middleware refreshing
-            // user sessions.
+            // Chamado de um Server Component: o proxy já renova a sessão.
           }
         },
       },
@@ -29,6 +28,10 @@ export async function createClient() {
   )
 }
 
+/**
+ * @deprecated Cliente admin sem tipos da v1. Usado só pelo motor de respostas da v1
+ * (webhook/workflow) até o sub-projeto 2. Código novo deve usar `createServiceClient`.
+ */
 export function createAdminClient() {
   return createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -38,9 +41,7 @@ export function createAdminClient() {
         getAll() {
           return []
         },
-        setAll() {
-          // Admin client doesn't need to manage cookies for user auth
-        },
+        setAll() {},
       },
     }
   )

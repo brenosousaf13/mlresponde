@@ -9,7 +9,11 @@
 
 ## Regras inegociáveis (detalhes no `CEREBRO.md` §2)
 - O app **está em produção**: a branch `main` faz deploy automático na Vercel para clientes reais.
-  Não fazer push/merge na `main` sem aprovação explícita do Breno. Commits e branches só quando ele pedir.
+  Não fazer push/merge na `main` sem aprovação explícita do Breno.
+- A v2 é desenvolvida na branch **`v2`** (staging `mlresponde-v2.vercel.app`, Supabase e app ML de **testes**).
+  Nela a IA tem autonomia: decide, implementa, testa, faz commit e push sem pedir aprovação de plano.
+- **UI sempre com shadcn/ui** (https://ui.shadcn.com/docs/components) — componentes e blocks; preset `base-nova` (Base UI).
+- Antes de entregar: `npm run typecheck`, `npm test`, `npm run lint` e `npm run build`.
 - O banco Supabase de produção é compartilhado com a v1: nada destrutivo (DROP, RENAME, troca de tipo, apagar dados).
   Mudanças de schema só por migração versionada, aditiva e retrocompatível.
 - Nunca commitar ou registrar segredos (`.env*`, tokens, chaves).
