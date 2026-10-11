@@ -666,6 +666,7 @@ webhook do ML validado, fila/reprocessamento de jobs, observabilidade, controle 
   interruptor, rigor, informações da loja, ensinar, arquivar, webhook com notificações inválidas/repetidas, Realtime).
   `tsc`, ESLint (0 problemas) e build ok. Dados de QA apagados. A conta "Noord Shop" no Supabase de testes é do Breno (não mexer).
 - Corrigido durante o teste: Realtime precisa de `realtime.setAuth` antes de assinar.
+- `proxy.ts` libera `/api/webhook` e `/api/cron` (rotas públicas; o cron valida `CRON_SECRET`, testado na staging: sem/errado → 401, certo → 200).
 - Vercel (Preview + `v2`): `CRON_SECRET`.
 
 ### 2026-10-11 — Sessão 3 · Fundação da v2 (IA: Claude, via app Codex)
