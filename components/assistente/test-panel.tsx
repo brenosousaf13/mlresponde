@@ -1,11 +1,12 @@
 "use client"
 
-import { BotIcon, CircleAlertIcon, CircleCheckIcon, FlaskConicalIcon, UserIcon } from "lucide-react"
+import { BotIcon, ChevronDownIcon, CircleAlertIcon, CircleCheckIcon, FileTextIcon, FlaskConicalIcon, MessageSquareDashedIcon, UserIcon } from "lucide-react"
 import { useState, useTransition } from "react"
 
 import { testAssistant, type TestResult } from "@/app/(app)/assistente/actions"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import { Field, FieldDescription, FieldGroup, FieldLabel } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
 import { Spinner } from "@/components/ui/spinner"
@@ -13,6 +14,46 @@ import { Textarea } from "@/components/ui/textarea"
 import { cn } from "@/lib/utils"
 
 const SUGGESTIONS = ["Vocês emitem nota fiscal?", "Aceita troca se não servir?", "Faz por um preço menor no pix?", "Posso retirar na loja?"]
+
+const OUTCOME = {
+  answer: {
+    title: "A IA responderia sozinha",
+    icon: CircleCheckIcon,
+    box: "border-emerald-200 bg-emerald-50 text-emerald-900 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-200",
+    bubble: "bg-primary/10",
+  },
+  fallback: {
+    title: "A IA responderia com a mensagem padrão",
+    icon: MessageSquareDashedIcon,
+    box: "border-violet-200 bg-violet-50 text-violet-900 dark:border-violet-900 dark:bg-violet-950/40 dark:text-violet-200",
+    bubble: "bg-violet-500/10",
+  },
+  review: {
+    title: "A IA deixaria esta pergunta para você",
+    icon: CircleAlertIcon,
+    box: "border-amber-200 bg-amber-50 text-amber-900 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-200",
+    bubble: "border border-dashed bg-card text-muted-foreground",
+  },
+} as const
+
+/** Texto exato que a IA recebeu do anúncio, para o vendedor conferir que ela leu tudo. */
+function ItemReading({ summary }: { summary: string }) {
+  return (
+    <Collapsible className="rounded-xl border">
+      <CollapsibleTrigger className="group flex w-full items-center gap-2 px-3.5 py-2.5 text-left text-sm font-medium hover:bg-muted/50">
+        <FileTextIcon className="size-4 text-muted-foreground" />
+        O que a IA leu deste anúncio
+        <span className="ml-auto text-xs font-normal text-muted-foreground">{summary.length.toLocaleString("pt-BR")} caracteres</span>
+        <ChevronDownIcon className="size-4 text-muted-foreground transition-transform group-data-[panel-open]:rotate-180" />
+      </CollapsibleTrigger>
+      <CollapsibleContent>
+        <pre className="max-h-96 overflow-auto border-t bg-muted/30 px-3.5 py-3 font-sans text-xs leading-relaxed whitespace-pre-wrap text-muted-foreground">
+          {summary}
+        </pre>
+      </CollapsibleContent>
+    </Collapsible>
+  )
+}
 
 export function TestPanel({ accountId }: { accountId: string }) {
   const [question, setQuestion] = useState("")
@@ -77,7 +118,8 @@ export function TestPanel({ accountId }: { accountId: string }) {
                 placeholder="Código (MLB...) ou link do anúncio"
               />
               <FieldDescription>
-                Com um anúncio, a IA também lê a ficha técnica, as variações, o estoque e a descrição dele.
+                Com um anúncio, a IA também lê a descrição completa, a ficha técnica, as variações com estoque, as condições
+                de venda e a tabela de medidas dele.
               </FieldDescription>
             </Field>
             <div>
@@ -110,63 +152,68 @@ export function TestPanel({ accountId }: { accountId: string }) {
               {result.message}
             </div>
           ) : (
-            <>
-              <div
-                className={cn(
-                  "flex items-start gap-3 rounded-xl border p-4 text-sm",
-                  result.wouldAnswer
-                    ? "border-emerald-200 bg-emerald-50 text-emerald-900 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-200"
-                    : "border-amber-200 bg-amber-50 text-amber-900 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-200"
-                )}
-              >
-                {result.wouldAnswer ? (
-                  <CircleCheckIcon className="mt-0.5 size-4 shrink-0" />
-                ) : (
-                  <CircleAlertIcon className="mt-0.5 size-4 shrink-0" />
-                )}
-                <div className="flex flex-col gap-0.5">
-                  <p className="font-medium">
-                    {result.wouldAnswer ? "A IA responderia sozinha" : "A IA deixaria esta pergunta para você"}
-                    {` · certeza ${Math.round(result.confidence * 100)}%`}
-                  </p>
-                  <p className="opacity-90">{result.reviewLabel ? `${result.reviewLabel}. ` : ""}{result.reason}</p>
-                </div>
-              </div>
-              <div className="flex flex-col gap-3">
-                <div className="flex items-start gap-2">
-                  <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground">
-                    <UserIcon className="size-3.5" />
-                  </span>
-                  <p className="rounded-2xl rounded-tl-sm bg-muted px-3.5 py-2.5 text-sm">{asked}</p>
-                </div>
-                {result.text ? (
-                  <div className="flex items-start gap-2">
-                    <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
-                      <BotIcon className="size-3.5" />
-                    </span>
-                    <div className="flex flex-col gap-1">
-                      <p
-                        className={cn(
-                          "rounded-2xl rounded-tl-sm px-3.5 py-2.5 text-sm",
-                          result.wouldAnswer ? "bg-primary/10" : "border border-dashed bg-card text-muted-foreground"
-                        )}
-                      >
-                        {result.text}
-                      </p>
-                      {!result.wouldAnswer ? (
-                        <p className="text-xs text-muted-foreground">Rascunho que ficaria para você revisar.</p>
-                      ) : null}
-                    </div>
-                  </div>
-                ) : null}
-                {result.itemTitle ? (
-                  <p className="text-xs text-muted-foreground">Anúncio usado no teste: {result.itemTitle}</p>
-                ) : null}
-              </div>
-            </>
+            <TestOutcome result={result} asked={asked} />
           )}
         </CardContent>
       </Card>
     </div>
+  )
+}
+
+function TestOutcome({ result, asked }: { result: Extract<TestResult, { ok: true }>; asked: string }) {
+  const outcome = OUTCOME[result.outcome]
+  return (
+    <>
+      <div className={cn("flex items-start gap-3 rounded-xl border p-4 text-sm", outcome.box)}>
+        <outcome.icon className="mt-0.5 size-4 shrink-0" />
+        <div className="flex flex-col gap-0.5">
+          <p className="font-medium">
+            {outcome.title}
+            {result.outcome === "fallback" ? "" : ` · certeza ${Math.round(result.confidence * 100)}%`}
+          </p>
+          <p className="opacity-90">
+            {result.outcomeLabel ? `${result.outcomeLabel}. ` : ""}
+            {result.reason}
+          </p>
+        </div>
+      </div>
+      <div className="flex flex-col gap-3">
+        <div className="flex items-start gap-2">
+          <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground">
+            <UserIcon className="size-3.5" />
+          </span>
+          <p className="rounded-2xl rounded-tl-sm bg-muted px-3.5 py-2.5 text-sm">{asked}</p>
+        </div>
+        {result.text ? (
+          <div className="flex items-start gap-2">
+            <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
+              <BotIcon className="size-3.5" />
+            </span>
+            <div className="flex flex-col gap-1">
+              <p className={cn("rounded-2xl rounded-tl-sm px-3.5 py-2.5 text-sm", outcome.bubble)}>{result.text}</p>
+              {result.outcome === "review" ? (
+                <p className="text-xs text-muted-foreground">Rascunho que ficaria para você revisar.</p>
+              ) : null}
+              {result.outcome === "fallback" ? (
+                <p className="text-xs text-muted-foreground">
+                  Mensagem padrão do modo &ldquo;Responder sempre&rdquo;. Para a IA responder isso de verdade, ensine a resposta
+                  ou complete as informações da loja.
+                </p>
+              ) : null}
+            </div>
+          </div>
+        ) : null}
+        {result.outcome === "fallback" && result.draft ? (
+          <p className="rounded-xl border border-dashed p-3 text-xs text-muted-foreground">
+            <span className="font-medium text-foreground">Rascunho da IA (não enviado): </span>
+            {result.draft}
+          </p>
+        ) : null}
+        {result.itemTitle ? (
+          <p className="text-xs text-muted-foreground">Anúncio usado no teste: {result.itemTitle}</p>
+        ) : null}
+        {result.itemSummary ? <ItemReading summary={result.itemSummary} /> : null}
+      </div>
+    </>
   )
 }

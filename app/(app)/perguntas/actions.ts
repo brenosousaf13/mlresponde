@@ -12,7 +12,7 @@ import {
   suggestAnswer,
 } from "@/lib/answers/engine"
 import { syncUnansweredQuestions } from "@/lib/answers/ingest"
-import { ML_ANSWER_LIMIT, stripAffixes } from "@/lib/answers/compose"
+import { ML_ANSWER_LIMIT, containsExternalContact, stripAffixes } from "@/lib/answers/compose"
 import { requireSection } from "@/lib/dal/app-context"
 import { MlAccountUnavailableError } from "@/lib/mercadolivre/accounts"
 import { MlApiError } from "@/lib/mercadolivre/api"
@@ -30,7 +30,7 @@ async function loadQuestion(id: string) {
   const admin = createServiceClient()
   const { data, error } = await admin
     .from("ml_questions")
-    .select("id, status, ml_account_id, item_id, question_text, ml_accounts(answer_greeting, answer_signature)")
+    .select("id, status, ml_account_id, item_id, item_title, question_text, answer_source, fallback_reason, ml_accounts(answer_greeting, answer_signature)")
     .eq("id", parsed.data)
     .eq("organization_id", context.organization.id)
     .maybeSingle()
@@ -91,6 +91,67 @@ export async function answerQuestion(id: string, rawText: string, teach: boolean
 
   revalidatePath("/", "layout")
   return { ok: true, message: teach ? "Resposta enviada e ensinada para a IA." : "Resposta enviada ao comprador." }
+}
+
+/**
+ * Ensina a resposta certa para uma pergunta que recebeu a mensagem padrão (modo "responder sempre").
+ * O comprador já foi respondido no ML; a resposta ensinada vale para as próximas perguntas parecidas.
+ */
+export async function teachFromQuestion(id: string, rawAnswer: string, allItems: boolean): Promise<QuestionActionResult> {
+  const loaded = await loadQuestion(id)
+  if ("error" in loaded) return { ok: false, message: loaded.error ?? "Erro." }
+  const { context, admin, question } = loaded
+
+  if (question.status !== "answered" || question.answer_source !== "ai" || !question.fallback_reason) {
+    return { ok: false, message: "Só dá para ensinar por aqui as perguntas respondidas com a mensagem padrão." }
+  }
+  if (!question.question_text) return { ok: false, message: "A pergunta ainda não foi carregada do Mercado Livre." }
+
+  const answer = stripAffixes(
+    rawAnswer,
+    question.ml_accounts?.answer_greeting ?? "",
+    question.ml_accounts?.answer_signature ?? ""
+  )
+  if (answer.length < 2) return { ok: false, message: "Escreva a resposta que a IA deve usar." }
+  if (answer.length > 2000) return { ok: false, message: "Resposta muito longa (máximo de 2.000 caracteres)." }
+  if (containsExternalContact(answer)) {
+    return { ok: false, message: "Não use telefone, e-mail, link ou rede social: o Mercado Livre proíbe contato externo." }
+  }
+
+  const itemId = allItems ? null : question.item_id
+  const values = {
+    item_id: itemId,
+    item_title: itemId ? (question.item_title?.slice(0, 300) ?? null) : null,
+    question_text: question.question_text.slice(0, 2000),
+    answer_text: answer,
+  }
+  const { data: existing, error: findError } = await admin
+    .from("ai_examples")
+    .select("id")
+    .eq("organization_id", context.organization.id)
+    .eq("source_question_id", question.id)
+    .limit(1)
+    .maybeSingle()
+  if (findError) throw findError
+
+  const { error } = existing
+    ? await admin.from("ai_examples").update(values).eq("id", existing.id)
+    : await admin.from("ai_examples").insert({
+        ...values,
+        organization_id: context.organization.id,
+        ml_account_id: question.ml_account_id,
+        source_question_id: question.id,
+        created_by: context.user.id,
+      })
+  if (error) return { ok: false, message: "Não foi possível salvar agora. Tente novamente." }
+
+  revalidatePath("/", "layout")
+  return {
+    ok: true,
+    message: allItems
+      ? "Ensinado. A IA vai usar essa resposta em perguntas parecidas de todos os anúncios."
+      : "Ensinado. A IA vai usar essa resposta em perguntas parecidas deste anúncio.",
+  }
 }
 
 export type SuggestionActionResult =

@@ -12,14 +12,24 @@ import {
 } from "@/lib/assistant/profile"
 import { SETUP_STEP_COUNT, findQuestion } from "@/lib/assistant/questions"
 import { runAnswerModel } from "@/lib/answers/ai"
-import { ML_ANSWER_LIMIT, composeAnswer, parseItemId } from "@/lib/answers/compose"
+import { ML_ANSWER_LIMIT, composeAnswer, containsExternalContact, parseItemId } from "@/lib/answers/compose"
 import { assistantBase, loadTaughtExamples } from "@/lib/answers/context"
-import { CONFIDENCE_PRESETS, REVIEW_REASON_LABELS, TONE_OPTIONS, decideAnswer } from "@/lib/answers/decision"
+import {
+  ANSWER_MODES,
+  CONFIDENCE_PRESETS,
+  DEFAULT_FALLBACK_ANSWER,
+  FALLBACK_ANSWER_LIMIT,
+  FALLBACK_REASON_LABELS,
+  REVIEW_REASON_LABELS,
+  TONE_OPTIONS,
+  decideAnswer,
+  parseAnswerMode,
+} from "@/lib/answers/decision"
 import { canManageOrganization, requireSection } from "@/lib/dal/app-context"
 import { MlAccountUnavailableError } from "@/lib/mercadolivre/accounts"
 import { MlApiError } from "@/lib/mercadolivre/api"
 import { summarizeItem } from "@/lib/mercadolivre/item"
-import { fetchItem, fetchItemAnsweredQuestions, fetchItemDescription } from "@/lib/mercadolivre/questions"
+import { fetchItem, fetchItemAnsweredQuestions, fetchItemContext } from "@/lib/mercadolivre/questions"
 import { createServiceClient } from "@/lib/supabase/admin"
 import type { Database } from "@/lib/supabase/database.types"
 import { formValues, type FormState } from "@/lib/validation/forms"
@@ -42,7 +52,7 @@ async function loadAccount(accountId: unknown, { manage }: { manage: boolean }) 
   const { data: account, error } = await admin
     .from("ml_accounts")
     .select(
-      "id, organization_id, ml_user_id, nickname, status, auto_reply_enabled, ai_confidence_threshold, answer_tone, answer_greeting, answer_signature, store_briefing, store_profile, store_setup_step, store_profile_completed_at, organizations(name)"
+      "id, organization_id, ml_user_id, nickname, status, auto_reply_enabled, ai_confidence_threshold, answer_tone, answer_mode, fallback_answer, answer_greeting, answer_signature, store_briefing, store_profile, store_setup_step, store_profile_completed_at, organizations(name)"
     )
     .eq("id", parsed.data)
     .eq("organization_id", context.organization.id)
@@ -105,12 +115,39 @@ export async function setAutoReply(accountId: string, enabled: boolean): Promise
 
 // ---------------------------------------------------------------- configuração guiada
 
+const NO_CONTACT = "Não use telefone, e-mail, link ou rede social: o Mercado Livre proíbe contato externo nas respostas."
+const affix = z
+  .string()
+  .trim()
+  .max(200, "Use no máximo 200 caracteres.")
+  .refine((value) => !containsExternalContact(value), NO_CONTACT)
+
 const styleSchema = z.object({
   tone: z.enum(toneValues, { errorMap: () => ({ message: "Escolha um tom." }) }),
-  greeting: z.string().trim().max(200, "Use no máximo 200 caracteres."),
-  signature: z.string().trim().max(200, "Use no máximo 200 caracteres."),
+  greeting: affix,
+  signature: affix,
   threshold: z.enum(thresholdValues, { errorMap: () => ({ message: "Escolha um nível de cuidado." }) }),
+  mode: z.enum(ANSWER_MODES as unknown as [string, ...string[]]).default("careful"),
+  fallback: z
+    .string()
+    .trim()
+    .max(FALLBACK_ANSWER_LIMIT, "Use no máximo 1.000 caracteres.")
+    .refine((value) => !containsExternalContact(value), NO_CONTACT)
+    .default(""),
 })
+
+/** Campos de ml_accounts que guardam o jeito de responder (a mensagem igual à do sistema fica vazia = segue o padrão). */
+function styleColumns(style: z.infer<typeof styleSchema>) {
+  const fallback = style.fallback.replace(/\s+/g, " ").trim()
+  return {
+    answer_tone: style.tone,
+    answer_greeting: style.greeting.replace(/\s+/g, " "),
+    answer_signature: style.signature.replace(/\s+/g, " "),
+    ai_confidence_threshold: Number(style.threshold),
+    answer_mode: parseAnswerMode(style.mode),
+    fallback_answer: fallback === DEFAULT_FALLBACK_ANSWER ? "" : fallback,
+  }
+}
 
 export type SetupStepInput = {
   accountId: string
@@ -119,7 +156,7 @@ export type SetupStepInput = {
   complete?: boolean
   options?: string[]
   text?: string
-  style?: { tone: string; greeting: string; signature: string; threshold: string }
+  style?: { tone: string; greeting: string; signature: string; threshold: string; mode: string; fallback: string }
 }
 
 async function saveQuestion(loaded: Exclude<Awaited<ReturnType<typeof loadAccount>>, { error: string }>, questionId: string, input: { options?: unknown; text?: unknown }) {
@@ -144,12 +181,7 @@ export async function saveSetupStep(input: SetupStepInput): Promise<SimpleResult
   if (input.style) {
     const parsed = styleSchema.safeParse(input.style)
     if (!parsed.success) return { ok: false, message: parsed.error.issues[0]?.message ?? "Confira os campos." }
-    Object.assign(update, {
-      answer_tone: parsed.data.tone,
-      answer_greeting: parsed.data.greeting.replace(/\s+/g, " "),
-      answer_signature: parsed.data.signature.replace(/\s+/g, " "),
-      ai_confidence_threshold: Number(parsed.data.threshold),
-    })
+    Object.assign(update, styleColumns(parsed.data))
   } else if (input.stepId) {
     const saved = await saveQuestion(loaded, input.stepId, input)
     if (!saved.ok) return saved
@@ -201,6 +233,8 @@ export async function copySetupFrom(targetAccountId: string, sourceAccountId: st
       answer_greeting: source.account.answer_greeting,
       answer_signature: source.account.answer_signature,
       ai_confidence_threshold: source.account.ai_confidence_threshold,
+      answer_mode: source.account.answer_mode,
+      fallback_answer: source.account.fallback_answer,
       store_setup_step: 0,
     })
     .eq("id", target.account.id)
@@ -212,26 +246,20 @@ export async function copySetupFrom(targetAccountId: string, sourceAccountId: st
 // ---------------------------------------------------------------- estilo e outras informações
 
 export async function updateStyle(_previous: FormState, formData: FormData): Promise<FormState> {
-  const values = formValues(formData, ["accountId", "tone", "greeting", "signature", "threshold"])
+  const values = formValues(formData, ["accountId", "tone", "greeting", "signature", "threshold", "mode", "fallback"])
   const parsed = styleSchema.safeParse({
     tone: formData.get("tone"),
     greeting: formData.get("greeting") ?? "",
     signature: formData.get("signature") ?? "",
     threshold: formData.get("threshold"),
+    mode: formData.get("mode") ?? undefined,
+    fallback: formData.get("fallback") ?? undefined,
   })
   if (!parsed.success) return { fieldErrors: parsed.error.flatten().fieldErrors, values }
   const loaded = await loadAccount(formData.get("accountId"), { manage: true })
   if ("error" in loaded) return { message: loaded.error, values }
 
-  const { error } = await loaded.admin
-    .from("ml_accounts")
-    .update({
-      answer_tone: parsed.data.tone,
-      answer_greeting: parsed.data.greeting.replace(/\s+/g, " "),
-      answer_signature: parsed.data.signature.replace(/\s+/g, " "),
-      ai_confidence_threshold: Number(parsed.data.threshold),
-    })
-    .eq("id", loaded.account.id)
+  const { error } = await loaded.admin.from("ml_accounts").update(styleColumns(parsed.data)).eq("id", loaded.account.id)
   if (error) return { message: SAVE_ERROR, values }
   refresh()
   return { ok: true, message: "Jeito de responder salvo.", values }
@@ -373,12 +401,19 @@ export async function deleteExample(id: string): Promise<SimpleResult> {
 export type TestResult =
   | {
       ok: true
-      wouldAnswer: boolean
+      /** answer = a IA responderia com o texto dela; fallback = mandaria a mensagem padrão; review = ficaria para você. */
+      outcome: "answer" | "fallback" | "review"
       text: string
       confidence: number
       reason: string
-      reviewLabel: string | null
+      /** Por que não saiu a resposta da IA (revisão ou mensagem padrão). */
+      outcomeLabel: string | null
+      /** Rascunho da IA quando a mensagem padrão foi usada no lugar dele. */
+      draft: string | null
       itemTitle: string | null
+      /** Exatamente o que a IA leu do anúncio (null quando o teste foi sem anúncio). */
+      itemSummary: string | null
+      mode: "careful" | "always"
     }
   | { ok: false; message: string }
 
@@ -391,6 +426,7 @@ export async function testAssistant(accountId: string, rawQuestion: string, item
   if (question.length > 1000) return { ok: false, message: "Pergunta muito longa (máximo de 1.000 caracteres)." }
 
   const { account, admin } = loaded
+  const mode = parseAnswerMode(account.answer_mode)
   let itemSummary = [
     "Teste sem anúncio: o vendedor está testando a IA sem escolher um anúncio.",
     "Responda normalmente as perguntas sobre a loja (envio, retirada, nota fiscal, garantia, trocas, pagamento, atendimento) usando o CONHECIMENTO_DA_LOJA e as respostas ensinadas.",
@@ -398,6 +434,7 @@ export async function testAssistant(accountId: string, rawQuestion: string, item
   ].join("\n")
   let itemId: string | null = null
   let itemTitle: string | null = null
+  let readSummary: string | null = null
   let previousQnA: { question: string; answer: string }[] = []
 
   if (itemReference.trim()) {
@@ -405,12 +442,18 @@ export async function testAssistant(accountId: string, rawQuestion: string, item
     if (!resolved.ok) return resolved
     itemId = resolved.itemId
     itemTitle = resolved.item.title
-    const [description, answered] = await Promise.all([
-      fetchItemDescription(account.id, itemId).catch(() => null),
-      fetchItemAnsweredQuestions(account.id, itemId, 8),
-    ])
-    itemSummary = summarizeItem(resolved.item, description)
-    previousQnA = answered.map((qa) => ({ question: qa.question, answer: qa.answer }))
+    try {
+      const [context, answered] = await Promise.all([
+        fetchItemContext(account.id, itemId, resolved.item),
+        fetchItemAnsweredQuestions(account.id, itemId, 8),
+      ])
+      itemSummary = summarizeItem(context.item, context.description, context.extras)
+      readSummary = itemSummary
+      previousQnA = answered.map((qa) => ({ question: qa.question, answer: qa.answer }))
+    } catch (error) {
+      console.error("[assistente] teste (anúncio):", error instanceof Error ? error.message : error)
+      return { ok: false, message: "Não foi possível ler a descrição do anúncio agora. Tente de novo em instantes." }
+    }
   }
 
   try {
@@ -422,23 +465,32 @@ export async function testAssistant(accountId: string, rawQuestion: string, item
       previousQnA,
       question,
     })
-    const decision = decideAnswer(run.result, {
+    const settings = {
       threshold: Number(account.ai_confidence_threshold),
       greeting: account.answer_greeting,
       signature: account.answer_signature,
-    })
+      mode,
+      fallback: account.fallback_answer,
+    }
+    const decision = decideAnswer(run.result, settings)
     const draft = run.result.answer
       ? composeAnswer({ greeting: account.answer_greeting, body: run.result.answer, signature: account.answer_signature })
       : ""
-    return {
-      ok: true,
-      wouldAnswer: decision.kind === "answer",
-      text: decision.kind === "answer" ? decision.text : draft.slice(0, ML_ANSWER_LIMIT + 200),
-      confidence: run.result.confidence,
-      reason: run.result.reason,
-      reviewLabel: decision.kind === "review" ? REVIEW_REASON_LABELS[decision.reason] : null,
-      itemTitle,
+    const base = { ok: true as const, confidence: run.result.confidence, reason: run.result.reason, itemTitle, itemSummary: readSummary, mode }
+
+    if (decision.kind === "review") {
+      return { ...base, outcome: "review", text: draft.slice(0, ML_ANSWER_LIMIT + 200), outcomeLabel: REVIEW_REASON_LABELS[decision.reason], draft: null }
     }
+    if (decision.fallbackReason) {
+      return {
+        ...base,
+        outcome: "fallback",
+        text: decision.text,
+        outcomeLabel: FALLBACK_REASON_LABELS[decision.fallbackReason],
+        draft: draft ? draft.slice(0, ML_ANSWER_LIMIT + 200) : null,
+      }
+    }
+    return { ...base, outcome: "answer", text: decision.text, outcomeLabel: null, draft: null }
   } catch (error) {
     console.error("[assistente] teste:", error instanceof Error ? error.message : error)
     return { ok: false, message: "A IA não respondeu agora. Tente de novo em instantes." }

@@ -30,7 +30,7 @@ export const metadata: Metadata = { title: "Perguntas" }
 
 const PAGE_SIZE = 50
 const LIST_FIELDS =
-  "id, ml_account_id, item_id, item_title, item_permalink, item_thumbnail, question_text, question_created_at, created_at, status, review_reason, ai_draft, ai_confidence, ai_reason, answer_text, answer_source, answered_at"
+  "id, ml_account_id, item_id, item_title, item_permalink, item_thumbnail, question_text, question_created_at, created_at, status, review_reason, ai_draft, ai_confidence, ai_reason, answer_text, answer_source, answered_at, fallback_reason"
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 const EMPTY: Record<InboxTab, { title: string; description: string }> = {
@@ -76,6 +76,7 @@ export default async function QuestionsPage({ searchParams }: PageProps<"/pergun
     order: parseInboxOrder(params.ordem),
     page: parsePage(params.pagina),
     question: null,
+    fallback: params.padrao === "1",
   }
   const { tab, item, search, order, page } = state
   const requestedId = typeof params.q === "string" && UUID.test(params.q) ? params.q : null
@@ -99,7 +100,11 @@ export default async function QuestionsPage({ searchParams }: PageProps<"/pergun
 
   // Ordem pela data em que o comprador perguntou (perguntas ainda sem data = recém-chegadas, ficam como mais novas).
   const ascending = order === "antigas"
+  // "Só mensagem padrão": respostas do modo "responder sempre" em que a IA não tinha a informação.
+  const onlyFallback = tab === "ia" && Boolean(state.fallback)
   let listQuery = byTab(scoped(supabase.from("ml_questions").select(LIST_FIELDS, { count: "exact" })), tab)
+  if (onlyFallback) listQuery = listQuery.not("fallback_reason", "is", null)
+  listQuery = listQuery
     .order("question_created_at", { ascending, nullsFirst: !ascending })
     .order("created_at", { ascending })
     .range((page - 1) * PAGE_SIZE, page * PAGE_SIZE - 1)
@@ -107,12 +112,13 @@ export default async function QuestionsPage({ searchParams }: PageProps<"/pergun
     listQuery = listQuery.or(`question_text.ilike.%${search}%,item_title.ilike.%${search}%,item_id.ilike.%${search}%`)
   }
 
-  const [listResult, responder, ia, voce, todas, requested, itemInfo] = await Promise.all([
+  const [listResult, responder, ia, voce, todas, fallbackCount, requested, itemInfo] = await Promise.all([
     listQuery,
     countFor("responder"),
     countFor("ia"),
     countFor("voce"),
     countFor("todas"),
+    tab === "ia" ? countFor("ia").not("fallback_reason", "is", null) : Promise.resolve({ count: 0, error: null }),
     requestedId
       ? supabase.from("ml_questions").select(LIST_FIELDS).eq("organization_id", organizationId).eq("id", requestedId).maybeSingle()
       : Promise.resolve({ data: null, error: null }),
@@ -148,11 +154,26 @@ export default async function QuestionsPage({ searchParams }: PageProps<"/pergun
   const next =
     position >= 0 ? (questions[position + 1] ?? questions[position - 1] ?? null) : (questions.find((q) => q.id !== selected?.id) ?? null)
 
+  // Pergunta respondida com a mensagem padrão: carrega a resposta já ensinada a partir dela (para editar).
+  let taught: { answer: string; allItems: boolean } | null = null
+  if (selected?.fallback_reason && selected.status === "answered" && selected.answer_source === "ai") {
+    const { data: example, error: exampleError } = await supabase
+      .from("ai_examples")
+      .select("answer_text, item_id")
+      .eq("organization_id", organizationId)
+      .eq("source_question_id", selected.id)
+      .limit(1)
+      .maybeSingle()
+    if (exampleError) throw exampleError
+    if (example) taught = { answer: example.answer_text, allItems: example.item_id === null }
+  }
+
   const hidden: Record<string, string> = {}
   if (tab !== "responder") hidden.aba = tab
   if (state.account) hidden.conta = state.account
   if (item) hidden.anuncio = item
   if (order !== "recentes") hidden.ordem = order
+  if (onlyFallback) hidden.padrao = "1"
 
   return (
     <>
@@ -181,6 +202,11 @@ export default async function QuestionsPage({ searchParams }: PageProps<"/pergun
             toggleOrderHref={href({ order: ascending ? "recentes" : "antigas", page: 1 })}
             item={item ? { id: item, title: itemInfo.data?.item_title ?? null, thumbnail: itemInfo.data?.item_thumbnail ?? null } : null}
             clearItemHref={href({ item: null, page: 1 })}
+            fallbackFilter={
+              tab === "ia" && (onlyFallback || (fallbackCount.count ?? 0) > 0)
+                ? { active: onlyFallback, count: fallbackCount.count ?? 0, href: href({ fallback: !onlyFallback, page: 1 }) }
+                : null
+            }
             accounts={showAccount ? accountRows.map((account) => ({ id: account.id, nickname: accounts[account.id].nickname })) : null}
           />
           {questions.length ? (
@@ -226,6 +252,7 @@ export default async function QuestionsPage({ searchParams }: PageProps<"/pergun
           <QuestionDetail
             question={selected}
             account={accounts[selected.ml_account_id]}
+            taught={taught}
             showAccount={showAccount}
             backHref={href({})}
             nextHref={next ? href({ question: next.id }) : null}

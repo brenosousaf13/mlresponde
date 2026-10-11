@@ -1,7 +1,7 @@
 import "server-only"
 
 import { compileSellerRules, compileStoreKnowledge, parseStoreProfile, storeNameFrom } from "@/lib/assistant/profile"
-import type { AnswerTone } from "@/lib/answers/decision"
+import { parseAnswerMode, type AnswerTone } from "@/lib/answers/decision"
 import { rankTaughtExamples } from "@/lib/answers/examples"
 import type { PromptExample, PromptInput } from "@/lib/answers/prompt"
 import type { Json } from "@/lib/supabase/database.types"
@@ -13,17 +13,21 @@ export type AssistantAccount = {
   id: string
   nickname: string | null
   answer_tone: string
+  answer_mode: string
   store_briefing: string
   store_profile: Json
   organizations: { name: string } | null
 }
 
-/** Parte do prompt que vem da configuração da conta (nome, tom, conhecimento da loja e regras). */
-export function assistantBase(account: AssistantAccount): Pick<PromptInput, "storeName" | "tone" | "knowledge" | "sellerRules"> {
+/** Parte do prompt que vem da configuração da conta (nome, tom, modo, conhecimento da loja e regras). */
+export function assistantBase(
+  account: AssistantAccount
+): Pick<PromptInput, "storeName" | "tone" | "mode" | "knowledge" | "sellerRules"> {
   const profile = parseStoreProfile(account.store_profile)
   return {
     storeName: storeNameFrom(profile, account.organizations?.name ?? account.nickname ?? "Loja"),
     tone: account.answer_tone as AnswerTone,
+    mode: parseAnswerMode(account.answer_mode),
     knowledge: compileStoreKnowledge(profile, account.store_briefing),
     sellerRules: compileSellerRules(profile),
   }

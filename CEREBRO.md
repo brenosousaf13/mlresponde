@@ -67,6 +67,14 @@ novas funcionalidades, segurança multi-tenant de verdade — **desenvolvido em 
   (loja + WhatsApp → **CPF/CNPJ, nome/razão social e endereço**); CEP preenche o endereço; CNPJ alfanumérico aceito;
   documento **único** na plataforma e **imutável** depois de salvo (trava no banco); editável em Configurações (menos o
   documento). Contas antigas são levadas a completar no próximo acesso. Spec: `docs/superpowers/specs/2026-10-11-dados-cobranca-design.md`.
+  **Sessão 10 (2026-10-11): modo "Responder sempre" + leitura completa do anúncio** — chave em Jeito de responder (e passo
+  novo na configuração guiada): a IA responde toda pergunta e, quando não tem a informação, envia a **mensagem padrão**
+  da loja (personalizável); desconto, reclamação e pedido de contato recebem respostas neutras e seguras. Perguntas mostra
+  essas respostas em violeta, com filtro "Só mensagem padrão" e "Ensinar a IA" na própria conversa. A IA agora lê do
+  anúncio também todas as condições de venda (garantia, prazo de fabricação), atributos com vários valores, variações com
+  nome, tabela de medidas, dados do catálogo e a descrição inteira (até 20 mil caracteres); falha passageira ao ler a
+  descrição faz a fila tentar de novo. Testar mostra "O que a IA leu deste anúncio".
+  Spec: `docs/superpowers/specs/2026-10-11-modo-sempre-e-leitura-do-anuncio-design.md`.
   Falta testar com conta ML real (depende do Breno).
 - **Marca da v2:** logo `MeliLogo.png` = **"MeLi Responde"** (assumido pela IA; confirmar com o Breno). Nome centralizado em
   `lib/config/site.ts`. A v1 em produção usa "Meli Fácil".
@@ -187,10 +195,11 @@ lib/
   mercadolivre/pkce.ts, oauth.ts, oauth-cookie.ts, api.ts, accounts.ts   # OAuth v2 + tokens (lease de refresh)
   mercadolivre/client.ts        # mlRequest(accountId, path): token válido + erros tipados (401 → token inválido)
   mercadolivre/questions.ts     # pergunta, item, descrição, perguntas respondidas do anúncio, POST /answers, sync
-  mercadolivre/item.ts          # summarizeItem (resumo do anúncio para a IA; puro, testado)
+  mercadolivre/item.ts          # summarizeItem (tudo o que a IA lê do anúncio: condições de venda, ficha, variações,
+                                #   medidas, catálogo, descrição) + htmlToText/truncateMiddle (puro, testado)
   answers/notification.ts       # parseQuestionNotification (puro)
   answers/compose.ts            # composeAnswer, containsExternalContact, stripAffixes, parseItemId (puros)
-  answers/decision.ts           # decideAnswer, retryDelayMs, rótulos, níveis de rigor e tons (puro)
+  answers/decision.ts           # decideAnswer (modos careful/always + mensagem padrão), retryDelayMs, rótulos, níveis e tons (puro)
   answers/prompt.ts             # buildSystemPrompt/buildMessages (travas da v1) + JSON Schema da saída da IA (puro)
   answers/examples.ts           # rankTaughtExamples: respostas ensinadas mais parecidas com a pergunta (puro)
   answers/context.ts            # assistantBase (nome/tom/conhecimento/regras da conta) + loadTaughtExamples
@@ -314,6 +323,9 @@ localmente, definir no terminal).
   `analytics_overview(org, from, to, conta?)` → JSON com totais do período e do período anterior, série diária, faixas de
   tempo de resposta, mapa dia × hora, top 8 anúncios, causas (IA sem rascunho / com rascunho / sem análise) e total
   histórico da IA. `security invoker` (RLS), `execute` só para `authenticated`. Testada em `supabase/tests/resultados_rls.sql`.
+- **Migração `20261011235500_modo_responder_sempre.sql` (aditiva):** `ml_accounts.answer_mode` (`careful` padrão | `always`)
+  e `fallback_answer` (≤ 1000; vazio = mensagem padrão do sistema); `ml_questions.fallback_reason`
+  (`ai_escalated|low_confidence|unsafe_answer|answer_too_long`, nulo) — preenchido = a resposta enviada foi a mensagem padrão.
 
 ### 6.1c v2 — Dados de cobrança (migração `20261011235000_dados_cobranca.sql`, aditiva)
 
@@ -405,7 +417,10 @@ Extensões: pgcrypto, uuid-ossp, pg_stat_statements, pg_graphql, supabase_vault 
    anúncio bloqueado / respostas pausadas → `needs_review` **sem gastar IA**. Senão: anúncio + descrição + perguntas já
    respondidas do anúncio + informações da loja + respostas ensinadas → IA → `decideAnswer`: resposta com certeza ≥
    rigor, sem contato externo e ≤ 2000 caracteres → grava `answer_text` → `POST /answers` → `answered`; senão
-   `needs_review` com rascunho.
+   `needs_review` com rascunho. **Modo "Responder sempre" (Sessão 10):** nesse "senão" a conta envia saudação + mensagem
+   padrão + assinatura e grava `fallback_reason` (bloqueio, pausa, conta inativa, assinatura e erro continuam indo para o
+   vendedor). Anúncio lido por `fetchItemContext`: `/items/{id}?include_attributes=all` + descrição (5xx/429/rede =
+   nova tentativa; 404/4xx = sem descrição) + `/products/{catalog_product_id}` + `/catalog/charts/{SIZE_GRID_ID}` (opcionais).
 3. Erros: `failed` + nova tentativa em 1/2/4/8/16 min; após 5 → `needs_review` (`processing_error`). Token inválido →
    `needs_review` (`account_inactive`).
 4. Fila: webhook processa até 5 atrasadas; produção terá Vercel Cron a cada minuto. **Staging não tem cron.**
@@ -429,7 +444,10 @@ Extensões: pgcrypto, uuid-ossp, pg_stat_statements, pg_graphql, supabase_vault 
    perguntas mais recentes do período. O Painel tem o botão "Ver resultados da IA".
 7. Prompt: system = travas (Regra 0 da v1 etc.) + regras do vendedor + `<CONHECIMENTO_DA_LOJA>` (compilado do
    `store_profile` + `store_briefing`) + até 12 respostas ensinadas ranqueadas por semelhança; user = anúncio + perguntas
-   já respondidas no anúncio (`[MESMO COMPRADOR]` marcado) + pergunta. Quando não sabe, escala com rascunho.
+   já respondidas no anúncio (`[MESMO COMPRADOR]` marcado) + pergunta. Quando não sabe, escala com rascunho. No modo
+   `always`, a seção de escalate vira "MODO RESPONDER SEMPRE" (informação ausente → escalate vazio = mensagem padrão;
+   negociação → condições do anúncio; pedido/reclamação → desculpas + "Minhas compras"; contato → "atendimento por aqui").
+   A "Sugestão da IA" na caixa de entrada sempre usa o modo cuidadoso.
 - Realtime no navegador: chamar `supabase.realtime.setAuth(access_token)` antes de assinar (sem isso o RLS bloqueia os eventos).
 
 ### 7.1 v1 (produção) — Login
@@ -792,10 +810,33 @@ webhook do ML validado, fila/reprocessamento de jobs, observabilidade, controle 
 | 2026-10-11 | Dados de cobrança em tabela própria (`billing_profiles`), lidos só por dono/administrador | Dado pessoal (LGPD): membros comuns e futuras equipes não veem o CPF do dono; fica pronto para o gateway/nota fiscal (sub-projeto 4). |
 | 2026-10-11 | Aceitar o **CNPJ alfanumérico** (Receita, desde jul/2026) | Empresas novas já recebem CNPJ com letras; rejeitar seria perder cliente. Mesmo cálculo valida o CNPJ antigo. |
 | 2026-10-11 | Contas antigas (e as da v1 no cutover) completam os dados no próximo acesso; admin da plataforma e membros comuns dispensados | Cobrança certa para todos; a "Loja Demonstração" não pode prender o CPF do Breno. |
+| 2026-10-11 | Modo "Responder sempre": a IA **nunca escreve o "não sei"** — ela escala com resposta vazia e o sistema envia a mensagem padrão da loja | Texto previsível e personalizável pelo cliente; a Regra 0 continua inteira (nada de palpite) e dá para medir/filtrar essas respostas (`fallback_reason`). |
+| 2026-10-11 | No modo sempre, desconto, reclamação, pedido e contato recebem respostas de **procedimento** (condições do anúncio, desculpas + "Minhas compras", atendimento pelo ML) em vez da mensagem padrão | "Não temos essa informação" para uma reclamação soaria descaso; as respostas de procedimento não afirmam nada do produto. |
+| 2026-10-11 | Anúncio bloqueado, respostas pausadas, conta inativa e erro continuam indo para o vendedor mesmo no modo sempre | O bloqueio é uma escolha explícita do vendedor; os outros casos nem chegam à IA. |
+| 2026-10-11 | Falha passageira (5xx/429/rede) ao ler a descrição do anúncio **não** é mais engolida: a fila tenta de novo | Antes a IA respondia sem ter lido a descrição — principal fonte de "não está no anúncio" errado. 404/4xx seguem sem descrição. |
 
 ---
 
 ## 12. Diário de sessões (mais recente no topo)
+
+### 2026-10-11 — Sessão 10 · Modo "Responder sempre" e leitura completa do anúncio (IA: Claude, via app Codex)
+- Pedido do Breno: (1) chave para a IA sempre responder, com mensagem personalizável quando não souber; (2) garantir que a
+  IA lê o anúncio inteiro. Spec: `docs/superpowers/specs/2026-10-11-modo-sempre-e-leitura-do-anuncio-design.md`.
+- Migração `20261011235500_modo_responder_sempre.sql` aplicada no Supabase de testes (`db push`); tipos regenerados.
+- `decision.ts` (modos, mensagem padrão, `FALLBACK_REASON_LABELS`), `prompt.ts` (seção do modo sempre; manda procurar em todas
+  as partes do anúncio), `context.ts`/`engine.ts` (modo da conta, `fallback_reason`, leitura do anúncio sem engolir erro da
+  descrição), `item.ts` reescrito (condições de venda, vários valores, variações com nome, medidas, catálogo, descrição até
+  20 mil com começo+fim, HTML → texto), `questions.ts` (`fetchItemContext`), `parseItemId` (links de catálogo `/p/`).
+- Telas: card + chave em Jeito de responder, passo novo na configuração guiada (20 passos), selo "sempre" no cabeçalho,
+  Testar com 3 desfechos e "O que a IA leu deste anúncio", Perguntas com tom violeta, filtro `?padrao=1` e "Ensinar a IA"
+  (`teachFromQuestion`, `components/perguntas/teach-fallback.tsx`).
+- Testes: 216 unitários (+ `always-mode.test.ts`, `item-reading.test.ts`) e **22 cenários com a IA real** (`gpt-6-luna`),
+  todos passando — inclui leitura da descrição, ficha, prazo de fabricação, medidas e o modo sempre (desconto, reclamação,
+  contato, informação ausente). O cenário de "instrução escondida" passou a aceitar recusa educada sem contato (o Luna às
+  vezes responde em vez de escalar; as duas saídas são seguras). RLS (`respostas_rls.sql`) ok. Typecheck, lint e build ok.
+- QA no navegador (1440 e 390 px) com loja temporária no Supabase de testes: salvar/validar mensagem (telefone recusado),
+  ligar/desligar, Testar no modo sempre, filtro e ensinar na caixa de entrada, passo da configuração guiada. Dados apagados.
+- Trabalho em paralelo com a Sessão 9 (cobrança) na mesma pasta: commits separados, só com os arquivos de cada uma.
 
 ### 2026-10-11 — Sessão 9 · CPF/CNPJ e endereço no cadastro (IA: Claude, via app Codex)
 - Pedido do Breno: coletar CPF/CNPJ e endereço no cadastro (para a cobrança) e permitir atualizar em Configurações;
@@ -978,6 +1019,10 @@ webhook do ML validado, fila/reprocessamento de jobs, observabilidade, controle 
    No cutover, a produção passa a usar o Luna automaticamente (padrão do código).
 3b. **Breno: experimentar o Assistente de IA na staging** (`/assistente`): responder a configuração guiada com dados de uma
    loja real, usar a aba Testar e dizer se falta alguma pergunta/opção no roteiro (`lib/assistant/questions.ts`).
+3c. **Breno: testar o modo "Responder sempre"** (Assistente → Jeito de responder) e aprovar o texto da mensagem padrão
+   sugerida. Com uma conta ML real conectada, usar Testar com o link de um anúncio e abrir **"O que a IA leu deste
+   anúncio"** para confirmar que descrição, ficha, variações e medidas estão chegando (a leitura só foi testada com dados no
+   formato da documentação do ML). Ideia: separar em Resultados as respostas com mensagem padrão.
 4. **Breno: teste real na staging** (`https://mlresponde-v2.vercel.app`, a conta "Noord Shop" já existe): conectar uma conta
    ML **segura** (sem compradores reais e que NÃO esteja no app de produção), concluir a configuração do Assistente de IA,
    ligar, e fazer uma pergunta num anúncio dessa conta a partir de outra conta ML. Conferir em Perguntas.

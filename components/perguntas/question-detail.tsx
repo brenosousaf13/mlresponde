@@ -5,6 +5,7 @@ import {
   ExternalLinkIcon,
   ListFilterIcon,
   LoaderIcon,
+  MessageSquareDashedIcon,
   PackageIcon,
   StoreIcon,
   UserCheckIcon,
@@ -15,10 +16,11 @@ import Link from "next/link"
 
 import { AnswerComposer } from "@/components/perguntas/answer-composer"
 import { QuestionMenu } from "@/components/perguntas/question-menu"
+import { TeachFallback } from "@/components/perguntas/teach-fallback"
 import { Card } from "@/components/ui/card"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { composeAnswer } from "@/lib/answers/compose"
-import { REVIEW_REASON_LABELS, type ReviewReason } from "@/lib/answers/decision"
+import { FALLBACK_REASON_LABELS, REVIEW_REASON_LABELS, type FallbackReason, type ReviewReason } from "@/lib/answers/decision"
 import { formatDateTime, timeAgo } from "@/lib/format"
 import { TONE_STYLES, questionTone } from "@/lib/questions/presentation"
 import { cn } from "@/lib/utils"
@@ -41,6 +43,7 @@ export type DetailQuestion = {
   answer_text: string | null
   answer_source: string | null
   answered_at: string | null
+  fallback_reason: string | null
 }
 
 export type AccountInfo = { nickname: string; greeting: string; signature: string }
@@ -81,9 +84,12 @@ export function QuestionDetail({
   backHref,
   nextHref,
   itemHref,
+  taught,
   className,
 }: {
   question: DetailQuestion
+  /** Resposta já ensinada a partir desta pergunta (só para as respondidas com a mensagem padrão). */
+  taught?: { answer: string; allItems: boolean } | null
   account: AccountInfo | undefined
   showAccount: boolean
   backHref: string
@@ -92,14 +98,16 @@ export function QuestionDetail({
   itemHref: string | null
   className?: string
 }) {
-  const tone = questionTone(question.status, question.answer_source)
+  const tone = questionTone(question.status, question.answer_source, question.fallback_reason)
   const style = TONE_STYLES[tone]
   const reason = question.review_reason ? REVIEW_REASON_LABELS[question.review_reason as ReviewReason] : null
   const askedAt = question.question_created_at ?? question.created_at
   const draft = question.ai_draft
     ? composeAnswer({ greeting: account?.greeting, body: question.ai_draft, signature: account?.signature })
     : ""
-  const answered = (tone === "ai" || tone === "manual" || tone === "external") && question.answer_text
+  const answered = (tone === "ai" || tone === "fallback" || tone === "manual" || tone === "external") && question.answer_text
+  const fallbackLabel =
+    tone === "fallback" ? (FALLBACK_REASON_LABELS[question.fallback_reason as FallbackReason] ?? null) : null
   const source = SOURCE[(question.answer_source ?? "manual") as keyof typeof SOURCE] ?? SOURCE.manual
 
   return (
@@ -167,6 +175,22 @@ export function QuestionDetail({
               </div>
             </div>
           ) : null}
+          {tone === "fallback" ? (
+            <div className={cn("flex items-start gap-2.5 rounded-xl border p-3.5 text-sm", style.soft)}>
+              <MessageSquareDashedIcon className="mt-0.5 size-4 shrink-0 text-violet-600 dark:text-violet-400" />
+              <div className="flex flex-col gap-0.5">
+                <p className="font-medium">A IA respondeu com a mensagem padrão</p>
+                <p className="opacity-80">
+                  {[fallbackLabel, question.ai_reason]
+                    .map((part) => part?.trim().replace(/[.\s]+$/, ""))
+                    .filter(Boolean)
+                    .map((part) => `${part}. `)
+                    .join("")}
+                  Ensine a resposta certa abaixo para a IA responder perguntas parecidas da próxima vez.
+                </p>
+              </div>
+            </div>
+          ) : null}
           {tone === "queue" ? (
             <div className={cn("flex items-center gap-2.5 rounded-xl border p-3.5 text-sm", style.soft)}>
               <LoaderIcon className="size-4 shrink-0 animate-spin" />
@@ -203,7 +227,8 @@ export function QuestionDetail({
                   <p className="text-xs text-muted-foreground">
                     <span className="font-medium text-foreground">{source.label}</span>
                     {question.answered_at ? ` · ${timeAgo(question.answered_at)}` : ""}
-                    {question.answer_source === "ai" && question.ai_confidence !== null
+                    {tone === "fallback" ? " · mensagem padrão" : ""}
+                    {tone === "ai" && question.ai_confidence !== null
                       ? ` · certeza ${Math.round(Number(question.ai_confidence) * 100)}%`
                       : ""}
                   </p>
@@ -226,6 +251,11 @@ export function QuestionDetail({
             draftConfidence={question.ai_draft && question.ai_confidence !== null ? Number(question.ai_confidence) : null}
             nextHref={nextHref}
           />
+        </div>
+      ) : null}
+      {tone === "fallback" ? (
+        <div className="shrink-0 border-t bg-muted/30 p-3 sm:p-4">
+          <TeachFallback key={question.id} questionId={question.id} taught={taught ?? null} />
         </div>
       ) : null}
     </Card>

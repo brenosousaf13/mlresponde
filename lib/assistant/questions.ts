@@ -28,11 +28,13 @@ export type ProfileQuestion = {
 }
 
 export type StyleStep = {
-  id: "tone" | "affixes" | "threshold"
+  id: "tone" | "affixes" | "mode" | "threshold"
   section: "estilo"
   label: string
   title: string
   description: string
+  /** Descrição quando o modo "responder sempre" está ligado. */
+  alwaysDescription?: string
 }
 
 export type SetupStep = ({ type: "question" } & ProfileQuestion) | ({ type: "style" } & StyleStep)
@@ -377,12 +379,21 @@ export const STYLE_STEPS: StyleStep[] = [
       "Elas entram em todas as respostas, inclusive para quem já comprou. Evite frases como \"Aguardamos sua compra\".",
   },
   {
+    id: "mode",
+    section: "estilo",
+    label: "Quando a IA não souber",
+    title: "O que fazer quando a IA não souber a resposta?",
+    description:
+      "Por padrão, a pergunta fica para você responder. Se prefere rapidez, ligue \"Responder sempre\": o comprador recebe na hora uma mensagem avisando que a loja não tem essa informação.",
+  },
+  {
     id: "threshold",
     section: "estilo",
-    label: "Quando a IA responde sozinha",
-    title: "Quando a IA pode responder sozinha?",
+    label: "Quanta certeza a IA precisa ter",
+    title: "Quanta certeza a IA precisa ter para usar a resposta dela?",
     description:
       "Se ela não tiver certeza suficiente, a pergunta fica para você em Perguntas, já com um rascunho pronto.",
+    alwaysDescription: "Se ela não tiver certeza suficiente, o comprador recebe a mensagem padrão em vez da resposta dela.",
   },
 ]
 

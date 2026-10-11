@@ -8,7 +8,7 @@ const DAY_MS = 24 * 60 * 60 * 1000
 const TOP_ITEMS_SAMPLE = 1000
 
 const QUESTION_FIELDS =
-  "id, item_id, item_title, item_thumbnail, question_text, question_created_at, created_at, status, review_reason, answer_text, answer_source"
+  "id, item_id, item_title, item_thumbnail, question_text, question_created_at, created_at, status, review_reason, answer_text, answer_source, fallback_reason"
 
 export type DashboardQuestion = {
   id: string
@@ -22,6 +22,7 @@ export type DashboardQuestion = {
   review_reason: string | null
   answer_text: string | null
   answer_source: string | null
+  fallback_reason: string | null
 }
 
 export async function getDashboardData(organizationId: string, days = 7) {

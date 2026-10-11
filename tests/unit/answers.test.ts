@@ -94,6 +94,7 @@ describe("decideAnswer", () => {
     expect(decideAnswer({ action: "answer", answer: "Temos sim.", confidence: 0.9, reason: "" }, settings)).toEqual({
       kind: "answer",
       text: "Olá! Temos sim. Equipe X",
+      fallbackReason: null,
     })
   })
 
@@ -162,8 +163,8 @@ describe("summarizeItem e buildMessages", () => {
     expect(summary).toContain("Garantia: 90 dias")
     expect(summary).toContain("- Marca: Caloi")
     expect(summary).not.toContain("Material")
-    expect(summary).toContain("- Azul: com estoque")
-    expect(summary).toContain("- Preta: ESGOTADA")
+    expect(summary).toContain("- Cor: Azul — com estoque")
+    expect(summary).toContain("- Cor: Preta — ESGOTADA")
     expect(summary).toContain("Quadro de alumínio.")
   })
 

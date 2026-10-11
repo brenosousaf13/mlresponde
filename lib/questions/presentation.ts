@@ -2,9 +2,10 @@
 
 import { REVIEW_REASON_LABELS, type ReviewReason } from "@/lib/answers/decision"
 
-export type QuestionTone = "open" | "queue" | "ai" | "manual" | "external" | "archived"
+export type QuestionTone = "open" | "queue" | "ai" | "fallback" | "manual" | "external" | "archived"
 
-export function questionTone(status: string, source: string | null): QuestionTone {
+/** fallbackReason preenchido = a IA respondeu com a mensagem padrão (modo "responder sempre"). */
+export function questionTone(status: string, source: string | null, fallbackReason?: string | null): QuestionTone {
   switch (status) {
     case "needs_review":
     case "failed":
@@ -13,7 +14,8 @@ export function questionTone(status: string, source: string | null): QuestionTon
     case "processing":
       return "queue"
     case "answered":
-      return source === "ai" ? "ai" : source === "external" ? "external" : "manual"
+      if (source === "ai") return fallbackReason ? "fallback" : "ai"
+      return source === "external" ? "external" : "manual"
     case "answered_outside":
       return "external"
     default:
@@ -45,6 +47,13 @@ export const TONE_STYLES: Record<
     text: "text-primary",
     bubble: "bg-primary/10 text-foreground",
     soft: "",
+  },
+  fallback: {
+    label: "Respondida com a mensagem padrão",
+    dot: "bg-violet-500",
+    text: "text-violet-700 dark:text-violet-400",
+    bubble: "bg-violet-500/10 text-foreground",
+    soft: "bg-violet-50 border-violet-200 text-violet-950 dark:bg-violet-950/30 dark:border-violet-900 dark:text-violet-100",
   },
   manual: {
     label: "Respondida por você",
@@ -102,8 +111,9 @@ export function questionSummary(question: {
   answer_source: string | null
   review_reason: string | null
   answer_text: string | null
+  fallback_reason?: string | null
 }): { tone: QuestionTone; label: string; preview: string | null } {
-  const tone = questionTone(question.status, question.answer_source)
+  const tone = questionTone(question.status, question.answer_source, question.fallback_reason)
   const preview = question.answer_text?.replace(/\s+/g, " ").trim() || null
   switch (tone) {
     case "open":
@@ -114,6 +124,8 @@ export function questionSummary(question: {
       }
     case "ai":
       return { tone, label: "IA", preview }
+    case "fallback":
+      return { tone, label: "Mensagem padrão", preview }
     case "manual":
       return { tone, label: "Você", preview }
     case "external":
@@ -157,6 +169,8 @@ export type InboxState = {
   order: InboxOrder
   page: number
   question: string | null
+  /** Só as respondidas com a mensagem padrão (vale na aba "Respondidas pela IA"). */
+  fallback?: boolean
 }
 
 /** Monta a URL de /perguntas omitindo o que é padrão (aba "Para responder", página 1, mais recentes). */
@@ -165,6 +179,7 @@ export function inboxHref(state: InboxState): string {
   if (state.tab !== "responder") query.set("aba", state.tab)
   if (state.account) query.set("conta", state.account)
   if (state.item) query.set("anuncio", state.item)
+  if (state.fallback && state.tab === "ia") query.set("padrao", "1")
   if (state.search) query.set("busca", state.search)
   if (state.order !== "recentes") query.set("ordem", state.order)
   if (state.page > 1) query.set("pagina", String(state.page))

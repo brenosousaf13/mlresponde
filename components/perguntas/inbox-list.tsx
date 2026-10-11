@@ -1,4 +1,4 @@
-import { ArrowDownWideNarrowIcon, ArrowUpNarrowWideIcon, ChevronLeftIcon, ChevronRightIcon, XIcon } from "lucide-react"
+import { ArrowDownWideNarrowIcon, ArrowUpNarrowWideIcon, ChevronLeftIcon, ChevronRightIcon, MessageSquareDashedIcon, XIcon } from "lucide-react"
 import Link from "next/link"
 import { Fragment } from "react"
 
@@ -23,6 +23,7 @@ export type ListQuestion = {
   review_reason: string | null
   answer_text: string | null
   answer_source: string | null
+  fallback_reason?: string | null
 }
 
 /** Topo da lista: busca, conta, filtro de anúncio ativo, total e ordenação. */
@@ -37,6 +38,7 @@ export function InboxListToolbar({
   item,
   clearItemHref,
   accounts,
+  fallbackFilter,
 }: {
   tab: InboxTab
   total: number
@@ -48,6 +50,8 @@ export function InboxListToolbar({
   item: { id: string; title: string | null; thumbnail: string | null } | null
   clearItemHref: string
   accounts: { id: string; nickname: string }[] | null
+  /** Filtro "só mensagem padrão" da aba "Respondidas pela IA" (nulo quando não se aplica). */
+  fallbackFilter?: { active: boolean; count: number; href: string } | null
 }) {
   const OrderIcon = order === "antigas" ? ArrowUpNarrowWideIcon : ArrowDownWideNarrowIcon
   return (
@@ -75,9 +79,31 @@ export function InboxListToolbar({
           </div>
         </div>
       ) : null}
+      {fallbackFilter ? (
+        <div className="px-3 pb-2">
+          <Link
+            href={fallbackFilter.href}
+            scroll={false}
+            aria-pressed={fallbackFilter.active}
+            className={cn(
+              "inline-flex h-7 items-center gap-1.5 rounded-full border px-2.5 text-xs font-medium transition-colors",
+              fallbackFilter.active
+                ? "border-violet-300 bg-violet-50 text-violet-800 dark:border-violet-800 dark:bg-violet-950/40 dark:text-violet-200"
+                : "text-muted-foreground hover:border-violet-300 hover:text-violet-700 dark:hover:text-violet-300"
+            )}
+          >
+            <MessageSquareDashedIcon className="size-3.5" />
+            Só mensagem padrão
+            <span className="tabular-nums opacity-70">{formatNumber(fallbackFilter.count)}</span>
+            {fallbackFilter.active ? <XIcon className="size-3" /> : null}
+          </Link>
+        </div>
+      ) : null}
       <div className="flex items-center justify-between gap-2 pr-2 pb-1.5 pl-4 text-xs text-muted-foreground">
         <span>
-          <span className="font-medium text-foreground/80">{INBOX_TABS[tab].label}</span>
+          <span className="font-medium text-foreground/80">
+            {fallbackFilter?.active ? "Respondidas com a mensagem padrão" : INBOX_TABS[tab].label}
+          </span>
           <span className="tabular-nums"> · {formatNumber(total)}</span>
         </span>
         <Link

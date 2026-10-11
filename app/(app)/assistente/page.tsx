@@ -15,7 +15,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { parseStoreProfile } from "@/lib/assistant/profile"
-import { CONFIDENCE_PRESETS } from "@/lib/answers/decision"
+import { CONFIDENCE_PRESETS, fallbackBody, parseAnswerMode } from "@/lib/answers/decision"
 import { canManageOrganization, requireSection } from "@/lib/dal/app-context"
 import { createClient } from "@/lib/supabase/server"
 
@@ -40,7 +40,7 @@ export default async function AssistantPage({ searchParams }: PageProps<"/assist
   const { data: accounts, error } = await supabase
     .from("ml_accounts")
     .select(
-      "id, nickname, ml_user_id, status, auto_reply_enabled, ai_confidence_threshold, answer_tone, answer_greeting, answer_signature, store_briefing, store_profile, store_setup_step, store_profile_completed_at, updated_at"
+      "id, nickname, ml_user_id, status, auto_reply_enabled, ai_confidence_threshold, answer_tone, answer_mode, fallback_answer, answer_greeting, answer_signature, store_briefing, store_profile, store_setup_step, store_profile_completed_at, updated_at"
     )
     .eq("organization_id", context.organization.id)
     .neq("status", "disconnected")
@@ -66,6 +66,8 @@ export default async function AssistantPage({ searchParams }: PageProps<"/assist
     greeting: selected.answer_greeting,
     signature: selected.answer_signature,
     threshold: presetFor(Number(selected.ai_confidence_threshold)),
+    mode: parseAnswerMode(selected.answer_mode),
+    fallback: fallbackBody(selected.fallback_answer),
   }
 
   const header = (
@@ -85,6 +87,7 @@ export default async function AssistantPage({ searchParams }: PageProps<"/assist
             key={`${selected.id}-${selected.auto_reply_enabled}`}
             accountId={selected.id}
             enabled={selected.auto_reply_enabled}
+            alwaysMode={style.mode === "always"}
             disabled={!canManage || (!selected.auto_reply_enabled && (selected.status !== "active" || !setupDone))}
             disabledReason={
               !setupDone
@@ -188,7 +191,7 @@ export default async function AssistantPage({ searchParams }: PageProps<"/assist
           <KnowledgeView accountId={selected.id} profile={profile} extraInfo={selected.store_briefing} canManage={canManage} />
         </TabsContent>
         <TabsContent value="estilo">
-          <StyleForm accountId={selected.id} initial={style} disabled={!canManage} />
+          <StyleForm key={selected.id} accountId={selected.id} initial={style} disabled={!canManage} />
         </TabsContent>
         <TabsContent value="ensinadas" className="flex flex-col gap-6">
           <HowItWorks

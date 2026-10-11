@@ -36,8 +36,15 @@ export function stripAffixes(text: string, greeting: string, signature: string):
   return body
 }
 
-/** Extrai o código do anúncio (ex.: MLB1234567890) de um código ou link do Mercado Livre. */
+/**
+ * Extrai o código do anúncio (ex.: MLB1234567890) de um código ou link do Mercado Livre.
+ * Em links de catálogo (/p/MLB...), o código depois de /p/ é do PRODUTO: vale o item_id/wid do link, se houver.
+ */
 export function parseItemId(input: string): string | null {
-  const match = /\b(ML[A-Z])-?(\d{6,15})\b/i.exec(input.trim())
+  const text = input.trim()
+  const fromParam = /(?:item_id|wid)(?:=|:|%3A)(ML[A-Z])-?(\d{6,15})\b/i.exec(text)
+  if (fromParam) return `${fromParam[1].toUpperCase()}${fromParam[2]}`
+  const withoutProduct = text.replace(/\/p\/ML[A-Z]-?\d+/gi, " ")
+  const match = /\b(ML[A-Z])-?(\d{6,15})\b/i.exec(withoutProduct)
   return match ? `${match[1].toUpperCase()}${match[2]}` : null
 }

@@ -7,7 +7,7 @@ import { toast } from "sonner"
 
 import { copySetupFrom, saveSetupStep } from "@/app/(app)/assistente/actions"
 import { EMPTY_ANSWER, ProfileQuestionInput } from "@/components/assistente/question-input"
-import { AffixesFields, ThresholdOptions, ToneOptions, type StyleValues } from "@/components/assistente/style-fields"
+import { AffixesFields, ModeFields, ThresholdOptions, ToneOptions, type StyleValues } from "@/components/assistente/style-fields"
 import { Alert, AlertAction, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
@@ -168,7 +168,9 @@ export function SetupWizard({
           <div key={step.id} className="flex animate-in flex-col gap-5 duration-300 fade-in slide-in-from-right-4">
             <div className="flex flex-col gap-1.5">
               <h3 className="text-xl font-semibold tracking-tight text-balance sm:text-2xl">{step.title}</h3>
-              <p className="text-sm text-muted-foreground">{step.description}</p>
+              <p className="text-sm text-muted-foreground">
+                {step.type === "style" && style.mode === "always" && step.alwaysDescription ? step.alwaysDescription : step.description}
+              </p>
             </div>
 
             {step.type === "question" ? (
@@ -189,11 +191,21 @@ export function SetupWizard({
                 onChange={(affixes) => setStyle({ ...style, ...affixes })}
                 disabled={pending}
               />
+            ) : step.id === "mode" ? (
+              <ModeFields
+                mode={style.mode}
+                fallback={style.fallback}
+                greeting={style.greeting}
+                signature={style.signature}
+                onChange={(mode) => setStyle({ ...style, ...mode })}
+                disabled={pending}
+              />
             ) : (
               <ThresholdOptions
                 value={style.threshold}
                 onChange={(threshold) => setStyle({ ...style, threshold })}
                 disabled={pending}
+                mode={style.mode}
               />
             )}
 

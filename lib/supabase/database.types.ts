@@ -248,11 +248,13 @@ export type Database = {
         Row: {
           ai_confidence_threshold: number
           answer_greeting: string
+          answer_mode: string
           answer_signature: string
           answer_tone: string
           auto_reply_enabled: boolean
           connected_by: string | null
           created_at: string
+          fallback_answer: string
           id: string
           last_refresh_error: string | null
           last_refresh_error_at: string | null
@@ -271,11 +273,13 @@ export type Database = {
         Insert: {
           ai_confidence_threshold?: number
           answer_greeting?: string
+          answer_mode?: string
           answer_signature?: string
           answer_tone?: string
           auto_reply_enabled?: boolean
           connected_by?: string | null
           created_at?: string
+          fallback_answer?: string
           id?: string
           last_refresh_error?: string | null
           last_refresh_error_at?: string | null
@@ -294,11 +298,13 @@ export type Database = {
         Update: {
           ai_confidence_threshold?: number
           answer_greeting?: string
+          answer_mode?: string
           answer_signature?: string
           answer_tone?: string
           auto_reply_enabled?: boolean
           connected_by?: string | null
           created_at?: string
+          fallback_answer?: string
           id?: string
           last_refresh_error?: string | null
           last_refresh_error_at?: string | null
@@ -374,6 +380,7 @@ export type Database = {
           attempts: number
           buyer_id: number | null
           created_at: string
+          fallback_reason: string | null
           id: string
           item_id: string | null
           item_permalink: string | null
@@ -404,6 +411,7 @@ export type Database = {
           attempts?: number
           buyer_id?: number | null
           created_at?: string
+          fallback_reason?: string | null
           id?: string
           item_id?: string | null
           item_permalink?: string | null
@@ -434,6 +442,7 @@ export type Database = {
           attempts?: number
           buyer_id?: number | null
           created_at?: string
+          fallback_reason?: string | null
           id?: string
           item_id?: string | null
           item_permalink?: string | null
@@ -691,6 +700,7 @@ export type Database = {
           attempts: number
           buyer_id: number | null
           created_at: string
+          fallback_reason: string | null
           id: string
           item_id: string | null
           item_permalink: string | null

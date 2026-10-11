@@ -16,7 +16,7 @@ const askedAt = (question: DashboardQuestion) => question.question_created_at ??
 /** Link direto para a pergunta aberta na caixa de entrada, na aba certa. */
 function questionHref(question: DashboardQuestion) {
   const summary = questionSummary(question)
-  const tab: InboxTab = summary.tone === "open" ? "responder" : summary.tone === "ai" ? "ia" : summary.tone === "manual" || summary.tone === "external" ? "voce" : "todas"
+  const tab: InboxTab = summary.tone === "open" ? "responder" : summary.tone === "ai" || summary.tone === "fallback" ? "ia" : summary.tone === "manual" || summary.tone === "external" ? "voce" : "todas"
   return inboxHref({ tab, account: null, item: null, search: "", order: "recentes", page: 1, question: question.id })
 }
 

@@ -12,11 +12,14 @@ import { cn } from "@/lib/utils"
 export function AssistantStatus({
   accountId,
   enabled,
+  alwaysMode,
   disabled,
   disabledReason,
 }: {
   accountId: string
   enabled: boolean
+  /** Modo "responder sempre" ligado (aparece só como um selo discreto). */
+  alwaysMode?: boolean
   disabled?: boolean
   disabledReason?: string
 }) {
@@ -32,6 +35,11 @@ export function AssistantStatus({
     >
       <span className={cn("size-2 rounded-full", optimistic ? "bg-emerald-500" : "bg-muted-foreground/40")} aria-hidden />
       <span className="font-medium">{optimistic ? "IA respondendo" : "IA pausada"}</span>
+      {optimistic && alwaysMode ? (
+        <span className="rounded-full bg-violet-500/10 px-1.5 py-0.5 text-[11px] font-medium text-violet-700 dark:text-violet-300">
+          sempre
+        </span>
+      ) : null}
       <Switch
         size="sm"
         checked={optimistic}

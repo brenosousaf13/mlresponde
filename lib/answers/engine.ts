@@ -7,6 +7,7 @@ import { assistantBase, loadTaughtExamples } from "@/lib/answers/context"
 import {
   RETRY_LIMIT,
   decideAnswer,
+  parseAnswerMode,
   retryDelayMs,
   type ReviewReason,
 } from "@/lib/answers/decision"
@@ -15,9 +16,8 @@ import { MlAccountUnavailableError } from "@/lib/mercadolivre/accounts"
 import { MlApiError } from "@/lib/mercadolivre/api"
 import { summarizeItem } from "@/lib/mercadolivre/item"
 import {
-  fetchItem,
   fetchItemAnsweredQuestions,
-  fetchItemDescription,
+  fetchItemContext,
   fetchQuestion,
   postAnswer,
   type MlQuestion,
@@ -30,7 +30,7 @@ type QuestionUpdate = Database["public"]["Tables"]["ml_questions"]["Update"]
 type ServiceClient = ReturnType<typeof createServiceClient>
 
 const ACCOUNT_FIELDS =
-  "id, organization_id, ml_user_id, nickname, status, token_status, auto_reply_enabled, ai_confidence_threshold, answer_tone, answer_greeting, answer_signature, store_briefing, store_profile, organizations(name, trial_ends_at, subscription_status, current_period_end, billing_exempt)"
+  "id, organization_id, ml_user_id, nickname, status, token_status, auto_reply_enabled, ai_confidence_threshold, answer_tone, answer_mode, fallback_answer, answer_greeting, answer_signature, store_briefing, store_profile, organizations(name, trial_ends_at, subscription_status, current_period_end, billing_exempt)"
 
 async function loadAccount(admin: ServiceClient, accountId: string) {
   const { data, error } = await admin.from("ml_accounts").select(ACCOUNT_FIELDS).eq("id", accountId).single()
@@ -76,9 +76,10 @@ function closedOnMercadoLivre(row: QuestionRow, question: MlQuestion): QuestionU
 }
 
 async function buildPromptContext(admin: ServiceClient, account: AccountRow, row: QuestionRow, question: MlQuestion) {
-  const [item, description, previousQnA, taught] = await Promise.all([
-    fetchItem(account.id, question.item_id),
-    fetchItemDescription(account.id, question.item_id).catch(() => null),
+  // Anúncio completo (dados, ficha, variações, descrição, catálogo e medidas). Se a descrição falhar por
+  // instabilidade do ML, o erro sobe e a fila tenta de novo: a IA não responde sem ter lido o anúncio.
+  const [{ item, description, extras }, previousQnA, taught] = await Promise.all([
+    fetchItemContext(account.id, question.item_id),
     fetchItemAnsweredQuestions(account.id, question.item_id, 10),
     loadTaughtExamples(admin, account.id, question.item_id, question.text),
   ])
@@ -94,7 +95,7 @@ async function buildPromptContext(admin: ServiceClient, account: AccountRow, row
     itemFields,
     promptInput: {
       ...assistantBase(account),
-      itemSummary: summarizeItem(item, description),
+      itemSummary: summarizeItem(item, description, extras),
       taughtExamples: taught,
       previousQnA: previousQnA
         .filter((qa) => normalize(qa.question) !== normalize(row.question_text))
@@ -116,7 +117,7 @@ async function isBlacklisted(admin: ServiceClient, accountId: string, itemId: st
 }
 
 function review(reason: ReviewReason, extra: QuestionUpdate = {}): QuestionUpdate {
-  return { status: "needs_review", review_reason: reason, locked_until: null, ...extra }
+  return { status: "needs_review", review_reason: reason, fallback_reason: null, locked_until: null, ...extra }
 }
 
 async function handleFailure(admin: ServiceClient, row: QuestionRow, error: unknown) {
@@ -192,6 +193,8 @@ export async function processQuestion(questionId: string): Promise<void> {
       threshold: Number(account.ai_confidence_threshold),
       greeting: account.answer_greeting,
       signature: account.answer_signature,
+      mode: parseAnswerMode(account.answer_mode),
+      fallback: account.fallback_answer,
     })
 
     if (decision.kind === "review") {
@@ -199,7 +202,15 @@ export async function processQuestion(questionId: string): Promise<void> {
       return
     }
 
-    await save(admin, row.id, { ...base, ...itemFields, ...aiFields, answer_text: decision.text, answer_source: "ai" })
+    // Modo "responder sempre": fallback_reason marca que foi a mensagem padrão (o rascunho da IA fica guardado).
+    await save(admin, row.id, {
+      ...base,
+      ...itemFields,
+      ...aiFields,
+      answer_text: decision.text,
+      answer_source: "ai",
+      fallback_reason: decision.fallbackReason,
+    })
     await postAnswer(account.id, row.ml_question_id, decision.text)
     await save(admin, row.id, {
       status: "answered",
@@ -255,7 +266,8 @@ export async function suggestAnswer(questionId: string): Promise<SuggestionResul
   }
 
   const { itemFields, promptInput } = await buildPromptContext(admin, account, row, question)
-  const run = await runAnswerModel(promptInput)
+  // Sugestão é revisada pelo vendedor: usa sempre as regras do modo cuidadoso (rascunho em vez de resposta neutra).
+  const run = await runAnswerModel({ ...promptInput, mode: "careful" })
   await save(admin, row.id, {
     ...questionFields(question),
     ...itemFields,
@@ -306,6 +318,7 @@ export async function sendManualAnswer(questionId: string, text: string, userId:
     status: "answered",
     answer_text: text,
     answer_source: "manual",
+    fallback_reason: null,
     answered_by: userId,
     answered_at: new Date().toISOString(),
     review_reason: null,
