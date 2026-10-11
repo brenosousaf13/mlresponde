@@ -1,10 +1,15 @@
 "use client"
 
-import { ArchiveIcon, BotIcon, ExternalLinkIcon, MoreHorizontalIcon } from "lucide-react"
+import { ArchiveIcon, ArchiveRestoreIcon, BotIcon, ExternalLinkIcon, MoreHorizontalIcon } from "lucide-react"
 import { useTransition } from "react"
 import { toast } from "sonner"
 
-import { ignoreQuestion, retryWithAi, type QuestionActionResult } from "@/app/(app)/perguntas/actions"
+import {
+  ignoreQuestion,
+  restoreQuestion,
+  retryWithAi,
+  type QuestionActionResult,
+} from "@/app/(app)/perguntas/actions"
 import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
@@ -19,10 +24,12 @@ export function QuestionMenu({
   questionId,
   permalink,
   open,
+  archived,
 }: {
   questionId: string
   permalink: string | null
   open: boolean
+  archived: boolean
 }) {
   const [pending, startTransition] = useTransition()
 
@@ -38,9 +45,11 @@ export function QuestionMenu({
     })
   }
 
+  if (!open && !archived && !permalink) return null
+
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger render={<Button variant="ghost" size="icon-sm" aria-label="Mais ações" />} disabled={pending}>
+      <DropdownMenuTrigger render={<Button variant="outline" size="icon-sm" aria-label="Mais ações" />} disabled={pending}>
         {pending ? <Spinner /> : <MoreHorizontalIcon />}
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="min-w-56">
@@ -56,12 +65,18 @@ export function QuestionMenu({
             </DropdownMenuItem>
           </>
         ) : null}
+        {archived ? (
+          <DropdownMenuItem onClick={() => run(() => restoreQuestion(questionId))}>
+            <ArchiveRestoreIcon />
+            Voltar para &ldquo;Para responder&rdquo;
+          </DropdownMenuItem>
+        ) : null}
         {permalink ? (
           <>
-            {open ? <DropdownMenuSeparator /> : null}
+            {open || archived ? <DropdownMenuSeparator /> : null}
             <DropdownMenuItem render={<a href={permalink} target="_blank" rel="noreferrer" />}>
               <ExternalLinkIcon />
-              Abrir anúncio
+              Abrir anúncio no Mercado Livre
             </DropdownMenuItem>
           </>
         ) : null}

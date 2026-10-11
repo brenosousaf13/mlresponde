@@ -7,6 +7,7 @@ import { z } from "zod"
 import {
   QuestionClosedError,
   processQuestion,
+  reconcileQuestion,
   sendManualAnswer,
   suggestAnswer,
 } from "@/lib/answers/engine"
@@ -126,6 +127,22 @@ export async function ignoreQuestion(id: string): Promise<QuestionActionResult> 
   if (error) throw error
   revalidatePath("/", "layout")
   return { ok: true, message: "Pergunta arquivada. Ela continua sem resposta no Mercado Livre." }
+}
+
+export async function restoreQuestion(id: string): Promise<QuestionActionResult> {
+  const loaded = await loadQuestion(id)
+  if ("error" in loaded) return { ok: false, message: loaded.error ?? "Erro." }
+  if (loaded.question.status !== "ignored") return { ok: false, message: "Essa pergunta não está arquivada." }
+  const { error } = await loaded.admin
+    .from("ml_questions")
+    .update({ status: "needs_review", review_reason: null })
+    .eq("id", loaded.question.id)
+  if (error) throw error
+  const questionId = loaded.question.id
+  // Se ela já foi respondida ou apagada no ML enquanto estava arquivada, a reconciliação corrige o status.
+  after(() => reconcileQuestion(questionId))
+  revalidatePath("/", "layout")
+  return { ok: true, message: "Pergunta de volta em \"Para responder\"." }
 }
 
 export async function retryWithAi(id: string): Promise<QuestionActionResult> {

@@ -8,6 +8,7 @@
   --color-brand-blue: var(--brand-blue);
   --color-brand-navy: var(--brand-navy);
   --color-brand-yellow: var(--brand-yellow);
+  --color-canvas: var(--canvas);
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --font-sans: var(--font-sans);
@@ -55,6 +56,8 @@
   --brand-blue: oklch(0.506 0.206 262.1);
   --brand-navy: oklch(0.235 0.082 265.5);
   --brand-yellow: oklch(0.848 0.165 86.4);
+  /* Fundo da área logada: cinza levemente azulado para as superfícies brancas (cards) se destacarem. */
+  --canvas: oklch(0.962 0.009 265);
   --background: oklch(1 0 0);
   --foreground: oklch(0.145 0 0);
   --card: oklch(1 0 0);
@@ -79,17 +82,18 @@
   --chart-4: oklch(0.635 0.17 262.1);
   --chart-5: oklch(0.708 0 0);
   --radius: 0.625rem;
-  --sidebar: oklch(0.985 0 0);
+  --sidebar: oklch(1 0 0);
   --sidebar-foreground: oklch(0.145 0 0);
   --sidebar-primary: var(--brand-blue);
   --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
+  --sidebar-accent: oklch(0.955 0.022 262);
+  --sidebar-accent-foreground: oklch(0.4 0.16 262);
   --sidebar-border: oklch(0.922 0 0);
   --sidebar-ring: oklch(0.708 0 0);
 }
 
 .dark {
+  --canvas: oklch(0.115 0 0);
   --background: oklch(0.145 0 0);
   --foreground: oklch(0.985 0 0);
   --card: oklch(0.205 0 0);

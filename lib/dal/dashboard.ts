@@ -10,7 +10,7 @@ export async function getDashboardData(organizationId: string, days = 7) {
 
   const [statsResult, accountsResult, answeredResult] = await Promise.all([
     supabase.rpc("question_stats", { p_organization_id: organizationId, p_since: since }),
-    supabase.from("ml_accounts").select("auto_reply_enabled, store_briefing").eq("organization_id", organizationId),
+    supabase.from("ml_accounts").select("auto_reply_enabled, store_profile_completed_at").eq("organization_id", organizationId),
     supabase
       .from("ml_questions")
       .select("id", { count: "exact", head: true })
@@ -28,7 +28,7 @@ export async function getDashboardData(organizationId: string, days = 7) {
     awaiting: Number(stats?.awaiting_review ?? 0),
     avgAiSeconds: stats?.avg_ai_seconds === null || stats?.avg_ai_seconds === undefined ? null : Number(stats.avg_ai_seconds),
     autoReplyOn: accounts.some((account) => account.auto_reply_enabled),
-    hasBriefing: accounts.some((account) => account.store_briefing.trim().length > 0),
+    assistantReady: accounts.some((account) => Boolean(account.store_profile_completed_at)),
     answeredEver: answeredResult.count ?? 0,
   }
 }

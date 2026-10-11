@@ -34,7 +34,7 @@ import type { NavItemConfig } from "@/lib/navigation"
 const ICONS: Record<NavItemConfig["icon"], LucideIcon> = {
   painel: LayoutDashboardIcon,
   perguntas: MessageCircleQuestionIcon,
-  respostas: BotIcon,
+  assistente: BotIcon,
   contas: StoreIcon,
   assinatura: CreditCardIcon,
   configuracoes: Settings2Icon,

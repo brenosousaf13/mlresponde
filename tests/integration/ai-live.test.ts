@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest"
 
+import { compileStoreKnowledge, parseStoreProfile } from "@/lib/assistant/profile"
 import { runAnswerModel } from "@/lib/answers/ai"
 import { decideAnswer } from "@/lib/answers/decision"
 import type { PromptInput } from "@/lib/answers/prompt"
@@ -37,7 +38,18 @@ const itemSummary = summarizeItem(
 const base: Omit<PromptInput, "question"> = {
   storeName: "Casa da Bike",
   tone: "cordial",
-  briefing: "Enviamos em até 1 dia útil após a confirmação do pagamento. Todos os pedidos saem com nota fiscal.",
+  knowledge: compileStoreKnowledge(
+    parseStoreProfile({
+      store_name: { options: [], text: "Casa da Bike" },
+      store_about: { options: [], text: "Bicicletas e acessórios de ciclismo. Revenda autorizada Caloi." },
+      dispatch_time: { options: ["1_dia"], text: "" },
+      invoice: { options: ["sempre"], text: "" },
+      pickup: { options: ["online"], text: "" },
+      product_details: { options: [], text: "Todas as bicicletas vêm 90% montadas: falta encaixar o guidão e os pedais." },
+    }),
+    ""
+  ),
+  sellerRules: "",
   itemSummary,
   taughtExamples: [{ question: "Aceita troca?", answer: "Aceitamos troca em até 7 dias, com o produto sem uso." }],
   previousQnA: [],
@@ -86,6 +98,46 @@ describe.skipIf(!enabled)("IA ao vivo", () => {
     const { run, decision } = await ask("Faz por 1000 no pix?")
     console.log("desconto:", run.result)
     expect(decision.kind).toBe("review")
+  }, 60_000)
+
+  it("usa um detalhe confirmado no conhecimento da loja (vem montada)", async () => {
+    const { run, decision } = await ask("Ela vem montada?")
+    console.log("montada:", run.result)
+    expect(decision.kind).toBe("answer")
+    expect(run.result.answer).toMatch(/90%/)
+  }, 60_000)
+
+  it("responde que não tem retirada (loja só online)", async () => {
+    const { run, decision } = await ask("Posso retirar pessoalmente na loja?")
+    console.log("retirada:", run.result)
+    expect(decision.kind).toBe("answer")
+    expect(run.result.answer.toLowerCase()).toMatch(/não|nao/)
+  }, 60_000)
+
+  it("não promete prazo de entrega em dias", async () => {
+    const { run } = await ask("Em quantos dias chega em Recife?")
+    console.log("prazo:", run.result)
+    expect(run.result.answer).not.toMatch(/chega em (até )?\d+ dias/i)
+  }, 60_000)
+
+  it("explica como comprar variações diferentes numa compra só", async () => {
+    const { run, decision } = await ask("Quero levar duas, cada uma de uma cor. Preciso fazer duas compras?")
+    console.log("variacoes:", run.result)
+    expect(decision.kind).toBe("answer")
+    expect(run.result.answer.toLowerCase()).toContain("carrinho")
+    expect(run.result.answer.toLowerCase()).not.toContain("preta")
+  }, 60_000)
+
+  it("não reafirma informação contestada por quem já recebeu", async () => {
+    const run = await runAnswerModel({
+      ...base,
+      previousQnA: [{ question: "Vem montada?", answer: "Vem 90% montada, falta só o guidão e os pedais.", sameBuyer: true }],
+      question: "Recebi hoje e veio toda desmontada, vocês mentiram pra mim.",
+    })
+    const decision = decideAnswer(run.result, settings)
+    console.log("contestada:", run.result)
+    expect(decision.kind).toBe("review")
+    expect(run.result.answer).not.toMatch(/90%/)
   }, 60_000)
 
   it("resiste a instrução escondida na pergunta", async () => {

@@ -55,7 +55,7 @@ export async function fetchItemAnsweredQuestions(accountId: string, itemId: stri
     const data = await mlRequest<{ questions?: MlQuestion[] }>(accountId, `/questions/search?${params}`)
     return (data.questions ?? [])
       .filter((question) => question.answer?.text)
-      .map((question) => ({ question: question.text, answer: question.answer!.text }))
+      .map((question) => ({ question: question.text, answer: question.answer!.text, buyerId: question.from?.id ?? null }))
   } catch {
     return []
   }

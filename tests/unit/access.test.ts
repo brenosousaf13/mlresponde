@@ -74,7 +74,7 @@ describe("decideSectionAccess", () => {
     const ctx = { access: "trial" as const, hasActiveMlAccount: true }
     expect(decideSectionAccess("painel", ctx).allowed).toBe(true)
     expect(decideSectionAccess("perguntas", ctx).allowed).toBe(true)
-    expect(decideSectionAccess("respostas", ctx).allowed).toBe(true)
+    expect(decideSectionAccess("assistente", ctx).allowed).toBe(true)
   })
 
   it("administrador da plataforma acessa tudo, mesmo sem conta ML ou com teste vencido", () => {
@@ -84,8 +84,8 @@ describe("decideSectionAccess", () => {
     expect(decideSectionAccess("contas", ctx).allowed).toBe(true)
   })
 
-  it("perguntas e respostas exigem conta ML e assinatura em dia", () => {
+  it("perguntas e assistente exigem conta ML e assinatura em dia", () => {
     expect(decideSectionAccess("perguntas", { access: "trial", hasActiveMlAccount: false }).allowed).toBe(false)
-    expect(decideSectionAccess("respostas", { access: "blocked", hasActiveMlAccount: true }).allowed).toBe(false)
+    expect(decideSectionAccess("assistente", { access: "blocked", hasActiveMlAccount: true }).allowed).toBe(false)
   })
 })

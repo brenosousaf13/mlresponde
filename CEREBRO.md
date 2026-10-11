@@ -4,7 +4,7 @@
 > inteiro antes de trabalhar e atualizá-lo ao terminar. Se algo aqui divergir do código, o código vence —
 > e este arquivo deve ser corrigido na mesma sessão.
 
-Última atualização: **2026-10-11** (Sessão 4 — Respostas automáticas v2 implementadas na branch `v2`)
+Última atualização: **2026-10-11** (Sessão 5 — Assistente de IA com configuração guiada + novo painel de Perguntas, branch `v2`)
 
 ---
 
@@ -48,6 +48,11 @@ novas funcionalidades, segurança multi-tenant de verdade — **desenvolvido em 
   **Sub-projeto 2 (Respostas automáticas v2) implementado** em 2026-10-11: webhook validado, motor com IA que só responde
   com certeza (senão vai para o vendedor), fila com novas tentativas, telas Perguntas e Respostas da IA, painel com
   métricas. Spec: `docs/superpowers/specs/2026-10-11-respostas-v2-design.md`. Detalhes em §4, §6, §7 e §10.
+  **Sessão 5 (2026-10-11): "Respostas da IA" virou "Assistente de IA"** (`/assistente`) com configuração guiada de
+  19 perguntas sobre o negócio (vira o conhecimento da loja no prompt, editável depois), ligar/pausar discreto, abas
+  Sobre a loja / Jeito de responder / Respostas ensinadas / Anúncios bloqueados / Testar; prompt reescrito com as
+  travas da v1; **Perguntas virou caixa de entrada** em duas colunas com filtros coloridos e resposta na própria tela.
+  Spec: `docs/superpowers/specs/2026-10-11-assistente-ia-design.md`.
   Falta testar com conta ML real (depende do Breno).
 - **Marca da v2:** logo `MeliLogo.png` = **"MeLi Responde"** (assumido pela IA; confirmar com o Breno). Nome centralizado em
   `lib/config/site.ts`. A v1 em produção usa "Meli Fácil".
@@ -124,9 +129,11 @@ app/
   (app)/                          # área logada: sidebar shadcn (collapsible="icon"), header, barras de aviso, tour
     layout.tsx                    # requireOnboardedContext + menu com cadeados (decideSectionAccess)
     actions.ts                    # completeTour
-    painel/ perguntas/ respostas/ contas/ assinatura/ configuracoes/   # cada page chama requireSection(...)
-    perguntas/actions.ts          # answerQuestion (+ensinar), generateSuggestion, ignoreQuestion, retryWithAi, syncQuestions
-    respostas/actions.ts          # setAutoReply, updateAnswerSettings, add/removeBlacklistItem, add/deleteExample
+    painel/ perguntas/ assistente/ contas/ assinatura/ configuracoes/   # cada page chama requireSection(...)
+    perguntas/actions.ts          # answerQuestion (+ensinar), generateSuggestion, ignoreQuestion, restoreQuestion,
+                                  # retryWithAi, syncQuestions
+    assistente/actions.ts         # setAutoReply, saveSetupStep, saveProfileAnswer, copySetupFrom, updateStyle,
+                                  # updateExtraInfo, add/removeBlacklistItem, add/update/deleteExample, testAssistant
   (legal)/termos, (legal)/privacidade            # RASCUNHOS (revisar com advogado antes do lançamento)
   api/ml/oauth/start/route.ts     # inicia OAuth ML: state + PKCE S256, cookie httpOnly criptografado (10 min)
   api/auth/callback/mercadolivre/route.ts  # retorno do OAuth (URL cadastrada no app ML): valida state/usuário,
@@ -136,6 +143,12 @@ app/
 components/
   ui/                             # shadcn (não editar à toa; regenerar com a CLI)
   app/                            # app-sidebar, nav-user, app-header, access-banners, welcome-tour, page-header...
+  perguntas/                      # inbox-tabs, inbox-list (+row-link), question-detail, answer-composer, question-menu,
+                                  # question-search (next/form), live-refresh, sync-button
+  assistente/                     # setup-wizard, question-input, style-fields/style-form, knowledge-view,
+                                  # edit-answer-dialog, extra-info-form, prompt-preview-dialog, examples-manager,
+                                  # blacklist-manager, test-panel, assistant-status, how-it-works
+  app/account-select.tsx          # seletor de conta (?conta=), com "Todas as contas" opcional
   auth/ onboarding/ contas/ configuracoes/ legal/ forms/ brand/
 lib/
   config/site.ts                  # nome da marca, dias de teste, versão dos termos
@@ -151,7 +164,12 @@ lib/
   answers/notification.ts       # parseQuestionNotification (puro)
   answers/compose.ts            # composeAnswer, containsExternalContact, stripAffixes, parseItemId (puros)
   answers/decision.ts           # decideAnswer, retryDelayMs, rótulos, níveis de rigor e tons (puro)
-  answers/prompt.ts             # buildMessages + JSON Schema da saída da IA (puro)
+  answers/prompt.ts             # buildSystemPrompt/buildMessages (travas da v1) + JSON Schema da saída da IA (puro)
+  answers/examples.ts           # rankTaughtExamples: respostas ensinadas mais parecidas com a pergunta (puro)
+  answers/context.ts            # assistantBase (nome/tom/conhecimento/regras da conta) + loadTaughtExamples
+  assistant/questions.ts        # roteiro da configuração guiada (19 passos, 7 seções; ids estáveis)
+  assistant/profile.ts          # validar/ler store_profile e compilar o "conhecimento da loja" (puro, testado)
+  questions/presentation.ts     # status → cor/rótulo, abas da caixa de entrada, limpeza da busca (puro)
   answers/ai.ts                 # runAnswerModel (OpenAI)
   answers/engine.ts             # processQuestion, processDueQuestions, reconcileQuestion, suggestAnswer, sendManualAnswer
   answers/ingest.ts             # registerQuestion, syncUnansweredQuestions
@@ -246,6 +264,9 @@ localmente, definir no terminal).
   modelo/tokens da IA, `answer_text` + `answer_source` (`ai|manual|external`) + quem/quando, fila (`attempts`,
   `next_attempt_at`, `locked_until`, `last_error`). Realtime ligado.
 - `ai_examples` (respostas ensinadas; `item_id` nulo = vale para a conta toda) e `item_blacklist` (anúncios que a IA não responde).
+- **Migração `20261011210000_assistente_ia.sql` (aditiva):** `ml_accounts.store_profile` jsonb (respostas da configuração
+  guiada `{ [perguntaId]: { options, text } }`, ≤ 60 KB), `store_setup_step`, `store_profile_completed_at` (nulo = mostra a
+  configuração; a IA só liga depois); `ai_examples.item_title` e `updated_at`. `store_briefing` continua = "Outras informações".
 - Funções: `claim_ml_question` e `due_ml_questions` (só service role), `question_stats` (security invoker, respeita RLS).
 
 ### 6.2 v1 — produção (✅ CONFIRMADO em 2026-10-11)
@@ -324,9 +345,14 @@ Extensões: pgcrypto, uuid-ossp, pg_stat_statements, pg_graphql, supabase_vault 
    `needs_review` (`account_inactive`).
 4. Fila: webhook processa até 5 atrasadas; produção terá Vercel Cron a cada minuto. **Staging não tem cron.**
 5. Ao conectar/reconectar conta: sincroniza as perguntas sem resposta do ML (até 200) e processa.
-6. Painel do vendedor: Perguntas (abas, filtro por conta, ao vivo via Realtime, responder com rascunho, "Sugestão da IA",
-   "Ensinar a IA", arquivar, "Deixar a IA tentar de novo", sincronizar) e Respostas da IA (ligar/pausar, rigor, tom,
-   saudação, assinatura, informações da loja, respostas ensinadas, anúncios bloqueados).
+6. Painel do vendedor: **Perguntas** = caixa de entrada (filtros Para responder / Respondidas pela IA / Respondidas por
+   você / Todas, busca, conta, lista + conversa, responder na tela com rascunho, "Sugestão da IA", "Ensinar a IA",
+   "Enviar e ir para a próxima", arquivar/desarquivar, "Deixar a IA tentar de novo", ao vivo via Realtime, sincronizar) e
+   **Assistente de IA** (configuração guiada na 1ª vez; depois abas Sobre a loja, Jeito de responder, Respostas ensinadas,
+   Anúncios bloqueados, Testar; ligar/pausar discreto no cabeçalho).
+7. Prompt: system = travas (Regra 0 da v1 etc.) + regras do vendedor + `<CONHECIMENTO_DA_LOJA>` (compilado do
+   `store_profile` + `store_briefing`) + até 12 respostas ensinadas ranqueadas por semelhança; user = anúncio + perguntas
+   já respondidas no anúncio (`[MESMO COMPRADOR]` marcado) + pergunta. Quando não sabe, escala com rascunho.
 - Realtime no navegador: chamar `supabase.realtime.setAuth(access_token)` antes de assinar (sem isso o RLS bloqueia os eventos).
 
 ### 7.1 v1 (produção) — Login
@@ -563,6 +589,9 @@ Decisões de **produto** (preços, planos, textos legais, marca, WhatsApp) conti
 - ✅ **2. Respostas automáticas v2** — implementado em 2026-10-11 (spec `2026-10-11-respostas-v2-design.md`). Pendências:
   teste com conta ML real, WhatsApp (avisos/responder pelo WhatsApp — escolher provedor), importar histórico do ML para
   "ensinar" a IA, avaliação das respostas, cron só após o cutover.
+- ✅ **2b. Assistente de IA + caixa de entrada de Perguntas** — implementado em 2026-10-11 (spec
+  `2026-10-11-assistente-ia-design.md`). Pendências: feedback do Breno nas perguntas da configuração; no cutover, levar a
+  `knowledge_base` da v1 para "Outras informações" e os `training_examples` para respostas ensinadas.
 - ⏭️ **Próximo (sugestão):** migração de dados v1 → v2 + plano de cutover, ou sub-projeto 4 (planos/cobrança) — decidir com o Breno.
 - ⏳ 3. Módulos de IA/gestão · ⏳ 4. Comercial (planos, Stripe/gateway, admin).
 
@@ -659,10 +688,32 @@ webhook do ML validado, fila/reprocessamento de jobs, observabilidade, controle 
 | 2026-10-11 | WhatsApp fora do sub-projeto 2 | Precisa escolher provedor (custo); fica como próxima melhoria. |
 | 2026-10-11 | Variáveis da v2 na Vercel sempre com escopo Preview + branch `v2` | Hoje as variáveis de produção também valem para previews; sem override a v2 usaria o banco de produção. |
 | 2026-10-11 | App ML de teste com permissões amplas (ver §9) e PKCE desligado até o OAuth novo da v2 | v2 vai usar IA em várias áreas (anúncios, vendas, publicidade, promoções); PKCE quebraria o código atual. |
+| 2026-10-11 | "Respostas da IA" → **"Assistente de IA"** (`/assistente`; `/respostas` redireciona) | Breno entrou esperando ver respostas e era configuração. |
+| 2026-10-11 | Configuração guiada **por conta ML**, 19 passos com opções rápidas + detalhes; respostas em `store_profile` (JSON estruturado), compiladas no prompt a cada pergunta | Estruturado = editável item a item e o texto do prompt pode evoluir sem refazer as respostas. Conta nova pode copiar de outra. |
+| 2026-10-11 | IA só pode ser ligada com a configuração concluída | Evita a IA falar pela loja sem conhecer as políticas. |
+| 2026-10-11 | Prompt da v2 herda as travas do prompt da v1 (Regra 0, contestação, contexto, checagem), mas quando não sabe **escala para o vendedor** em vez de mandar "não tenho a informação" | Na v2 existe a fila "Para responder" com rascunho; resposta vaga não vende. |
+| 2026-10-11 | Respostas ensinadas ranqueadas por semelhança (até 12 de 300), não só as mais recentes | Antes uma ensinada antiga podia ser ignorada. |
+| 2026-10-11 | Perguntas = caixa de entrada (lista + conversa), filtros com cor e contador, resposta na tela | Pedido do Breno: layout claro; fundo `--canvas` cinza para separar as superfícies brancas. |
 
 ---
 
 ## 12. Diário de sessões (mais recente no topo)
+
+### 2026-10-11 — Sessão 5 · Assistente de IA + caixa de entrada de Perguntas (IA: Claude, via app Codex)
+- Pedido do Breno: Perguntas confuso/"tudo branco"; renomear "Respostas da IA"; ligar/desligar discreto; configuração
+  inicial com perguntas sobre o negócio que vira o system prompt (editável), mantendo as travas do prompt da v1 (enviado
+  por ele); manter ensinadas/bloqueados se funcionarem. Spec `2026-10-11-assistente-ia-design.md`.
+- Migração `20261011210000_assistente_ia.sql` aplicada no Supabase de **testes** (aditiva); tipos regenerados.
+- Novo: `lib/assistant/*`, `lib/answers/{examples,context}.ts`, `lib/questions/presentation.ts`, `components/assistente/*`,
+  caixa de entrada em `components/perguntas/*`, rota `/assistente`, token `--canvas`, shadcn `toggle-group`,
+  `radio-group`, `scroll-area`. Removidos: `question-list`, `answer-dialog`, `answer-settings-form`, `auto-reply-switch`.
+- Verificação: typecheck, 100 testes unitários, lint 0, build ok, RLS ok; **IA real 12/12** (2 rodadas) com o prompt novo —
+  ajustes feitos durante o teste: responder "não oferecemos X" em vez de escalar, rascunho sem inventar, nunca citar
+  variação esgotada, motivo em linguagem simples. QA no navegador (desktop 1440 e celular 390): filtros, lista/conversa,
+  configuração completa (19 passos, salvamento e retomada), edição de item, prévia do prompt, estilo, ensinadas,
+  bloqueados, ligar IA, Testar com IA real.
+- Para os testes com IA real a chave `OPENAI_API_KEY` foi lida pela API da Vercel (só em memória e num arquivo temporário
+  apagado em seguida). Usuário/organização de QA criados no Supabase de testes e apagados no fim.
 
 ### 2026-10-11 — Sessão 4b · Login de administrador (IA: Claude, via app Codex)
 - Pedido do Breno: login de admin com tudo liberado para ver as telas (e para o futuro painel admin).
@@ -746,18 +797,23 @@ webhook do ML validado, fila/reprocessamento de jobs, observabilidade, controle 
 ## 13. Próximos passos
 
 1. ✅ Infra de staging, inventário de prod, baseline, **Fundação** (sub-projeto 1) e **Respostas v2** (sub-projeto 2).
-2. **Breno: teste real na staging** (`https://mlresponde-v2.vercel.app`, a conta "Noord Shop" já existe): conectar uma conta
-   ML **segura** (sem compradores reais e que NÃO esteja no app de produção), preencher Respostas da IA, ligar, e fazer uma
-   pergunta num anúncio dessa conta a partir de outra conta ML. Conferir em Perguntas.
-3. Depois do 1º OAuth bem-sucedido: marcar PKCE como obrigatório no app ML de teste.
-4. **Decidir com o Breno o próximo passo:** (a) migração de dados v1 → v2 e cutover (clientes atuais com cortesia,
-   reconectar contas, importar base de conhecimento/exemplos), ou (b) sub-projeto 4 (planos e cobrança), ou (c) WhatsApp.
-5. **Breno decide:** marca ("MeLi Responde"?), SMTP próprio (Resend), textos legais, provedor de WhatsApp.
-6. **Cutover (checklist parcial):** `CRON_SECRET`, `ML_TOKEN_ENCRYPTION_KEY` (nova), `NEXT_PUBLIC_SITE_URL` em Production;
+2. **Breno: experimentar o Assistente de IA na staging** (`/assistente`): responder a configuração guiada com dados de uma
+   loja real, usar a aba Testar e dizer se falta alguma pergunta/opção no roteiro (`lib/assistant/questions.ts`).
+3. **Breno: teste real na staging** (`https://mlresponde-v2.vercel.app`, a conta "Noord Shop" já existe): conectar uma conta
+   ML **segura** (sem compradores reais e que NÃO esteja no app de produção), concluir a configuração do Assistente de IA,
+   ligar, e fazer uma pergunta num anúncio dessa conta a partir de outra conta ML. Conferir em Perguntas.
+4. Depois do 1º OAuth bem-sucedido: marcar PKCE como obrigatório no app ML de teste.
+5. **Decidir com o Breno o próximo passo:** (a) migração de dados v1 → v2 e cutover (clientes atuais com cortesia,
+   reconectar contas, importar base de conhecimento → "Outras informações" e exemplos → respostas ensinadas; o prompt do
+   cliente atual da v1 pode virar as respostas da configuração guiada), ou (b) sub-projeto 4 (planos e cobrança), ou (c) WhatsApp.
+6. **Breno decide:** marca ("MeLi Responde"?), SMTP próprio (Resend), textos legais, provedor de WhatsApp.
+7. **Cutover (checklist parcial):** `CRON_SECRET`, `ML_TOKEN_ENCRYPTION_KEY` (nova), `NEXT_PUBLIC_SITE_URL` em Production;
    `supabase migration repair --status applied 20261011150000` em prod e `db push`; URLs do app ML de produção (redirect
    `/api/auth/callback/mercadolivre`, notificações `/api/webhook/mercadolivre`) e permissões novas; clientes reconectam.
-7. **Lembrete:** P0 de prod (§8) — vazamento em `question_jobs` segue na v1 (mitigado pelo cadastro fechado).
-8. Limpeza recomendada (com aprovação): tirar Preview/Development das variáveis de produção na Vercel.
+8. **Lembrete:** P0 de prod (§8) — vazamento em `question_jobs` segue na v1 (mitigado pelo cadastro fechado).
+9. Limpeza recomendada (com aprovação): tirar Preview/Development das variáveis de produção na Vercel.
+10. Ideias anotadas (não feitas): "fichas de produto" por modelo como cadastro próprio (hoje vão em "Detalhes confirmados
+    dos produtos"), importar o histórico de respostas do ML como respostas ensinadas, avaliação das respostas da IA.
 
 ---
 

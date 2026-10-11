@@ -40,7 +40,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         organizationName={context.organization.name}
         user={{ name: context.profile.fullName, email: context.user.email, isPlatformAdmin: context.profile.isPlatformAdmin }}
       />
-      <SidebarInset>
+      <SidebarInset className="bg-canvas">
         <AccessBanners access={context.access} mlAccounts={context.mlAccounts} />
         <AppHeader />
         <div className="flex flex-1 flex-col gap-6 p-4 md:p-6">{children}</div>

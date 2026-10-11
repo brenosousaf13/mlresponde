@@ -35,7 +35,7 @@ const NOTICES: Record<string, { ok: boolean; title: string; message: string }> =
     ok: true,
     title: "Conta conectada!",
     message:
-      "Já estamos trazendo as perguntas sem resposta. As respostas automáticas começam pausadas: configure e ligue em Respostas da IA.",
+      "Já estamos trazendo as perguntas sem resposta. As respostas automáticas começam pausadas: configure e ligue no Assistente de IA.",
   },
   reconectada: { ok: true, title: "Conta reconectada!", message: "A conexão com o Mercado Livre foi renovada." },
   inativa: {

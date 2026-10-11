@@ -21,10 +21,12 @@ export type Database = {
           created_by: string | null
           id: string
           item_id: string | null
+          item_title: string | null
           ml_account_id: string
           organization_id: string
           question_text: string
           source_question_id: string | null
+          updated_at: string
         }
         Insert: {
           answer_text: string
@@ -32,10 +34,12 @@ export type Database = {
           created_by?: string | null
           id?: string
           item_id?: string | null
+          item_title?: string | null
           ml_account_id: string
           organization_id: string
           question_text: string
           source_question_id?: string | null
+          updated_at?: string
         }
         Update: {
           answer_text?: string
@@ -43,10 +47,12 @@ export type Database = {
           created_by?: string | null
           id?: string
           item_id?: string | null
+          item_title?: string | null
           ml_account_id?: string
           organization_id?: string
           question_text?: string
           source_question_id?: string | null
+          updated_at?: string
         }
         Relationships: [
           {
@@ -197,6 +203,9 @@ export type Database = {
           site_id: string | null
           status: string
           store_briefing: string
+          store_profile: Json
+          store_profile_completed_at: string | null
+          store_setup_step: number
           token_status: string
           updated_at: string
         }
@@ -217,6 +226,9 @@ export type Database = {
           site_id?: string | null
           status?: string
           store_briefing?: string
+          store_profile?: Json
+          store_profile_completed_at?: string | null
+          store_setup_step?: number
           token_status?: string
           updated_at?: string
         }
@@ -237,6 +249,9 @@ export type Database = {
           site_id?: string | null
           status?: string
           store_briefing?: string
+          store_profile?: Json
+          store_profile_completed_at?: string | null
+          store_setup_step?: number
           token_status?: string
           updated_at?: string
         }

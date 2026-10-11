@@ -58,7 +58,7 @@ export const REVIEW_REASON_LABELS: Record<ReviewReason, string> = {
 
 export const CONFIDENCE_PRESETS = [
   { value: "0.85", label: "Cautelosa", description: "Responde só quando tem muita certeza. Mais perguntas ficam para você." },
-  { value: "0.75", label: "Equilibrada", description: "Recomendado. Bom equilíbrio entre rapidez e segurança." },
+  { value: "0.75", label: "Equilibrada", description: "Bom equilíbrio entre rapidez e segurança." },
   { value: "0.6", label: "Ousada", description: "Responde mais perguntas sozinha. Revise o histórico com frequência." },
 ] as const
 

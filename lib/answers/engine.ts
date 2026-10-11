@@ -3,14 +3,14 @@ import "server-only"
 import { computeAccess } from "@/lib/access/access"
 import { runAnswerModel } from "@/lib/answers/ai"
 import { composeAnswer } from "@/lib/answers/compose"
+import { assistantBase, loadTaughtExamples } from "@/lib/answers/context"
 import {
   RETRY_LIMIT,
   decideAnswer,
   retryDelayMs,
-  type AnswerTone,
   type ReviewReason,
 } from "@/lib/answers/decision"
-import type { PromptExample } from "@/lib/answers/prompt"
+import type { PromptInput } from "@/lib/answers/prompt"
 import { MlAccountUnavailableError } from "@/lib/mercadolivre/accounts"
 import { MlApiError } from "@/lib/mercadolivre/api"
 import { summarizeItem } from "@/lib/mercadolivre/item"
@@ -30,7 +30,7 @@ type QuestionUpdate = Database["public"]["Tables"]["ml_questions"]["Update"]
 type ServiceClient = ReturnType<typeof createServiceClient>
 
 const ACCOUNT_FIELDS =
-  "id, organization_id, ml_user_id, nickname, status, token_status, auto_reply_enabled, ai_confidence_threshold, answer_tone, answer_greeting, answer_signature, store_briefing, organizations(name, trial_ends_at, subscription_status, current_period_end, billing_exempt)"
+  "id, organization_id, ml_user_id, nickname, status, token_status, auto_reply_enabled, ai_confidence_threshold, answer_tone, answer_greeting, answer_signature, store_briefing, store_profile, organizations(name, trial_ends_at, subscription_status, current_period_end, billing_exempt)"
 
 async function loadAccount(admin: ServiceClient, accountId: string) {
   const { data, error } = await admin.from("ml_accounts").select(ACCOUNT_FIELDS).eq("id", accountId).single()
@@ -76,24 +76,13 @@ function closedOnMercadoLivre(row: QuestionRow, question: MlQuestion): QuestionU
 }
 
 async function buildPromptContext(admin: ServiceClient, account: AccountRow, row: QuestionRow, question: MlQuestion) {
-  const [item, description, previousQnA, examples] = await Promise.all([
+  const [item, description, previousQnA, taught] = await Promise.all([
     fetchItem(account.id, question.item_id),
     fetchItemDescription(account.id, question.item_id).catch(() => null),
-    fetchItemAnsweredQuestions(account.id, question.item_id, 8),
-    admin
-      .from("ai_examples")
-      .select("item_id, question_text, answer_text")
-      .eq("ml_account_id", account.id)
-      .or(`item_id.eq.${question.item_id},item_id.is.null`)
-      .order("created_at", { ascending: false })
-      .limit(30),
+    fetchItemAnsweredQuestions(account.id, question.item_id, 10),
+    loadTaughtExamples(admin, account.id, question.item_id, question.text),
   ])
-  if (examples.error) throw examples.error
-
-  const taught: PromptExample[] = [...(examples.data ?? [])]
-    .sort((a, b) => Number(b.item_id === question.item_id) - Number(a.item_id === question.item_id))
-    .slice(0, 20)
-    .map((example) => ({ question: example.question_text, answer: example.answer_text }))
+  const buyerId = question.from?.id ?? null
 
   const itemFields: QuestionUpdate = {
     item_title: item.title,
@@ -104,14 +93,15 @@ async function buildPromptContext(admin: ServiceClient, account: AccountRow, row
   return {
     itemFields,
     promptInput: {
-      storeName: account.organizations?.name ?? account.nickname ?? "Loja",
-      tone: account.answer_tone as AnswerTone,
-      briefing: account.store_briefing,
+      ...assistantBase(account),
       itemSummary: summarizeItem(item, description),
       taughtExamples: taught,
-      previousQnA: previousQnA.filter((qa) => normalize(qa.question) !== normalize(row.question_text)).slice(0, 8),
+      previousQnA: previousQnA
+        .filter((qa) => normalize(qa.question) !== normalize(row.question_text))
+        .slice(0, 8)
+        .map((qa) => ({ question: qa.question, answer: qa.answer, sameBuyer: buyerId !== null && qa.buyerId === buyerId })),
       question: question.text,
-    },
+    } satisfies PromptInput,
   }
 }
 

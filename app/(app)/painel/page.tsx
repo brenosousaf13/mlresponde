@@ -34,15 +34,15 @@ export default async function DashboardPage() {
   const firstName = context.profile.fullName.split(" ")[0]
   const { access, mlAccounts, organization } = context
 
-  const { total, answeredAi, awaiting, avgAiSeconds, autoReplyOn, hasBriefing, answeredEver } =
+  const { total, answeredAi, awaiting, avgAiSeconds, autoReplyOn, assistantReady, answeredEver } =
     await getDashboardData(organization.id)
   const aiRate = total ? Math.round((answeredAi / total) * 100) : 0
 
   const steps = [
     { done: true, label: "Criar sua conta", href: null },
     { done: mlAccounts.active > 0, label: "Conectar uma conta do Mercado Livre", href: "/contas" },
-    { done: hasBriefing, label: "Preencher as informações da loja", href: "/respostas" },
-    { done: autoReplyOn, label: "Ligar as respostas automáticas", href: "/respostas" },
+    { done: assistantReady, label: "Configurar o assistente de IA (perguntas sobre a loja)", href: "/assistente" },
+    { done: autoReplyOn, label: "Ligar as respostas automáticas", href: "/assistente" },
     { done: answeredEver > 0, label: "Receber a primeira resposta", href: "/perguntas" },
   ]
 
