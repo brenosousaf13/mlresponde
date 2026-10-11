@@ -163,29 +163,45 @@ adicionar a exceção `!.env.example`.
 
 ---
 
-## 6. Modelo de dados (inferido do código — **CONFIRMAR no Supabase**)
+## 6. Modelo de dados da v1 (✅ CONFIRMADO na produção em 2026-10-11)
 
-> Inventário real da produção: rodar `docs/db/inventario-schema.sql` no SQL Editor do Supabase de **prod** (só leitura;
-> devolve um JSON com tabelas, colunas, constraints, índices, triggers, RLS/policies, privilégios anon/authenticated,
-> funções, enums, Realtime, extensões, contagem de usuários e buckets; mascara strings com cara de segredo).
-> Validada no Supabase de testes em 2026-10-11. **Pendente:** Breno rodar em prod e a IA atualizar esta seção.
+> Fonte: inventário só leitura de prod (`docs/db/inventario-schema.sql`, rodado pelo Breno no SQL Editor).
+> Snapshot completo: `docs/db/prod-schema-2026-10-11.json` (estrutura + contagens; **sem dados de clientes**).
+> Para atualizar: rodar o SQL de novo em prod e substituir o snapshot.
 
-Não há migrações no repositório. O SQL original está no `instructions.md` (Fase 2); colunas e tabelas posteriores
-foram criadas direto no painel do Supabase e **não estão versionadas**.
+Não há migrações no repositório: tudo foi criado no painel. Postgres 17.6. Sem enums, sem triggers, sem funções
+próprias (só `rls_auto_enable`, event trigger padrão do Supabase), sem buckets de Storage, sem pg_cron.
+Extensões: pgcrypto, uuid-ossp, pg_stat_statements, pg_graphql, supabase_vault (padrão).
 
-**Modelo de tenancy:** `auth.users` (usuário do SaaS) 1 → N `ml_credentials` (conta ML, identificada por `seller_id`).
-As demais tabelas se ligam ao tenant por `seller_id` (e algumas também por `user_id`).
+**Volume (2026-10-11):** 7 usuários em `auth.users` (todos e-mail/senha, criados de 2026-04-14 a 2026-09-29;
+último login 2026-09-30) · 7 contas ML em `ml_credentials` · 5 bases de conhecimento · 322 exemplos de treino ·
+~2.682 perguntas em `question_jobs` (~2,8 MB). Volume pequeno → migração de dados no cutover é simples.
 
-| Tabela | Colunas (conhecidas) | Notas |
+**Modelo de tenancy:** `auth.users` 1 → N `ml_credentials` (conta ML = `seller_id`, unique). `question_jobs` **não tem
+`user_id`**: liga ao tenant só por `seller_id` (texto, sem FK). Nenhuma FK entre as tabelas de negócio.
+
+| Tabela | Colunas (todas `id uuid pk default gen_random_uuid()`, `created_at`/`updated_at timestamptz default now()`) | Constraints / índices |
 |---|---|---|
-| `question_jobs` | id, created_at, updated_at, **question_id (unique)**, item_id, seller_id, question_text, status, ai_response, error_message, item_title, item_url | Sem `user_id`. Realtime ativado. `status`: `pending`, `processing`, `done`, `error` (+ `manual` na rota legada). A unique em `question_id` é o mecanismo de deduplicação de webhooks. |
-| `knowledge_base` | id, created_at, updated_at, **seller_id (unique)**, content, + `user_id` | Regras da loja (texto livre). |
-| `ml_credentials` | id, created_at, updated_at, **seller_id (unique)**, access_token, refresh_token, expires_at, + `user_id`, + `auto_reply_enabled` (bool) | Tokens em **texto puro**. |
-| `training_examples` | id, created_at, updated_at, user_id, seller_id, **question_id (unique)**, item_id, question_text, answer_text | Criada fora do repo. Few-shot para a IA. |
-| `connection_logs` | user_id, error_type, error_details (json), url_accessed (+ id/created_at?) | Criada fora do repo. Logs de falha do OAuth. |
+| `question_jobs` | question_id text NN, item_id text NN, seller_id text NN, question_text text NN, status text NN default `'pending'`, ai_response, error_message, item_title, item_url | unique(question_id); índices em created_at desc e status. **Sem índice em seller_id.** Realtime ativo. |
+| `ml_credentials` | seller_id text NN, access_token text NN, refresh_token text NN, expires_at timestamptz NN, user_id uuid (nullable, FK auth.users), auto_reply_enabled bool default **false** | unique(seller_id). Tokens em texto puro. |
+| `knowledge_base` | seller_id text NN, content text NN, user_id uuid (nullable, FK auth.users) | unique(seller_id) → 1 base por conta ML. |
+| `training_examples` | user_id uuid NN (FK auth.users), seller_id text NN, question_id text NN, item_id text NN, question_text text NN, answer_text text NN | unique(question_id) global. |
 
-**RLS original:** `question_jobs` e `knowledge_base` com policy "authenticated → tudo" (`using (auth.role() = 'authenticated')`);
-`ml_credentials` com `using (false)`. **Estado real atual das policies: DESCONHECIDO** — verificar (ver §8, P0).
+- `status` é texto livre (valores usados: `pending`, `processing`, `done`, `error`, `manual` na rota legada).
+- `updated_at` não tem trigger: só muda quando o código manda o valor.
+- **`connection_logs` NÃO existe** em prod: o callback do OAuth tenta gravar nela e falha em silêncio (nenhum log é salvo).
+- FKs para `auth.users` sem `on delete cascade`.
+
+**RLS (todas as 4 tabelas com RLS ligado; anon e authenticated têm GRANT total, então só o RLS protege):**
+
+| Tabela | Policy (FOR ALL, roles=public) | Efeito |
+|---|---|---|
+| `question_jobs` | "Autenticados podem ver tudo": `auth.role() = 'authenticated'` | 🔴 **Qualquer usuário logado lê, altera e apaga as perguntas de TODAS as lojas** (API e Realtime). |
+| `ml_credentials` | "Usuário só vê as próprias credenciais": `auth.uid() = user_id` | Só as próprias linhas, mas o usuário consegue ler os próprios tokens do ML pelo browser e editar a própria linha (ex.: `seller_id`). |
+| `knowledge_base` | "Usuário só acessa própria base": `auth.uid() = user_id` | OK para isolamento. |
+| `training_examples` | "Usuário só acessa próprios exemplos": `auth.uid() = user_id` | OK para isolamento. |
+
+(O servidor usa service role e ignora RLS; o browser só usa a chave anon no Realtime da dashboard.)
 
 ---
 
@@ -242,13 +258,17 @@ Legenda: 🔴 P0 crítico · 🟠 P1 importante · 🟡 P2 melhoria. Marcar ✅ 
 - **Toggle "Automação de Respostas" não funciona em produção.** A checagem de `auto_reply_enabled` foi adicionada
   (commit `d50544e`) só em `app/api/process/route.ts`, rota legada que ninguém chama desde `4665c5c`. O webhook usa
   `lib/mercadolivre/workflow.ts`, que **sempre responde**. Cliente que "pausa o robô" continua tendo respostas automáticas.
-- **Isolamento multi-tenant depende de RLS desconhecido.** Se as policies ainda forem "authenticated → tudo",
-  qualquer cliente logado consegue ler `question_jobs`/`knowledge_base` de outras lojas usando a chave anon
-  (o filtro do Realtime é definido pelo browser). Verificar policies no Supabase.
+- **Vazamento entre lojas em `question_jobs` (✅ CONFIRMADO em 2026-10-11).** A policy de prod é
+  `auth.role() = 'authenticated'` para ALL: qualquer usuário logado pode ler, alterar e apagar perguntas/respostas
+  de todas as lojas usando a chave anon (o filtro do Realtime é escolhido pelo browser). `knowledge_base`,
+  `training_examples` e `ml_credentials` estão isoladas por `auth.uid() = user_id`.
 - **OAuth sem `state` + upsert por `seller_id` sobrescreve `user_id`.** Um usuário pode "tomar" uma conta ML já
   vinculada a outro usuário ao conectá-la; também há risco de CSRF no fluxo de conexão.
 
 ### 🟠 P1
+- Tabela `connection_logs` não existe em prod → logs de erro do OAuth nunca são gravados.
+- Usuário consegue ler os próprios tokens do ML pelo browser (policy de `ml_credentials` permite SELECT/UPDATE) →
+  na v2, tokens só no servidor (sem acesso pela chave anon) e criptografados.
 - Webhook sem validação de origem (não confere `application_id` nem se o `seller_id` existe) → qualquer um pode
   criar linhas em `question_jobs`.
 - Jobs podem ficar presos em `processing` se a função morrer (sem fila, retry nem reprocessamento; `scratch.ts`
@@ -421,6 +441,8 @@ Ainda não decidido. Temas levantados até agora:
   `mlresponde-v2.vercel.app` → `v2`, Vercel Authentication desligada. O 1º deploy da `v2` saiu antes das variáveis
   (usaria prod) → substituído por novo deploy e apagado.
 - `MeliLogo.png` (logo colocada pelo Breno) commitada na `v2`.
+- Inventário de prod recebido e analisado: §6 reescrita com o modelo real; P0 de RLS **confirmado** em `question_jobs`;
+  `connection_logs` não existe. Snapshot salvo em `docs/db/prod-schema-2026-10-11.json`; CSV original apagado.
 - Breno colocou o `ML_CLIENT_SECRET` real (Preview + `v2`) na Vercel; novo deploy da `v2` disparado pelo push.
 - Criado `docs/db/inventario-schema.sql` (inventário só leitura do schema), validado no Supabase de testes com
   objetos de teste temporários (criados e removidos). `supabase/.temp/` adicionado ao `.gitignore`.
@@ -441,15 +463,17 @@ Ainda não decidido. Temas levantados até agora:
 ## 13. Próximos passos
 
 1. ✅ Supabase de testes, app ML de teste, branch `v2` e staging na Vercel (`mlresponde-v2.vercel.app`) prontos.
-2. ✅ `ML_CLIENT_SECRET` real da `v2` colocado pelo Breno.
-3. **Breno:** rodar `docs/db/inventario-schema.sql` no SQL Editor do Supabase de **produção** e baixar o resultado
-   (Export → Download CSV) → avisar a IA (o arquivo fica em `Downloads`).
-4. **IA:** analisar o inventário, atualizar §6 (modelo real, RLS, policies, triggers) e §8 (confirmar/descartar o P0 de RLS).
-5. **Definir o escopo da v2** (§10) junto com o Breno → desenhar o schema novo da v2 (migrações em `supabase/migrations/`)
-   e o plano de migração dos dados de prod no cutover.
-6. Depois: criar usuário de teste no Supabase de testes, conectar uma conta ML de teste e validar pergunta → resposta.
-7. **Lembrete:** revisitar os P0 (§8) antes de abrir o app para novos clientes.
-8. Limpeza recomendada (com aprovação): tirar Preview/Development das variáveis de produção na Vercel.
+2. ✅ Inventário do banco de prod analisado (§6).
+3. **Decidir com o Breno:** aplicar a **baseline** (schema atual de prod, 4 tabelas) como 1ª migração em
+   `supabase/migrations/` e no Supabase de testes. Serve para: (a) a staging funcionar já com o código atual e validar
+   o app ML de teste ponta a ponta; (b) ser o ponto de partida das migrações da v2, que no cutover transformam o banco
+   de prod (baseline → schema novo) levando os dados junto.
+4. **Definir o escopo da v2** (§10) junto com o Breno → desenhar o schema novo (multi-tenant correto, tokens só no
+   servidor/criptografados, `user_id`/tenant em todas as tabelas, logs) e o plano de migração dos dados.
+5. Depois: criar usuário de teste no Supabase de testes, conectar uma conta ML de teste e validar pergunta → resposta.
+6. **Lembrete:** revisitar os P0 (§8) antes de abrir o app para novos clientes. O vazamento entre lojas em
+   `question_jobs` foi confirmado; corrigir em prod é 1 policy (mudança pequena, mas é escrita em prod → só com aprovação).
+7. Limpeza recomendada (com aprovação): tirar Preview/Development das variáveis de produção na Vercel.
 
 ---
 

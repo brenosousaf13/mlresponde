@@ -1,0 +1,601 @@
+{
+  "generated_at": "2026-10-11T14:56:26.679678+00:00",
+  "postgres_version": "PostgreSQL 17.6 on aarch64-unknown-linux-gnu, compiled by gcc (GCC) 15.2.0, 64-bit",
+  "schemas": [
+    "auth",
+    "extensions",
+    "graphql",
+    "graphql_public",
+    "pgbouncer",
+    "public",
+    "realtime",
+    "storage",
+    "vault"
+  ],
+  "extensions": [
+    {
+      "name": "pg_graphql",
+      "version": "1.5.11",
+      "schema": "graphql"
+    },
+    {
+      "name": "pg_stat_statements",
+      "version": "1.11",
+      "schema": "extensions"
+    },
+    {
+      "name": "pgcrypto",
+      "version": "1.3",
+      "schema": "extensions"
+    },
+    {
+      "name": "plpgsql",
+      "version": "1.0",
+      "schema": "pg_catalog"
+    },
+    {
+      "name": "supabase_vault",
+      "version": "0.3.1",
+      "schema": "vault"
+    },
+    {
+      "name": "uuid-ossp",
+      "version": "1.1",
+      "schema": "extensions"
+    }
+  ],
+  "tables": [
+    {
+      "name": "knowledge_base",
+      "kind": "r",
+      "comment": null,
+      "rls_enabled": true,
+      "rls_forced": false,
+      "approx_rows": 5,
+      "total_size": "248 kB",
+      "columns": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "not_null": true,
+          "default": "gen_random_uuid()",
+          "identity": null,
+          "generated": null
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "not_null": false,
+          "default": "now()",
+          "identity": null,
+          "generated": null
+        },
+        {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "not_null": false,
+          "default": "now()",
+          "identity": null,
+          "generated": null
+        },
+        {
+          "name": "seller_id",
+          "type": "text",
+          "not_null": true,
+          "default": null,
+          "identity": null,
+          "generated": null
+        },
+        {
+          "name": "content",
+          "type": "text",
+          "not_null": true,
+          "default": null,
+          "identity": null,
+          "generated": null
+        },
+        {
+          "name": "user_id",
+          "type": "uuid",
+          "not_null": false,
+          "default": null,
+          "identity": null,
+          "generated": null
+        }
+      ],
+      "constraints": [
+        {
+          "name": "knowledge_base_pkey",
+          "type": "p",
+          "def": "PRIMARY KEY (id)"
+        },
+        {
+          "name": "knowledge_base_seller_id_key",
+          "type": "u",
+          "def": "UNIQUE (seller_id)"
+        },
+        {
+          "name": "knowledge_base_user_id_fkey",
+          "type": "f",
+          "def": "FOREIGN KEY (user_id) REFERENCES auth.users(id)"
+        }
+      ],
+      "indexes": [
+        "CREATE UNIQUE INDEX knowledge_base_pkey ON public.knowledge_base USING btree (id)",
+        "CREATE UNIQUE INDEX knowledge_base_seller_id_key ON public.knowledge_base USING btree (seller_id)"
+      ],
+      "triggers": null,
+      "policies": [
+        {
+          "name": "Usuário só acessa própria base",
+          "cmd": "ALL",
+          "roles": [
+            "public"
+          ],
+          "permissive": "PERMISSIVE",
+          "using": "(auth.uid() = user_id)",
+          "with_check": null
+        }
+      ],
+      "privileges": {
+        "anon": {
+          "select": true,
+          "insert": true,
+          "update": true,
+          "delete": true
+        },
+        "authenticated": {
+          "select": true,
+          "insert": true,
+          "update": true,
+          "delete": true
+        }
+      },
+      "view_definition": null
+    },
+    {
+      "name": "ml_credentials",
+      "kind": "r",
+      "comment": null,
+      "rls_enabled": true,
+      "rls_forced": false,
+      "approx_rows": 7,
+      "total_size": "48 kB",
+      "columns": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "not_null": true,
+          "default": "gen_random_uuid()",
+          "identity": null,
+          "generated": null
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "not_null": false,
+          "default": "now()",
+          "identity": null,
+          "generated": null
+        },
+        {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "not_null": false,
+          "default": "now()",
+          "identity": null,
+          "generated": null
+        },
+        {
+          "name": "seller_id",
+          "type": "text",
+          "not_null": true,
+          "default": null,
+          "identity": null,
+          "generated": null
+        },
+        {
+          "name": "access_token",
+          "type": "text",
+          "not_null": true,
+          "default": null,
+          "identity": null,
+          "generated": null
+        },
+        {
+          "name": "refresh_token",
+          "type": "text",
+          "not_null": true,
+          "default": null,
+          "identity": null,
+          "generated": null
+        },
+        {
+          "name": "expires_at",
+          "type": "timestamp with time zone",
+          "not_null": true,
+          "default": null,
+          "identity": null,
+          "generated": null
+        },
+        {
+          "name": "user_id",
+          "type": "uuid",
+          "not_null": false,
+          "default": null,
+          "identity": null,
+          "generated": null
+        },
+        {
+          "name": "auto_reply_enabled",
+          "type": "boolean",
+          "not_null": false,
+          "default": "false",
+          "identity": null,
+          "generated": null
+        }
+      ],
+      "constraints": [
+        {
+          "name": "ml_credentials_pkey",
+          "type": "p",
+          "def": "PRIMARY KEY (id)"
+        },
+        {
+          "name": "ml_credentials_seller_id_key",
+          "type": "u",
+          "def": "UNIQUE (seller_id)"
+        },
+        {
+          "name": "ml_credentials_user_id_fkey",
+          "type": "f",
+          "def": "FOREIGN KEY (user_id) REFERENCES auth.users(id)"
+        }
+      ],
+      "indexes": [
+        "CREATE UNIQUE INDEX ml_credentials_pkey ON public.ml_credentials USING btree (id)",
+        "CREATE UNIQUE INDEX ml_credentials_seller_id_key ON public.ml_credentials USING btree (seller_id)"
+      ],
+      "triggers": null,
+      "policies": [
+        {
+          "name": "Usuário só vê as próprias credenciais",
+          "cmd": "ALL",
+          "roles": [
+            "public"
+          ],
+          "permissive": "PERMISSIVE",
+          "using": "(auth.uid() = user_id)",
+          "with_check": null
+        }
+      ],
+      "privileges": {
+        "anon": {
+          "select": true,
+          "insert": true,
+          "update": true,
+          "delete": true
+        },
+        "authenticated": {
+          "select": true,
+          "insert": true,
+          "update": true,
+          "delete": true
+        }
+      },
+      "view_definition": null
+    },
+    {
+      "name": "question_jobs",
+      "kind": "r",
+      "comment": null,
+      "rls_enabled": true,
+      "rls_forced": false,
+      "approx_rows": 2682,
+      "total_size": "2840 kB",
+      "columns": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "not_null": true,
+          "default": "gen_random_uuid()",
+          "identity": null,
+          "generated": null
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "not_null": false,
+          "default": "now()",
+          "identity": null,
+          "generated": null
+        },
+        {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "not_null": false,
+          "default": "now()",
+          "identity": null,
+          "generated": null
+        },
+        {
+          "name": "question_id",
+          "type": "text",
+          "not_null": true,
+          "default": null,
+          "identity": null,
+          "generated": null
+        },
+        {
+          "name": "item_id",
+          "type": "text",
+          "not_null": true,
+          "default": null,
+          "identity": null,
+          "generated": null
+        },
+        {
+          "name": "seller_id",
+          "type": "text",
+          "not_null": true,
+          "default": null,
+          "identity": null,
+          "generated": null
+        },
+        {
+          "name": "question_text",
+          "type": "text",
+          "not_null": true,
+          "default": null,
+          "identity": null,
+          "generated": null
+        },
+        {
+          "name": "status",
+          "type": "text",
+          "not_null": true,
+          "default": "'pending'::text",
+          "identity": null,
+          "generated": null
+        },
+        {
+          "name": "ai_response",
+          "type": "text",
+          "not_null": false,
+          "default": null,
+          "identity": null,
+          "generated": null
+        },
+        {
+          "name": "error_message",
+          "type": "text",
+          "not_null": false,
+          "default": null,
+          "identity": null,
+          "generated": null
+        },
+        {
+          "name": "item_title",
+          "type": "text",
+          "not_null": false,
+          "default": null,
+          "identity": null,
+          "generated": null
+        },
+        {
+          "name": "item_url",
+          "type": "text",
+          "not_null": false,
+          "default": null,
+          "identity": null,
+          "generated": null
+        }
+      ],
+      "constraints": [
+        {
+          "name": "question_jobs_pkey",
+          "type": "p",
+          "def": "PRIMARY KEY (id)"
+        },
+        {
+          "name": "question_jobs_question_id_key",
+          "type": "u",
+          "def": "UNIQUE (question_id)"
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX question_jobs_created_at_idx ON public.question_jobs USING btree (created_at DESC)",
+        "CREATE INDEX question_jobs_status_idx ON public.question_jobs USING btree (status)",
+        "CREATE UNIQUE INDEX question_jobs_pkey ON public.question_jobs USING btree (id)",
+        "CREATE UNIQUE INDEX question_jobs_question_id_key ON public.question_jobs USING btree (question_id)"
+      ],
+      "triggers": null,
+      "policies": [
+        {
+          "name": "Autenticados podem ver tudo",
+          "cmd": "ALL",
+          "roles": [
+            "public"
+          ],
+          "permissive": "PERMISSIVE",
+          "using": "(auth.role() = 'authenticated'::text)",
+          "with_check": null
+        }
+      ],
+      "privileges": {
+        "anon": {
+          "select": true,
+          "insert": true,
+          "update": true,
+          "delete": true
+        },
+        "authenticated": {
+          "select": true,
+          "insert": true,
+          "update": true,
+          "delete": true
+        }
+      },
+      "view_definition": null
+    },
+    {
+      "name": "training_examples",
+      "kind": "r",
+      "comment": null,
+      "rls_enabled": true,
+      "rls_forced": false,
+      "approx_rows": 322,
+      "total_size": "224 kB",
+      "columns": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "not_null": true,
+          "default": "gen_random_uuid()",
+          "identity": null,
+          "generated": null
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "not_null": false,
+          "default": "now()",
+          "identity": null,
+          "generated": null
+        },
+        {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "not_null": false,
+          "default": "now()",
+          "identity": null,
+          "generated": null
+        },
+        {
+          "name": "user_id",
+          "type": "uuid",
+          "not_null": true,
+          "default": null,
+          "identity": null,
+          "generated": null
+        },
+        {
+          "name": "seller_id",
+          "type": "text",
+          "not_null": true,
+          "default": null,
+          "identity": null,
+          "generated": null
+        },
+        {
+          "name": "question_id",
+          "type": "text",
+          "not_null": true,
+          "default": null,
+          "identity": null,
+          "generated": null
+        },
+        {
+          "name": "item_id",
+          "type": "text",
+          "not_null": true,
+          "default": null,
+          "identity": null,
+          "generated": null
+        },
+        {
+          "name": "question_text",
+          "type": "text",
+          "not_null": true,
+          "default": null,
+          "identity": null,
+          "generated": null
+        },
+        {
+          "name": "answer_text",
+          "type": "text",
+          "not_null": true,
+          "default": null,
+          "identity": null,
+          "generated": null
+        }
+      ],
+      "constraints": [
+        {
+          "name": "training_examples_pkey",
+          "type": "p",
+          "def": "PRIMARY KEY (id)"
+        },
+        {
+          "name": "training_examples_question_id_key",
+          "type": "u",
+          "def": "UNIQUE (question_id)"
+        },
+        {
+          "name": "training_examples_user_id_fkey",
+          "type": "f",
+          "def": "FOREIGN KEY (user_id) REFERENCES auth.users(id)"
+        }
+      ],
+      "indexes": [
+        "CREATE UNIQUE INDEX training_examples_pkey ON public.training_examples USING btree (id)",
+        "CREATE UNIQUE INDEX training_examples_question_id_key ON public.training_examples USING btree (question_id)"
+      ],
+      "triggers": null,
+      "policies": [
+        {
+          "name": "Usuário só acessa próprios exemplos",
+          "cmd": "ALL",
+          "roles": [
+            "public"
+          ],
+          "permissive": "PERMISSIVE",
+          "using": "(auth.uid() = user_id)",
+          "with_check": null
+        }
+      ],
+      "privileges": {
+        "anon": {
+          "select": true,
+          "insert": true,
+          "update": true,
+          "delete": true
+        },
+        "authenticated": {
+          "select": true,
+          "insert": true,
+          "update": true,
+          "delete": true
+        }
+      },
+      "view_definition": null
+    }
+  ],
+  "functions": [
+    {
+      "name": "rls_auto_enable",
+      "kind": "f",
+      "args": "",
+      "returns": "event_trigger",
+      "language": "plpgsql",
+      "security_definer": true,
+      "definition": "CREATE OR REPLACE FUNCTION public.rls_auto_enable()\n RETURNS event_trigger\n LANGUAGE plpgsql\n SECURITY DEFINER\n SET search_path TO 'pg_catalog'\nAS $function$\nDECLARE\n  cmd record;\nBEGIN\n  FOR cmd IN\n    SELECT *\n    FROM pg_event_trigger_ddl_commands()\n    WHERE command_tag IN ('CREATE TABLE', 'CREATE TABLE AS', 'SELECT INTO')\n      AND object_type IN ('table','partitioned table')\n  LOOP\n     IF cmd.schema_name IS NOT NULL AND cmd.schema_name IN ('public') AND cmd.schema_name NOT IN ('pg_catalog','information_schema') AND cmd.schema_name NOT LIKE 'pg_toast%' AND cmd.schema_name NOT LIKE 'pg_temp%' THEN\n      BEGIN\n        EXECUTE format('alter table if exists %s enable row level security', cmd.object_identity);\n        RAISE LOG 'rls_auto_enable: enabled RLS on %', cmd.object_identity;\n      EXCEPTION\n        WHEN OTHERS THEN\n          RAISE LOG 'rls_auto_enable: failed to enable RLS on %', cmd.object_identity;\n      END;\n     ELSE\n        RAISE LOG 'rls_auto_enable: skip % (either system schema or not in enforced list: %.)', cmd.object_identity, cmd.schema_name;\n     END IF;\n  END LOOP;\nEND;\n$function$\n"
+    }
+  ],
+  "enums": null,
+  "auth_users_triggers": null,
+  "realtime_publication": [
+    "public.question_jobs"
+  ],
+  "auth_users": {
+    "total": 7,
+    "email_confirmed": 7,
+    "first_created": "2026-04-14T14:31:09.799734+00:00",
+    "last_created": "2026-09-29T21:17:36.705616+00:00",
+    "last_sign_in": "2026-09-30T13:17:41.32214+00:00",
+    "providers": [
+      "email"
+    ]
+  },
+  "storage_buckets": null
+}
