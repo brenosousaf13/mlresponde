@@ -42,3 +42,6 @@ next-env.d.ts
 
 # supabase cli
 supabase/.temp/
+
+# material privado (pesquisa de concorrentes etc.) - nunca versionar: o repo e publico
+docs/v2/privado/

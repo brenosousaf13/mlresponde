@@ -55,7 +55,11 @@ novas funcionalidades, segurança multi-tenant de verdade — **desenvolvido em 
 2. **Banco de produção é sagrado.** Nada de `DROP`, `RENAME`, troca de tipo, `NOT NULL` sem default, ou
    apagar dados direto em prod. Migrações versionadas e **aditivas/retrocompatíveis** (padrão expand → migrate → contract),
    para que a v1 continue funcionando até o cutover.
-3. **Segredos nunca no repositório** (`.env*` já está no `.gitignore`).
+3. **Segredos nunca no repositório** (`.env*` já está no `.gitignore`). ⚠️ **O repositório GitHub é PÚBLICO**
+   (verificado em 2026-10-11): nada de segredos, dados de clientes ou pesquisa sensível. Material privado vai em
+   `docs/v2/privado/` (no `.gitignore`). **Recomendado ao Breno: tornar o repositório privado** (produto comercial; o
+   `CEREBRO.md` descreve vulnerabilidades da produção). A Vercel continua funcionando com repo privado.
+   Enquanto o repo for público, commits com detalhes de vulnerabilidade ficam **só locais** (sem push).
 4. **Webhook do Mercado Livre:** cada app do ML tem **uma única** URL de notificações e de redirect.
    Staging precisa de um **app ML separado** (e conta de teste), senão a v2 rouba/duplica webhooks da produção.
 5. Perguntas reais de clientes finais são respondidas automaticamente: qualquer bug no fluxo
@@ -255,6 +259,13 @@ Legenda: 🔴 P0 crítico · 🟠 P1 importante · 🟡 P2 melhoria. Marcar ✅ 
 ### 🔴 P0
 > ⏸️ **Adiados por decisão do Breno (2026-10-11):** hoje são poucos usuários. **Lembrar o Breno** e resolver antes de
 > abrir o app para novos clientes (no máximo junto com o cutover da v2).
+>
+> ⚠️ **Agravante descoberto em 2026-10-11:** o **cadastro público está ABERTO** no Supabase de prod
+> (`disable_signup=false`, verificado via `/auth/v1/settings`). A v1 não tem tela de cadastro, mas a API de Auth
+> aceita `signUp` com a chave anon (pública). Ou seja, **qualquer pessoa** (não só os 7 usuários) pode criar conta,
+> confirmar o próprio e-mail e ler todas as perguntas de todas as lojas. **Mitigação sem código e sem risco:** o Breno
+> desligar "Allow new users to sign up" em Authentication no painel do Supabase de prod (usuários existentes e
+> criação manual pelo painel continuam funcionando). Recomendado fazer já.
 
 - **Toggle "Automação de Respostas" não funciona em produção.** A checagem de `auto_reply_enabled` foi adicionada
   (commit `d50544e`) só em `app/api/process/route.ts`, rota legada que ninguém chama desde `4665c5c`. O webhook usa
@@ -407,42 +418,60 @@ Legenda: 🔴 P0 crítico · 🟠 P1 importante · 🟡 P2 melhoria. Marcar ✅ 
 
 **Processo:** projeto **arquitetural** → perguntas (uma por vez) → abordagens → design por partes → spec escrita em
 `docs/superpowers/specs/` → plano de implementação. **Nada de código da v2 antes da spec aprovada pelo Breno.**
-Referências de mercado e pesquisa: `docs/v2/referencias-mercado.md`.
 
-**Divisão proposta em sub-projetos** (cada um com sua spec; ordem sugerida):
-1. **Fundação** — cadastro/login, multi-contas ML por cliente, OAuth seguro, schema novo multi-tenant, migração dos
-   dados de prod (resolve os P0).
-2. **Respostas automáticas v2** — evolução do que existe.
-3. **Módulos de IA** — anúncios, pós-venda, reclamações, preço/promoções, publicidade, insights (um por vez).
+**Referências:**
+- `docs/v2/referencias-mercado.md` (versionado): visão de **produto** do AgilizaPRO (jornada, planos, módulos, regras,
+  pontos fracos) + Zelure.
+- `docs/v2/privado/AGILIZAPRO-ENGENHARIA-REVERSA.md` (**fora do git**, só na máquina do Breno): engenharia reversa
+  técnica completa (rotas, endpoints, modelo de dados, fluxos). Consultar para detalhes de implementação.
+
+**Divisão em sub-projetos** (cada um com sua spec; ordem sugerida):
+1. **Fundação** — cadastro/login, onboarding, trial e bloqueios, multi-contas ML por cliente, OAuth seguro (state+PKCE),
+   tokens criptografados, schema novo multi-tenant, migração dos dados de prod (resolve os P0).
+2. **Respostas automáticas v2** — evolução do núcleo (ver "o que aproveitar").
+3. **Módulos de IA/gestão** — um por vez (ver "o que aproveitar").
 4. **Comercial** — planos, cobrança recorrente, painel admin do Breno, controle de custo de IA.
 
-**Visão do produto — o que o Breno disse (2026-10-11):**
-- Venda por uma **página de vendas** (tudo sobre a plataforma) + **Instagram** com mais informações.
-- CTA da página leva direto à **assinatura**: o cliente escolhe entre os **planos** e paga. **Cobrança mensal.**
-- Logo após pagar, o cliente precisa **acessar a plataforma com login e senha** ligados ao pagamento.
-  O Breno não sabe como isso deve funcionar: quer **igual às plataformas de assinatura atuais** e pediu que a IA
-  defina o melhor caminho.
-- Dentro do app: o cliente **conecta a conta do ML** e **configura tudo** (o que responder, como responder, dados da loja).
-- Quer **teste grátis de 7 dias** (como o AgilizaPRO).
-- Quer a **plataforma toda bloqueada até conectar a conta ML** (como o AgilizaPRO).
-- Referência principal: **AgilizaPRO** (gosta muito); também **Zelure** (landing). Detalhes em `docs/v2/referencias-mercado.md`.
-- Quer usar IA ao máximo para ajudar o vendedor do ML (não só responder perguntas).
-- ⏳ **O Breno vai mandar um arquivo REA (engenharia reversa do AgilizaPRO).** Aguardar esse arquivo antes de avançar
-  no brainstorming.
+### Jornada do cliente — ✅ DEFINIDA pelo Breno (2026-10-11), adaptada do AgilizaPRO
+1. Conhece o Meli Fácil pela **página de vendas** e pelo **Instagram**.
+2. CTA da página leva ao **cadastro** (não ao pagamento).
+3. Confirma o e-mail → aceita os termos → onboarding.
+4. Entra em **teste grátis de 7 dias, sem cartão**.
+5. **Tudo bloqueado até conectar uma conta do ML**; depois configura (o que responder, como responder, dados da loja).
+6. **Venceu o teste sem assinar → funcionalidades bloqueadas** (só Assinatura/Configurações acessíveis).
+7. **Assina por dentro da conta** (escolhe o plano; **cobrança mensal**).
+- Proposta (confirmar no design): assinar durante o teste **mantém os dias restantes** (como o AgilizaPRO).
+- Regras de bloqueio (teste/plano/limites) **sempre no servidor e na RLS**, nunca só no navegador.
 
-**Pontos em aberto (perguntar depois do arquivo REA):**
-- Teste de 7 dias **sem cartão** (como o AgilizaPRO: começa no cadastro) **ou** pagamento/cartão antes (o fluxo descrito
-  pelo Breno começa pelo pagamento)?
-- Fluxo "pagou → acessa": conta criada antes do checkout ou depois (link mágico/definir senha por e-mail)?
-- Gateway de pagamento (Stripe, Mercado Pago, Asaas, Kiwify/Hotmart etc.) e emissão de nota.
-- Planos: o que diferencia (nº de contas ML, nº de respostas, módulos de IA)?
-- WhatsApp como canal (notificações e "escalar para humano"), igual ao AgilizaPRO?
-- Público: só lojistas ou também agências que gerenciam várias lojas (times/convites)?
-- Clientes atuais da v1 (7 usuários): como entram nos planos no cutover?
+### O que aproveitar do AgilizaPRO (proposta da IA, a validar no design de cada sub-projeto)
+- **Fundação:** cadastro com confirmação de e-mail, aceite de termos registrado, onboarding em passos (tour), barra de
+  dias de teste + "Ver planos", bloqueio até conectar ML, bloqueio pós-teste, multi-contas ML, ativar/desativar conta
+  (libera vaga do plano, mantém histórico), desvincular × excluir, **uma conta ML pertence a um único cliente** (conflito
+  → pedido de transferência), saúde do token com aviso só quando a integração parou, cupom de indicação (`?ref=`).
+- **Respostas v2:** IA com **confiança** (só responde se tiver certeza; senão escala), **briefing da loja por conta**,
+  **ensinar a IA** (resposta ideal por anúncio ou para a conta), **blacklist de anúncios**, histórico com a **origem da
+  resposta** (IA / WhatsApp / painel / fora da plataforma), resposta manual com histórico do comprador, saudação +
+  assinatura, respostas prontas, avaliação 1–5 estrelas, sino de perguntas novas, dashboard de atendimento (total,
+  % IA, pendentes, tempo médio, top produtos), responder as pendentes ao conectar a conta.
+- **Módulos seguintes (um por vez):** Pós-venda (mensagens + reclamações/mediações), Melhorias de anúncio por IA (com
+  cota mensal), Vendas com lucro por pedido, Centro de Custo (margem de contribuição, custo por SKU, regime tributário),
+  Equipe com permissões, Feedback/Ajuda com IA.
+- **WhatsApp como canal** (avisos + responder pelo WhatsApp): muito forte no AgilizaPRO, mas exige provedor de WhatsApp
+  (custo/complexidade) → decidir no sub-projeto 2.
+- **Não copiar:** bloqueios só no navegador; enviar dados sensíveis/sessão ao navegador ou a webhooks; senha master
+  padrão; orquestração em n8n (usar workers próprios com fila, versionados e testados).
+- **Referência de preço:** Starter R$ 97,90 (250 perguntas, 1 conta), PRO R$ 159,80 (1.000, 3 contas),
+  Enterprise R$ 299 (5.000, 10 contas); anual −17%.
 
-**Temas técnicos já levantados:** segurança multi-tenant (RLS correto, OAuth com `state`+PKCE, tokens
-criptografados e só no servidor, webhook validado), fila/reprocessamento de jobs, observabilidade e métricas,
-controle de custo de IA por cliente.
+### Pontos em aberto (decidir no design)
+- Gateway de pagamento (Stripe, como o AgilizaPRO, ou Mercado Pago/Asaas) e nota fiscal → sub-projeto 4.
+- Planos do Meli Fácil (limites por perguntas, contas ML, módulos de IA) → sub-projeto 4.
+- WhatsApp: obrigatório no onboarding? provedor? → sub-projetos 1/2.
+- Login com Google no cadastro? → sub-projeto 1.
+- Clientes atuais da v1 (7 usuários): como entram nos planos no cutover (ex.: período de cortesia) → sub-projeto 1.
+
+**Temas técnicos já levantados:** RLS correta, OAuth com `state`+PKCE, tokens criptografados e só no servidor,
+webhook do ML validado, fila/reprocessamento de jobs, observabilidade, controle de custo de IA por cliente.
 
 ---
 
@@ -467,6 +496,8 @@ controle de custo de IA por cliente.
 | 2026-10-11 | Schema da v2 será redesenhado; inventário de prod só para entendimento e migração de dados | Breno: "muita coisa vamos refazer". |
 | 2026-10-11 | Inventário de prod via SQL só de leitura rodado pelo próprio Breno no SQL Editor | IA não precisa de credencial de prod; zero risco de escrita. |
 | 2026-10-11 | Baseline = espelho exato de prod (inclusive os problemas) como 1ª migração | Ponto de partida das migrações da v2; no cutover é marcada como aplicada em prod. |
+| 2026-10-11 | Jornada: cadastro → teste grátis de 7 dias sem cartão → bloqueado até conectar ML → bloqueado ao vencer → assina dentro do app (mensal) | Decisão do Breno, inspirada no AgilizaPRO. |
+| 2026-10-11 | Engenharia reversa do AgilizaPRO fica fora do git (`docs/v2/privado/`); no repo só a síntese de produto | O repositório é público. |
 | 2026-10-11 | Variáveis da v2 na Vercel sempre com escopo Preview + branch `v2` | Hoje as variáveis de produção também valem para previews; sem override a v2 usaria o banco de produção. |
 | 2026-10-11 | App ML de teste com permissões amplas (ver §9) e PKCE desligado até o OAuth novo da v2 | v2 vai usar IA em várias áreas (anúncios, vendas, publicidade, promoções); PKCE quebraria o código atual. |
 
@@ -486,6 +517,12 @@ controle de custo de IA por cliente.
   `mlresponde-v2.vercel.app` → `v2`, Vercel Authentication desligada. O 1º deploy da `v2` saiu antes das variáveis
   (usaria prod) → substituído por novo deploy e apagado.
 - `MeliLogo.png` (logo colocada pelo Breno) commitada na `v2`.
+- Breno enviou `AGILIZAPRO-ENGENHARIA-REVERSA.md` (717 linhas): lido inteiro; movido para `docs/v2/privado/` (fora do
+  git — **o repo é público**); síntese de produto em `docs/v2/referencias-mercado.md`; §10 atualizada com a jornada
+  definida e o que aproveitar.
+- Descoberto: cadastro público aberto no Supabase de prod (agrava o P0 de `question_jobs`); recomendado ao Breno desligar.
+  (Para checar, a IA leu pela API da Vercel a chave **anon** de prod — pública por natureza — e consultou só o endpoint
+  público `/auth/v1/settings`.)
 - Brainstorming da v2 iniciado: Breno descreveu a jornada do cliente (página de vendas → assinatura mensal → login →
   conectar ML → configurar), quer teste de 7 dias e app bloqueado até conectar o ML; referências AgilizaPRO e Zelure
   (§10 e `docs/v2/referencias-mercado.md`). **Aguardando o arquivo REA do AgilizaPRO.**
@@ -512,14 +549,15 @@ controle de custo de IA por cliente.
 
 ## 13. Próximos passos
 
-1. ✅ Supabase de testes, app ML de teste, branch `v2`, staging na Vercel (`mlresponde-v2.vercel.app`).
-2. ✅ Inventário do banco de prod (§6) e baseline aplicada no Supabase de testes.
-3. **Agora: definir o escopo da v2** (§10) com o Breno (brainstorming). ⏳ **Aguardando o Breno enviar o arquivo REA
-   do AgilizaPRO**; depois, seguir com os "pontos em aberto" de §10, uma pergunta por vez. Resultado → spec em
-   `docs/superpowers/specs/` + atualização de §10.
-4. Desenhar o schema novo da v2 (migrações após a baseline) e o plano de migração dos dados de prod.
-5. Validar a staging ponta a ponta: usuário de teste no Supabase de testes + conta ML de teste segura (ver aviso em §9).
-6. **Lembrete:** revisitar os P0 (§8) antes de abrir o app para novos clientes (vazamento em `question_jobs` confirmado).
+1. ✅ Infra de staging pronta (Supabase de testes com baseline, app ML de teste, branch `v2`, `mlresponde-v2.vercel.app`).
+2. ✅ Jornada do cliente definida e engenharia reversa do AgilizaPRO analisada (§10).
+3. **Breno (recomendado já):** (a) tornar o repositório GitHub **privado**; (b) desligar o cadastro público no Supabase
+   de prod (ver §8, agravante do P0). Depois de (a), a IA faz o push dos commits locais pendentes da `v2`.
+4. **IA → Breno: design do sub-projeto 1 (Fundação)** em partes curtas para aprovação (contas/usuários, onboarding e
+   trial, conexão ML, schema novo, migração dos dados da v1) → spec em `docs/superpowers/specs/` → revisão do Breno →
+   plano de implementação (skill writing-plans) → código.
+5. Depois: sub-projetos 2 (Respostas v2), 3 (módulos) e 4 (comercial), cada um com spec própria.
+6. **Lembrete:** P0 (§8) precisam estar resolvidos antes de abrir para novos clientes (a Fundação resolve na v2).
 7. Limpeza recomendada (com aprovação): tirar Preview/Development das variáveis de produção na Vercel.
 
 ---
