@@ -85,7 +85,7 @@ export default async function AssistantPage({ searchParams }: PageProps<"/assist
             key={`${selected.id}-${selected.auto_reply_enabled}`}
             accountId={selected.id}
             enabled={selected.auto_reply_enabled}
-            disabled={!canManage || selected.status !== "active" || !setupDone}
+            disabled={!canManage || (!selected.auto_reply_enabled && (selected.status !== "active" || !setupDone))}
             disabledReason={
               !setupDone
                 ? "Conclua a configuração para ligar a IA."
