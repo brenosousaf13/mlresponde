@@ -12,6 +12,7 @@ const sections: LegalSection[] = [
     title: "Dados que coletamos",
     paragraphs: [
       "Dados de cadastro: nome, e-mail, WhatsApp e nome da loja ou empresa.",
+      "Dados de cobrança: CPF ou CNPJ, nome completo ou razão social e endereço do titular da assinatura. O CPF/CNPJ fica vinculado a uma única conta.",
       "Dados do Mercado Livre que você autoriza: identificação da conta de vendedor, perguntas e respostas dos anúncios, informações dos anúncios e, conforme as funcionalidades usadas, dados de pedidos e mensagens.",
       "Dados técnicos necessários ao funcionamento, como registros de acesso e cookies essenciais de sessão.",
     ],
@@ -20,6 +21,7 @@ const sections: LegalSection[] = [
     title: "Como usamos os dados",
     paragraphs: [
       "Para criar e manter sua conta, prestar o serviço contratado (incluindo a geração de respostas com inteligência artificial), dar suporte, enviar avisos importantes sobre a conta e cumprir obrigações legais.",
+      "Os dados de cobrança são usados para cobrar a assinatura, emitir nota fiscal e evitar contas duplicadas. Podem ser compartilhados com o meio de pagamento e com o emissor de notas fiscais, apenas para essas finalidades.",
       "Não vendemos seus dados pessoais.",
     ],
   },

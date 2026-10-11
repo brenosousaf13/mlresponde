@@ -15,9 +15,11 @@ import { Input } from "@/components/ui/input"
 export function OnboardingForm({
   defaultStoreName,
   defaultWhatsapp,
+  submitLabel = "Continuar",
 }: {
   defaultStoreName: string
   defaultWhatsapp: string
+  submitLabel?: string
 }) {
   const [state, formAction, pending] = useActionState(completeOnboarding, {})
 
@@ -57,7 +59,7 @@ export function OnboardingForm({
           <FieldError errors={fieldErrors(state, "whatsapp")} />
         </Field>
         <SubmitButton pending={pending} pendingLabel="Salvando...">
-          Continuar
+          {submitLabel}
         </SubmitButton>
       </FieldGroup>
     </form>

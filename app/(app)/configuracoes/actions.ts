@@ -3,8 +3,10 @@
 import { revalidatePath } from "next/cache"
 
 import { canManageOrganization, requireSection } from "@/lib/dal/app-context"
+import { saveBillingProfile } from "@/lib/dal/billing"
 import { createServiceClient, createStatelessAuthClient } from "@/lib/supabase/admin"
 import { createClient } from "@/lib/supabase/server"
+import { BILLING_FIELDS, billingSaveError, parseBillingProfile } from "@/lib/validation/billing"
 import {
   changePasswordSchema,
   formValues,
@@ -52,6 +54,33 @@ export async function updateOrganization(_previous: FormState, formData: FormDat
 
   revalidatePath("/", "layout")
   return { ok: true, message: "Nome da loja atualizado.", values }
+}
+
+/** Dados de cobrança: nome/razão social e endereço podem mudar; o CPF/CNPJ, depois de gravado, não. */
+export async function updateBillingProfile(_previous: FormState, formData: FormData): Promise<FormState> {
+  const context = await requireSection("configuracoes")
+  const values = formValues(formData, BILLING_FIELDS)
+  if (!canManageOrganization(context.role)) {
+    return { message: "Só o dono ou um administrador pode alterar os dados de cobrança.", values }
+  }
+
+  const parsed = parseBillingProfile(Object.fromEntries(formData), { withDocument: !context.billing.completed })
+  if (!parsed.success) return { fieldErrors: parsed.fieldErrors, values }
+
+  const result = await saveBillingProfile({
+    organizationId: context.organization.id,
+    userId: context.user.id,
+    address: parsed.data.address,
+    document: parsed.data.document,
+  })
+  if (!result.ok) return billingSaveError(result.reason, values.documentType ?? "cpf", values)
+
+  revalidatePath("/", "layout")
+  return {
+    ok: true,
+    message: result.created ? "Dados de cobrança salvos." : "Dados de cobrança atualizados.",
+    values,
+  }
 }
 
 export async function changePassword(_previous: FormState, formData: FormData): Promise<FormState> {

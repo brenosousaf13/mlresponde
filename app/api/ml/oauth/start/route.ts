@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server"
 
-import { canManageOrganization, getAppContext } from "@/lib/dal/app-context"
+import { canManageOrganization, getAppContext, needsOnboarding } from "@/lib/dal/app-context"
 import { buildAuthorizationUrl } from "@/lib/mercadolivre/oauth"
 import {
   ML_OAUTH_COOKIE,
@@ -15,7 +15,7 @@ export const dynamic = "force-dynamic"
 export async function GET(request: NextRequest) {
   const context = await getAppContext()
 
-  if (!context.profile.onboardingCompletedAt) {
+  if (needsOnboarding(context)) {
     return NextResponse.redirect(new URL("/onboarding", request.url))
   }
   if (context.access.state === "blocked") {

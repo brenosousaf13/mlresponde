@@ -33,6 +33,11 @@ export type AppContext = {
   role: MemberRole
   access: Access
   mlAccounts: { total: number; active: number }
+  /**
+   * Dados de cobrança (CPF/CNPJ + endereço). `required`: este usuário precisa preencher antes de usar o app
+   * (dono/administrador; o admin da plataforma está dispensado). `completed`: a organização já tem o cadastro.
+   */
+  billing: { required: boolean; completed: boolean }
 }
 
 export const getCurrentUser = cache(async () => {
@@ -59,7 +64,7 @@ async function loadAccount(userId: string) {
     supabase
       .from("organization_members")
       .select(
-        "role, organizations(id, name, plan, trial_ends_at, subscription_status, current_period_end, billing_exempt, ml_accounts_limit)"
+        "role, organizations(id, name, plan, trial_ends_at, subscription_status, current_period_end, billing_exempt, ml_accounts_limit, billing_profiles(organization_id))"
       )
       .eq("user_id", userId)
       .order("created_at", { ascending: true })
@@ -120,6 +125,8 @@ export const getAppContext = cache(async (): Promise<AppContext> => {
     .eq("organization_id", organization.id)
   if (mlAccountsError) throw mlAccountsError
 
+  const role = membership.role as MemberRole
+
   return {
     user: { id: user.id, email: user.email ?? "" },
     profile: {
@@ -136,18 +143,29 @@ export const getAppContext = cache(async (): Promise<AppContext> => {
       subscriptionStatus: organization.subscription_status,
       mlAccountsLimit: organization.ml_accounts_limit,
     },
-    role: membership.role as MemberRole,
+    role,
     access: computeAccess(organization),
     mlAccounts: {
       total: mlAccounts.length,
       active: mlAccounts.filter((account) => account.status === "active").length,
     },
+    billing: {
+      required: canManageOrganization(role) && !profile.is_platform_admin,
+      completed: Boolean(organization.billing_profiles),
+    },
   }
 })
 
+/** Cadastro incompleto: falta o onboarding ou (para quem administra a loja) os dados de cobrança. */
+export function needsOnboarding(context: AppContext) {
+  return (
+    !context.profile.onboardingCompletedAt || (context.billing.required && !context.billing.completed)
+  )
+}
+
 export async function requireOnboardedContext() {
   const context = await getAppContext()
-  if (!context.profile.onboardingCompletedAt) redirect("/onboarding")
+  if (needsOnboarding(context)) redirect("/onboarding")
   return context
 }
 

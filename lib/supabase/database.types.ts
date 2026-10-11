@@ -78,6 +78,65 @@ export type Database = {
           },
         ]
       }
+      billing_profiles: {
+        Row: {
+          address_number: string
+          city: string
+          complement: string | null
+          created_at: string
+          district: string
+          document: string
+          document_type: string
+          legal_name: string
+          organization_id: string
+          postal_code: string
+          registered_by: string | null
+          state: string
+          street: string
+          updated_at: string
+        }
+        Insert: {
+          address_number: string
+          city: string
+          complement?: string | null
+          created_at?: string
+          district: string
+          document: string
+          document_type: string
+          legal_name: string
+          organization_id: string
+          postal_code: string
+          registered_by?: string | null
+          state: string
+          street: string
+          updated_at?: string
+        }
+        Update: {
+          address_number?: string
+          city?: string
+          complement?: string | null
+          created_at?: string
+          district?: string
+          document?: string
+          document_type?: string
+          legal_name?: string
+          organization_id?: string
+          postal_code?: string
+          registered_by?: string | null
+          state?: string
+          street?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "billing_profiles_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: true
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       item_blacklist: {
         Row: {
           created_at: string
@@ -656,9 +715,14 @@ export type Database = {
           isSetofReturn: true
         }
       }
+      current_user_managed_organization_ids: { Args: never; Returns: string[] }
       current_user_organization_ids: { Args: never; Returns: string[] }
       due_ml_questions: { Args: { p_limit?: number }; Returns: string[] }
       is_org_member: { Args: { p_organization_id: string }; Returns: boolean }
+      is_valid_tax_document: {
+        Args: { p_document: string; p_type: string }
+        Returns: boolean
+      }
       question_stats: {
         Args: {
           p_ml_account_id?: string

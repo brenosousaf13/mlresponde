@@ -5,13 +5,17 @@ import { LogoWordmark } from "@/components/brand/logo"
 export function AuthShell({
   children,
   wide = false,
+  size,
 }: {
   children: React.ReactNode
   wide?: boolean
+  /** "lg" para formulários maiores (dados de cobrança no cadastro). */
+  size?: "lg"
 }) {
+  const width = size === "lg" ? "max-w-lg" : wide ? "max-w-md" : "max-w-sm"
   return (
     <div className="flex min-h-svh flex-col items-center justify-center gap-6 bg-muted p-6 md:p-10">
-      <div className={wide ? "flex w-full max-w-md flex-col gap-6" : "flex w-full max-w-sm flex-col gap-6"}>
+      <div className={`flex w-full ${width} flex-col gap-6`}>
         <Link href="/login" className="self-center" aria-label="Página inicial">
           <LogoWordmark className="h-7" />
         </Link>

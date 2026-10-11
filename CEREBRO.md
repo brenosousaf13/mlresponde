@@ -4,7 +4,7 @@
 > inteiro antes de trabalhar e atualizá-lo ao terminar. Se algo aqui divergir do código, o código vence —
 > e este arquivo deve ser corrigido na mesma sessão.
 
-Última atualização: **2026-10-11** (Sessão 8 — IA da v2 trocada de `gpt-4o-mini` para `gpt-6-luna`, branch `v2`)
+Última atualização: **2026-10-11** (Sessão 9 — cadastro pede CPF/CNPJ e endereço de cobrança, branch `v2`)
 
 ---
 
@@ -63,6 +63,10 @@ novas funcionalidades, segurança multi-tenant de verdade — **desenvolvido em 
   IA pode melhorar. Spec: `docs/superpowers/specs/2026-10-11-resultados-design.md`.
   **Sessão 8 (2026-10-11): IA da v2 trocada para `gpt-6-luna`** (antes `gpt-4o-mini`), sem raciocínio (`none`), mais
   barata; prompt reforçado para não citar variação esgotada. A v1 em produção segue com `gpt-4o-mini`.
+  **Sessão 9 (2026-10-11): dados de cobrança no cadastro** — depois de confirmar o e-mail, o cadastro tem 2 etapas
+  (loja + WhatsApp → **CPF/CNPJ, nome/razão social e endereço**); CEP preenche o endereço; CNPJ alfanumérico aceito;
+  documento **único** na plataforma e **imutável** depois de salvo (trava no banco); editável em Configurações (menos o
+  documento). Contas antigas são levadas a completar no próximo acesso. Spec: `docs/superpowers/specs/2026-10-11-dados-cobranca-design.md`.
   Falta testar com conta ML real (depende do Breno).
 - **Marca da v2:** logo `MeliLogo.png` = **"MeLi Responde"** (assumido pela IA; confirmar com o Breno). Nome centralizado em
   `lib/config/site.ts`. A v1 em produção usa "Meli Fácil".
@@ -135,7 +139,8 @@ app/
     actions.ts                    # signIn, signUp, resendConfirmation, requestPasswordReset, updatePassword, signOut
     login/ cadastro/ verificar-email/ recuperar-senha/ redefinir-senha/
   auth/confirm/route.ts           # links dos e-mails: ?code= (padrão Supabase) e ?token_hash=&type= (template próprio)
-  onboarding/                     # nome da loja + WhatsApp (obrigatório) → /contas
+  onboarding/                     # cadastro pós-e-mail: etapa 1 loja + WhatsApp, etapa 2 CPF/CNPJ + endereço → /contas
+                                  # (contas antigas sem dados de cobrança caem aqui só na etapa 2)
   (app)/                          # área logada: sidebar shadcn (collapsible="icon"), header, barras de aviso, tour
     layout.tsx                    # requireOnboardedContext + menu com cadeados (decideSectionAccess)
     actions.ts                    # completeTour
@@ -166,6 +171,7 @@ components/
                                   # edit-answer-dialog, extra-info-form, prompt-preview-dialog, examples-manager,
                                   # blacklist-manager, test-panel, assistant-status, how-it-works
   app/account-select.tsx          # seletor de conta (?conta=), com "Todas as contas" opcional
+  billing/billing-profile-form.tsx # dados de cobrança (cadastro e Configurações): CPF/CNPJ com confirmação, CEP automático
   auth/ onboarding/ contas/ configuracoes/ legal/ forms/ brand/
 lib/
   config/site.ts                  # nome da marca, dias de teste, versão dos termos
@@ -173,6 +179,10 @@ lib/
   access/access.ts                # computeAccess (trial/active/blocked) + decideSectionAccess (puro, testado)
   dal/app-context.ts              # getCurrentUser, getAppContext (cache por request), requireSection, canManageOrganization
   validation/forms.ts             # schemas zod, WhatsApp BR, safeRedirectPath, FormState
+  validation/billing.ts           # parseBillingProfile (com/sem documento) + mensagens de erro da gravação
+  billing/documents.ts            # CPF/CNPJ (inclusive alfanumérico), máscaras, CEP, UFs (puro, testado)
+  billing/cep.ts                  # busca de CEP no navegador (ViaCEP → BrasilAPI)
+  dal/billing.ts                  # getBillingProfile (RLS) + saveBillingProfile (service role; documento nunca muda)
   security/crypto.ts, keys.ts     # AES-256-GCM com AAD + chave ML_TOKEN_ENCRYPTION_KEY
   mercadolivre/pkce.ts, oauth.ts, oauth-cookie.ts, api.ts, accounts.ts   # OAuth v2 + tokens (lease de refresh)
   mercadolivre/client.ts        # mlRequest(accountId, path): token válido + erros tipados (401 → token inválido)
@@ -203,9 +213,9 @@ lib/
   http/site-url.ts                # NEXT_PUBLIC_SITE_URL → URLs de retorno dos e-mails
 supabase/
   config.toml, migrations/        # baseline_v1 (espelho de prod) + fundacao_v2 + respostas_v2 + assistente_ia +
-                                  # perguntas_escala + resultados
-  tests/fundacao_rls.sql, respostas_rls.sql, resultados_rls.sql   # testes de RLS (sucesso = erro "TESTES_..._OK")
-tests/unit/                       # vitest: crypto, pkce, access, forms, answers, assistant, inbox, results
+                                  # perguntas_escala + resultados + dados_cobranca
+  tests/fundacao_rls.sql, respostas_rls.sql, resultados_rls.sql, cobranca_rls.sql   # sucesso = erro "TESTES_..._OK"
+tests/unit/                       # vitest: crypto, pkce, access, forms, answers, assistant, inbox, results, billing
 tests/integration/ai-live.test.ts # 7 cenários com a IA real; só roda com RUN_LIVE_AI=1 + OPENAI_API_KEY
 vercel.json                       # cron /api/cron/questions a cada minuto (efeito só em produção)
 docs/                             # specs (superpowers/specs), db (inventário/snapshot de prod), v2 (referências)
@@ -305,6 +315,21 @@ localmente, definir no terminal).
   tempo de resposta, mapa dia × hora, top 8 anúncios, causas (IA sem rascunho / com rascunho / sem análise) e total
   histórico da IA. `security invoker` (RLS), `execute` só para `authenticated`. Testada em `supabase/tests/resultados_rls.sql`.
 
+### 6.1c v2 — Dados de cobrança (migração `20261011235000_dados_cobranca.sql`, aditiva)
+
+- `billing_profiles` (1 por organização; `organization_id` PK/FK `on delete cascade`): `document_type` (`cpf|cnpj`),
+  `document` (sem pontuação, maiúsculas; **único** + CHECK `is_valid_tax_document`, que valida CPF e CNPJ numérico ou
+  alfanumérico), `legal_name` (nome completo / razão social), `postal_code` (8 dígitos), `street`, `address_number`,
+  `complement`, `district`, `city`, `state` (27 UFs), `registered_by`, `created_at` (= data do vínculo), `updated_at`.
+- **Documento imutável:** trigger `protect_billing_document` recusa trocar `document`/`document_type`/organização até
+  para o service role (`BILLING_DOCUMENT_LOCKED`). Correção pelo suporte só em SQL:
+  `begin; set local app.allow_billing_document_change = 'on'; update public.billing_profiles set document = '...' where organization_id = '...'; commit;`
+- RLS: navegador só lê, e só dono/administrador (`current_user_managed_organization_ids()`, security definer); membro
+  comum não vê o CPF do dono. Escrita só pelo servidor. Testado em `supabase/tests/cobranca_rls.sql`.
+- `getAppContext` traz `billing: { required, completed }` (embed `billing_profiles(organization_id)` na consulta da
+  organização); `needsOnboarding` manda para `/onboarding` quem administra a loja e ainda não tem os dados (admin da
+  plataforma dispensado).
+
 ### 6.2 v1 — produção (✅ CONFIRMADO em 2026-10-11)
 
 > Fonte: inventário só leitura de prod (`docs/db/inventario-schema.sql`, rodado pelo Breno no SQL Editor).
@@ -358,7 +383,11 @@ Extensões: pgcrypto, uuid-ossp, pg_stat_statements, pg_graphql, supabase_vault 
 - **Login** `/login` (mensagens PT-BR; e-mail não confirmado → botão de reenviar). `next` só aceita caminho interno.
 - **Senha:** `/recuperar-senha` → e-mail → `/auth/confirm?next=/redefinir-senha` → `updateUser`. Em
   `/configuracoes`, troca exige a senha atual (verificada com cliente sem cookies e sessão descartada).
-- **Onboarding** `/onboarding`: nome da loja + WhatsApp → `onboarding_completed_at` → `/contas` com tour de 4 passos.
+- **Onboarding** `/onboarding` (2 etapas): (1) nome da loja + WhatsApp; (2) dados de cobrança — pessoa física/jurídica,
+  CPF/CNPJ (confirmação em `AlertDialog`; depois não muda), nome/razão social, CEP (preenche rua/bairro/cidade/UF),
+  número, complemento → `onboarding_completed_at` → `/contas` com tour de 4 passos. Sem dados de cobrança (contas
+  antigas), dono/admin volta para a etapa 2 em qualquer página. Membro comum e admin da plataforma pulam a etapa 2.
+  Configurações tem o card "Dados de cobrança" (documento travado, endereço editável).
 - **Acesso** (`lib/access/access.ts`, checado em toda página/ação/rota): bloqueado (teste vencido sem assinatura) → só
   `/assinatura` e `/configuracoes`; sem conta ML ativa → também `/contas`; senão tudo. Cortesia (`billing_exempt`) libera.
 - **Conectar ML:** `/api/ml/oauth/start` (dono/admin, não bloqueado) → ML → `/api/auth/callback/mercadolivre` →
@@ -643,6 +672,8 @@ Decisões de **produto** (preços, planos, textos legais, marca, WhatsApp) conti
 - ✅ **2b. Assistente de IA + caixa de entrada de Perguntas** — implementado em 2026-10-11 (spec
   `2026-10-11-assistente-ia-design.md`). Pendências: feedback do Breno nas perguntas da configuração; no cutover, levar a
   `knowledge_base` da v1 para "Outras informações" e os `training_examples` para respostas ensinadas.
+- ✅ **2c. Dados de cobrança no cadastro** (CPF/CNPJ + endereço) — implementado em 2026-10-11 (spec
+  `2026-10-11-dados-cobranca-design.md`). Base para o sub-projeto 4 (gateway e nota fiscal leem `billing_profiles`).
 - ⏭️ **Próximo (sugestão):** migração de dados v1 → v2 + plano de cutover, ou sub-projeto 4 (planos/cobrança) — decidir com o Breno.
 - ⏳ 3. Módulos de IA/gestão · ⏳ 4. Comercial (planos, Stripe/gateway, admin).
 
@@ -756,10 +787,34 @@ webhook do ML validado, fila/reprocessamento de jobs, observabilidade, controle 
 | 2026-10-11 | Tempo de resposta pela **mediana** e sem as perguntas importadas ao conectar a conta | Média distorce com poucas respostas lentas; as importadas não refletem a velocidade da IA. |
 | 2026-10-11 | Gráficos com o `chart` do shadcn (Recharts); mapa de calor como grade simples | Regra de UI = shadcn; o shadcn não tem heatmap. |
 | 2026-10-11 | IA da v2: `gpt-4o-mini` → **`gpt-6-luna`** com `reasoning_effort: "none"`, mantendo Chat Completions | Pedido do Breno: modelo mais atual e mais barato (US$ 0,10 entrada / US$ 0,50 saída por 1M tokens). `none` preserva o comportamento da gpt-4o-mini (sem raciocínio, menor custo e latência) e é o único modo do GPT-6 que aceita `temperature`. Responses API não é necessária (sem ferramentas); SDK não foi atualizado (salto de versão grande, fora do escopo). |
+| 2026-10-11 | CPF/CNPJ + endereço pedidos **logo depois de confirmar o e-mail** (etapa 2 do cadastro), não na tela `/cadastro` | Só conta com e-mail comprovado pode prender um documento: e-mail digitado errado não "sequestra" o CPF e ninguém reserva o CPF de outra pessoa. A primeira tela continua curta. |
+| 2026-10-11 | Documento **único** na plataforma e **imutável** depois de salvo, travado no banco (trigger) e no servidor; correção só pelo suporte em SQL | Pedido do Breno ("único pra cada conta", "não pode alterar"). Confirmação em diálogo antes de gravar para evitar erro de digitação. |
+| 2026-10-11 | Dados de cobrança em tabela própria (`billing_profiles`), lidos só por dono/administrador | Dado pessoal (LGPD): membros comuns e futuras equipes não veem o CPF do dono; fica pronto para o gateway/nota fiscal (sub-projeto 4). |
+| 2026-10-11 | Aceitar o **CNPJ alfanumérico** (Receita, desde jul/2026) | Empresas novas já recebem CNPJ com letras; rejeitar seria perder cliente. Mesmo cálculo valida o CNPJ antigo. |
+| 2026-10-11 | Contas antigas (e as da v1 no cutover) completam os dados no próximo acesso; admin da plataforma e membros comuns dispensados | Cobrança certa para todos; a "Loja Demonstração" não pode prender o CPF do Breno. |
 
 ---
 
 ## 12. Diário de sessões (mais recente no topo)
+
+### 2026-10-11 — Sessão 9 · CPF/CNPJ e endereço no cadastro (IA: Claude, via app Codex)
+- Pedido do Breno: coletar CPF/CNPJ e endereço no cadastro (para a cobrança) e permitir atualizar em Configurações;
+  o CPF/CNPJ não pode mudar depois de vinculado e é único por conta. Spec `2026-10-11-dados-cobranca-design.md`.
+- Migração `20261011235000_dados_cobranca.sql` aplicada no Supabase de **testes** (dry-run antes); tipos regenerados
+  (só os trechos de `billing_profiles` e das 2 funções novas entraram neste commit). `cobranca_rls.sql` e
+  `fundacao_rls.sql` ok.
+- Novo: `lib/billing/*`, `lib/validation/billing.ts`, `lib/dal/billing.ts`, `components/billing/billing-profile-form.tsx`,
+  onboarding em 2 etapas, card em Configurações, `needsOnboarding` (também no início do OAuth do ML), `AuthShell size="lg"`,
+  Política de Privacidade (rascunho) com os dados de cobrança. 34 testes novos em `tests/unit/billing.test.ts`.
+- QA no navegador (servidor local → Supabase de testes, Chromium headless, 1440 e celular 390): etapa 1 → 2, erros do
+  servidor, CPF inválido, CEP preenchendo o endereço (ViaCEP) e foco no número, diálogo de confirmação, gravação, CPF
+  travado em Configurações, edição do endereço, tentativa de trocar o CPF injetando campos (ignorada), conta antiga
+  levada à etapa única, CPF duplicado barrado, CNPJ alfanumérico `12.ABC.345/01DE-35`, "Voltar", admin da plataforma
+  dispensado. Sem erros no console. Usuários/organizações de QA apagados.
+- ⚠️ **Outra conversa trabalhava ao mesmo tempo na mesma pasta** (modo "responder sempre" do Assistente, migração
+  `20261011235500_modo_responder_sempre`, já aplicada no Supabase de testes por ela). Para não misturar, as verificações
+  (typecheck, 185 testes, lint 0, build ok) rodaram numa worktree temporária só com os arquivos desta sessão, e o commit
+  inclui só eles. Os arquivos da outra conversa ficaram intactos e sem commit.
 
 ### 2026-10-11 — Sessão 8 · Troca do modelo de IA para GPT-6 Luna (IA: Claude, via app Codex)
 - Pedido do Breno: trocar o modelo que responde (gpt-4o-mini) pelo **GPT-6 Luna**, mais atual e mais barato, na `v2`.
@@ -915,6 +970,9 @@ webhook do ML validado, fila/reprocessamento de jobs, observabilidade, controle 
 2. **Breno: conferir na staging** o menu recolhendo pela barra, a caixa de entrada (filtro por anúncio, ordem, páginas), o
    novo Painel e a tela **Resultados** (a "Loja Demonstração" já tem 90 dias de histórico). Dizer se as premissas padrão
    da economia (3 min por resposta, R$ 20/h) fazem sentido para os clientes dele.
+2b. **Breno: conferir o cadastro novo na staging** — criar uma conta (ou entrar na "Noord Shop", que vai pedir os dados
+   de cobrança no próximo acesso) e ver as 2 etapas, a busca do CEP e o CPF travado em Configurações. Decidir se quer
+   pedir também e-mail financeiro ou inscrição estadual (depende do gateway/nota fiscal do sub-projeto 4).
 3. **Breno: observar as respostas do `gpt-6-luna` na staging** (aba Testar do Assistente e perguntas reais). Se algo piorar,
    dá para voltar ao antigo sem código: variável `OPENAI_MODEL=gpt-4o-mini` (Preview + `v2`) e novo deploy.
    No cutover, a produção passa a usar o Luna automaticamente (padrão do código).
@@ -931,6 +989,7 @@ webhook do ML validado, fila/reprocessamento de jobs, observabilidade, controle 
 8. **Cutover (checklist parcial):** `CRON_SECRET`, `ML_TOKEN_ENCRYPTION_KEY` (nova), `NEXT_PUBLIC_SITE_URL` em Production;
    `supabase migration repair --status applied 20261011150000` em prod e `db push`; URLs do app ML de produção (redirect
    `/api/auth/callback/mercadolivre`, notificações `/api/webhook/mercadolivre`) e permissões novas; clientes reconectam.
+   No 1º acesso pós-cutover, cada cliente da v1 completa CPF/CNPJ + endereço (etapa única do cadastro).
 9. **Lembrete:** P0 de prod (§8) — vazamento em `question_jobs` segue na v1 (mitigado pelo cadastro fechado).
 10. Limpeza recomendada (com aprovação): tirar Preview/Development das variáveis de produção na Vercel.
 11. Ideias anotadas (não feitas): "fichas de produto" por modelo como cadastro próprio (hoje vão em "Detalhes confirmados
