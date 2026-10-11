@@ -4,7 +4,7 @@
 > inteiro antes de trabalhar e atualizá-lo ao terminar. Se algo aqui divergir do código, o código vence —
 > e este arquivo deve ser corrigido na mesma sessão.
 
-Última atualização: **2026-10-11** (Sessão 2 — ambientes aprovados e acesso ao Supabase de testes)
+Última atualização: **2026-10-11** (Sessão 2 — ambientes, Supabase de testes, app ML de teste e staging na Vercel)
 
 ---
 
@@ -41,8 +41,9 @@ novas funcionalidades, segurança multi-tenant de verdade — **desenvolvido em 
 **Estado atual (2026-10-11):**
 - v1 **em produção** na Vercel (deploy automático da branch `main`) usando Supabase de produção.
 - Último commit da v1: `ad72bff` (2026-06-08).
-- v2: **não iniciada** — estratégia de ambientes **aprovada** (§9); Breno criando o Supabase de testes e o app ML de teste;
-  escopo da v2 ainda a definir (§10).
+- v2: branch **`v2`** criada e publicada (só documentação até agora; código do app idêntico à `main`).
+  Staging no ar em `https://mlresponde-v2.vercel.app` apontando para o **Supabase de testes** e o **app ML de teste**
+  (§9). Banco de testes ainda **vazio** (falta a baseline do schema de prod). Escopo da v2 a definir (§10).
 - P0 de segurança/toggle (§8) **adiados** por decisão do Breno — revisitar antes de abrir para novos clientes.
 
 ---
@@ -286,9 +287,19 @@ Legenda: 🔴 P0 crítico · 🟠 P1 importante · 🟡 P2 melhoria. Marcar ✅ 
 **Vercel**
 - Projeto `mlresponde` (id `prj_6RCiRvJowZ3Oq3kmm0GdYuB9ge3u`), time `brenosousaf132-gmailcoms-projects`, repo
   `brenosousaf13/mlresponde`, production branch `main`, único domínio hoje: `mlresponde.vercel.app`.
+- Git local: o `.gitconfig` global usa outra identidade (`clickcristao2026`); este repo tem `user.name`/`user.email`
+  locais = `Apet-rota <39978008+brenosousaf13@users.noreply.github.com>` (mesma identidade dos commits antigos).
 - Vercel CLI (`npx vercel`, v63) já logada como `brenosousaf132-3594`. A pasta local **não** está linkada (`.vercel/`
   ausente). Não usar `vercel link --yes` sem cuidado: pode puxar variáveis de **produção** para o `.env.local`.
-- Deployment Protection atual: **Standard** (`all_except_custom_domains`) → previews exigem login na Vercel.
+- Deployment Protection: era Standard (`all_except_custom_domains`); **desligada em 2026-10-11** (aprovado pelo Breno)
+  para o webhook do ML alcançar a staging. A produção já era pública e o app tem login próprio.
+- **Staging configurada em 2026-10-11:** domínio `mlresponde-v2.vercel.app` → branch `v2`; variáveis **Preview +
+  branch `v2`**: `NEXT_PUBLIC_SUPABASE_URL` (testes), `NEXT_PUBLIC_SUPABASE_ANON_KEY` e `SUPABASE_SERVICE_ROLE_KEY`
+  (chaves **legacy** JWT do projeto de testes, compatíveis com o código atual; o projeto também tem as novas
+  `sb_publishable`/`sb_secret`), `ML_CLIENT_ID` (app de teste), `ML_REDIRECT_URI` (v2) e `ML_CLIENT_SECRET`
+  (**placeholder `PENDENTE_BRENO_PREENCHER`** até o Breno colocar o valor real). `OPENAI_API_KEY` é herdada da geral.
+- A Vercel só aceita variáveis/domínio com `gitBranch` depois que a branch existe no GitHub. Variáveis entram no
+  build: depois de mudar uma variável, é preciso um novo deploy (push ou "Redeploy").
 
 **App ML de teste (DevCenter) — criado em 2026-10-11**
 - **Client ID: `8693830632560554`** (não é segredo; aparece na URL de autorização). Client Secret: só no DevCenter/Vercel.
@@ -372,6 +383,8 @@ Ainda não decidido. Temas levantados até agora:
 | 2026-10-11 | IAs acessam o Supabase pela Supabase CLI (`npx supabase`); login feito pelo Breno no terminal dele | Funciona igual para Claude e ChatGPT, é a base das migrações versionadas e o token não passa pelo chat. |
 | 2026-10-11 | Supabase de produção: acesso somente leitura, só para entendimento | Banco de produção é sagrado (§2). |
 | 2026-10-11 | URL fixa de staging `mlresponde-v2.vercel.app` (domínio associado ao branch `v2`) | O app ML de teste precisa de redirect/webhook estáveis; URLs de preview mudam a cada deploy. |
+| 2026-10-11 | Branch `v2` criada/publicada; Vercel Authentication desligada; staging em `mlresponde-v2.vercel.app` | Aprovado pelo Breno; webhook do ML precisa alcançar a staging. |
+| 2026-10-11 | Staging usa as chaves legacy (anon/service_role) do Supabase de testes | Mesmo formato da produção; zero mudança de código. Migrar para `sb_publishable`/`sb_secret` pode ser feito depois. |
 | 2026-10-11 | Variáveis da v2 na Vercel sempre com escopo Preview + branch `v2` | Hoje as variáveis de produção também valem para previews; sem override a v2 usaria o banco de produção. |
 | 2026-10-11 | App ML de teste com permissões amplas (ver §9) e PKCE desligado até o OAuth novo da v2 | v2 vai usar IA em várias áreas (anúncios, vendas, publicidade, promoções); PKCE quebraria o código atual. |
 
@@ -387,6 +400,10 @@ Ainda não decidido. Temas levantados até agora:
 - Breno fez o login; conexão testada: projeto de testes "Mercado Livre Responde v2" (`ookosqyfazobiwmopiix`) ativo.
 - Definida a configuração do app ML de teste (§9) e a URL fixa de staging `mlresponde-v2.vercel.app`.
 - App ML de teste criado pelo Breno: Client ID `8693830632560554`.
+- Branch `v2` criada e publicada (commit de docs `7b01413`). Na Vercel: 6 variáveis Preview+`v2`, domínio
+  `mlresponde-v2.vercel.app` → `v2`, Vercel Authentication desligada. O 1º deploy da `v2` saiu antes das variáveis
+  (usaria prod) → substituído por novo deploy e apagado.
+- `MeliLogo.png` apareceu na raiz sem ser criado pela IA → **não** commitado; perguntar ao Breno.
 - Vercel inspecionada (somente leitura, só nomes): todas as variáveis de prod também valem para Preview/Development
   (risco: preview da `v2` usaria o banco de produção) e a proteção Standard bloquearia o webhook do ML.
 - Nada commitado/pushado. Produção intocada.
@@ -405,20 +422,19 @@ Ainda não decidido. Temas levantados até agora:
 
 1. ✅ Supabase de testes criado e login da CLI feito/testado (2026-10-11).
 2. ✅ App ML de teste criado (Client ID `8693830632560554`).
-3. **Breno:** autorizar (a) criar e subir a branch `v2` (só com os docs: `CEREBRO.md`, `AGENTS.md`, `CLAUDE.md`,
-   `instructions.md` — código idêntico à produção) e (b) a IA configurar a Vercel para staging:
-   - variáveis **Preview + branch `v2`**: Supabase de testes (URL + chaves via CLI), `ML_CLIENT_ID`, `ML_REDIRECT_URI`;
-   - domínio `mlresponde-v2.vercel.app` → branch `v2`;
-   - Deployment Protection: desligar a Vercel Authentication (o app já tem login próprio; a produção já é pública)
-     ou usar bypass na URL de notificação.
-4. **Breno:** cadastrar ele mesmo o `ML_CLIENT_SECRET` (Preview + branch `v2`) no painel da Vercel.
-5. **IA:** `supabase init` + `supabase link --project-ref ookosqyfazobiwmopiix`.
-6. **Breno:** liberar acesso **somente leitura** ao Supabase de prod (sem acesso às colunas de tokens do ML) →
+3. ✅ Branch `v2` + staging na Vercel (`mlresponde-v2.vercel.app`, variáveis Preview+`v2`, proteção desligada).
+4. **Breno:** trocar o valor de `ML_CLIENT_SECRET` (Preview, branch `v2`, hoje `PENDENTE_BRENO_PREENCHER`) pelo
+   Client Secret do app ML de teste no painel da Vercel e avisar → IA faz um redeploy da `v2`.
+5. **Breno:** liberar acesso **somente leitura** ao Supabase de prod (sem acesso às colunas de tokens do ML) →
    IA captura o schema real como migração baseline em `supabase/migrations/`, confirma RLS/policies (atualizar §6)
-   e aplica no Supabase de testes. Sem isso o banco de testes fica vazio e a v2 não roda.
+   e aplica no Supabase de testes (`supabase init` + `supabase link --project-ref ookosqyfazobiwmopiix`).
+   Sem isso o banco de testes fica vazio e a v2 não roda.
+6. Depois da baseline: criar usuário de teste no Supabase de testes, conectar uma conta ML de teste e validar o fluxo
+   pergunta → resposta na staging.
 7. **Definir o escopo da v2** (§10) junto com o Breno.
 8. **Lembrete:** revisitar os P0 (§8) antes de abrir o app para novos clientes.
 9. Limpeza recomendada (com aprovação): tirar Preview/Development das variáveis de produção na Vercel.
+10. Perguntar ao Breno sobre o `MeliLogo.png` não versionado na raiz.
 
 ---
 
