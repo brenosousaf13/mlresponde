@@ -1,3 +1,7 @@
+> ⚠️ **DOCUMENTO HISTÓRICO — NÃO SIGA ESTAS INSTRUÇÕES.** Este foi o guia usado para construir a v1 (abr/2026)
+> e está desatualizado (ex.: a IA hoje é OpenAI `gpt-4o-mini`, o sistema é multi-tenant e `middleware.ts` virou `proxy.ts`).
+> A fonte de verdade atual é o **`CEREBRO.md`**.
+
 # ML AI Responder — Guia de desenvolvimento para agente
 
 ## Como usar este documento
