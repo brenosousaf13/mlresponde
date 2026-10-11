@@ -35,6 +35,7 @@ export function computeAccess(
 export type AppSection =
   | "painel"
   | "perguntas"
+  | "resultados"
   | "assistente"
   | "contas"
   | "assinatura"

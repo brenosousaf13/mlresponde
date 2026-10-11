@@ -4,12 +4,13 @@ export type NavItemConfig = {
   section: AppSection
   title: string
   href: string
-  icon: "painel" | "perguntas" | "assistente" | "contas" | "assinatura" | "configuracoes"
+  icon: "painel" | "perguntas" | "resultados" | "assistente" | "contas" | "assinatura" | "configuracoes"
 }
 
 export const NAV_ITEMS: readonly NavItemConfig[] = [
   { section: "painel", title: "Painel", href: "/painel", icon: "painel" },
   { section: "perguntas", title: "Perguntas", href: "/perguntas", icon: "perguntas" },
+  { section: "resultados", title: "Resultados", href: "/resultados", icon: "resultados" },
   { section: "assistente", title: "Assistente de IA", href: "/assistente", icon: "assistente" },
   { section: "contas", title: "Contas do Mercado Livre", href: "/contas", icon: "contas" },
   { section: "assinatura", title: "Assinatura", href: "/assinatura", icon: "assinatura" },
@@ -19,6 +20,7 @@ export const NAV_ITEMS: readonly NavItemConfig[] = [
 export const PAGE_TITLES: Record<string, string> = {
   "/painel": "Painel",
   "/perguntas": "Perguntas",
+  "/resultados": "Resultados",
   "/assistente": "Assistente de IA",
   "/contas": "Contas do Mercado Livre",
   "/assinatura": "Assinatura",

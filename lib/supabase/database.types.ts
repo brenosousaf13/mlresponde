@@ -440,6 +440,8 @@ export type Database = {
       }
       organizations: {
         Row: {
+          analytics_hourly_cost: number
+          analytics_minutes_per_answer: number
           billing_exempt: boolean
           created_at: string
           current_period_end: string | null
@@ -452,6 +454,8 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          analytics_hourly_cost?: number
+          analytics_minutes_per_answer?: number
           billing_exempt?: boolean
           created_at?: string
           current_period_end?: string | null
@@ -464,6 +468,8 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          analytics_hourly_cost?: number
+          analytics_minutes_per_answer?: number
           billing_exempt?: boolean
           created_at?: string
           current_period_end?: string | null
@@ -602,6 +608,15 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      analytics_overview: {
+        Args: {
+          p_from: string
+          p_ml_account_id?: string
+          p_organization_id: string
+          p_to: string
+        }
+        Returns: Json
+      }
       claim_ml_question: {
         Args: { p_id: string; p_lock_seconds?: number }
         Returns: {

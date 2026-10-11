@@ -75,6 +75,20 @@ describe("decideSectionAccess", () => {
     expect(decideSectionAccess("painel", ctx).allowed).toBe(true)
     expect(decideSectionAccess("perguntas", ctx).allowed).toBe(true)
     expect(decideSectionAccess("assistente", ctx).allowed).toBe(true)
+    expect(decideSectionAccess("resultados", ctx).allowed).toBe(true)
+  })
+
+  it("resultados exige conta ML e assinatura em dia", () => {
+    expect(decideSectionAccess("resultados", { access: "trial", hasActiveMlAccount: false })).toEqual({
+      allowed: false,
+      redirectTo: "/contas",
+      reason: "no_ml_account",
+    })
+    expect(decideSectionAccess("resultados", { access: "blocked", hasActiveMlAccount: true })).toEqual({
+      allowed: false,
+      redirectTo: "/assinatura",
+      reason: "blocked",
+    })
   })
 
   it("administrador da plataforma acessa tudo, mesmo sem conta ML ou com teste vencido", () => {
