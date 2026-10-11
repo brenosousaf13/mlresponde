@@ -4,7 +4,7 @@
 > inteiro antes de trabalhar e atualizá-lo ao terminar. Se algo aqui divergir do código, o código vence —
 > e este arquivo deve ser corrigido na mesma sessão.
 
-Última atualização: **2026-10-11** (Sessão 5 — Assistente de IA com configuração guiada + novo painel de Perguntas, branch `v2`)
+Última atualização: **2026-10-11** (Sessão 6 — menu lateral, Perguntas em escala e Painel com resumo das perguntas, branch `v2`)
 
 ---
 
@@ -53,6 +53,10 @@ novas funcionalidades, segurança multi-tenant de verdade — **desenvolvido em 
   Sobre a loja / Jeito de responder / Respostas ensinadas / Anúncios bloqueados / Testar; prompt reescrito com as
   travas da v1; **Perguntas virou caixa de entrada** em duas colunas com filtros coloridos e resposta na própria tela.
   Spec: `docs/superpowers/specs/2026-10-11-assistente-ia-design.md`.
+  **Sessão 6 (2026-10-11): ajustes visuais e escala** — recolher o menu pela própria barra lateral (sem barra de topo no
+  computador), espaço entre os itens do menu, Perguntas preparada para milhares de perguntas (colunas com rolagem própria,
+  50 por página, filtro por anúncio, ordem, grupos por dia, RLS e índices otimizados) e Painel com "Esperando você",
+  "Últimas perguntas" e "Anúncios mais perguntados". Testado com 1.500 perguntas de QA (apagadas depois).
   Falta testar com conta ML real (depende do Breno).
 - **Marca da v2:** logo `MeliLogo.png` = **"MeLi Responde"** (assumido pela IA; confirmar com o Breno). Nome centralizado em
   `lib/config/site.ts`. A v1 em produção usa "Meli Fácil".
@@ -142,9 +146,12 @@ app/
   api/cron/questions/route.ts   # reprocessa a fila (Vercel Cron 1/min, só em produção; Bearer CRON_SECRET)
 components/
   ui/                             # shadcn (não editar à toa; regenerar com a CLI)
-  app/                            # app-sidebar, nav-user, app-header, access-banners, welcome-tour, page-header...
-  perguntas/                      # inbox-tabs, inbox-list (+row-link), question-detail, answer-composer, question-menu,
+  app/                            # app-sidebar (botão de recolher no topo da própria barra), nav-user, app-header (só no
+                                  # celular), access-banners, welcome-tour, page-header...
+  perguntas/                      # inbox-tabs, inbox-list (toolbar + linhas agrupadas por dia + rodapé de página),
+                                  # inbox-row-link, question-detail, answer-composer, question-menu,
                                   # question-search (next/form), live-refresh, sync-button
+  painel/question-cards.tsx       # cards do Painel: Esperando você, Últimas perguntas, Anúncios mais perguntados
   assistente/                     # setup-wizard, question-input, style-fields/style-form, knowledge-view,
                                   # edit-answer-dialog, extra-info-form, prompt-preview-dialog, examples-manager,
                                   # blacklist-manager, test-panel, assistant-status, how-it-works
@@ -169,11 +176,12 @@ lib/
   answers/context.ts            # assistantBase (nome/tom/conhecimento/regras da conta) + loadTaughtExamples
   assistant/questions.ts        # roteiro da configuração guiada (19 passos, 7 seções; ids estáveis)
   assistant/profile.ts          # validar/ler store_profile e compilar o "conhecimento da loja" (puro, testado)
-  questions/presentation.ts     # status → cor/rótulo, abas da caixa de entrada, limpeza da busca (puro)
+  questions/presentation.ts     # status → cor/rótulo, abas, resumo da linha, estado da URL de /perguntas (inboxHref,
+                                # filtros/ordem/página), ranking de anúncios (puro, testado)
   answers/ai.ts                 # runAnswerModel (OpenAI)
   answers/engine.ts             # processQuestion, processDueQuestions, reconcileQuestion, suggestAnswer, sendManualAnswer
   answers/ingest.ts             # registerQuestion, syncUnansweredQuestions
-  dal/dashboard.ts              # números do painel (question_stats)
+  dal/dashboard.ts              # números do painel (question_stats) + listas Esperando você / Últimas / Anúncios
   supabase/server.ts              # createClient (sessão) + createAdminClient (legado v1, sem tipos)
   supabase/admin.ts               # createServiceClient (service role, tipado) + createStatelessAuthClient
   supabase/database.types.ts      # gerado: npx supabase gen types typescript --linked --schema public
@@ -268,6 +276,13 @@ localmente, definir no terminal).
   guiada `{ [perguntaId]: { options, text } }`, ≤ 60 KB), `store_setup_step`, `store_profile_completed_at` (nulo = mostra a
   configuração; a IA só liga depois); `ai_examples.item_title` e `updated_at`. `store_briefing` continua = "Outras informações".
 - Funções: `claim_ml_question` e `due_ml_questions` (só service role), `question_stats` (security invoker, respeita RLS).
+- **Migração `20261011220000_perguntas_escala.sql` (aditiva):** função `current_user_organization_ids()` (security definer,
+  organizações do usuário logado) e a policy de leitura de `ml_questions` reescrita para
+  `organization_id in (select current_user_organization_ids())` — **mesma regra**, mas o conjunto é calculado uma vez por
+  consulta (antes `is_org_member` rodava uma subconsulta por linha; contagem de 1.500 perguntas caiu de ~20 ms para ~2 ms).
+  Índices `(organization_id, question_created_at desc nulls first, created_at desc)` (ordem da caixa de entrada) e
+  `(organization_id, item_id)` (filtro por anúncio). Realtime e testes de RLS conferidos depois da mudança.
+  (Os tipos em `database.types.ts` não mudaram: a função nova não é chamada pelo TypeScript.)
 
 ### 6.2 v1 — produção (✅ CONFIRMADO em 2026-10-11)
 
@@ -346,8 +361,16 @@ Extensões: pgcrypto, uuid-ossp, pg_stat_statements, pg_graphql, supabase_vault 
 4. Fila: webhook processa até 5 atrasadas; produção terá Vercel Cron a cada minuto. **Staging não tem cron.**
 5. Ao conectar/reconectar conta: sincroniza as perguntas sem resposta do ML (até 200) e processa.
 6. Painel do vendedor: **Perguntas** = caixa de entrada (filtros Para responder / Respondidas pela IA / Respondidas por
-   você / Todas, busca, conta, lista + conversa, responder na tela com rascunho, "Sugestão da IA", "Ensinar a IA",
-   "Enviar e ir para a próxima", arquivar/desarquivar, "Deixar a IA tentar de novo", ao vivo via Realtime, sincronizar) e
+   você / Todas, busca por pergunta/anúncio/código MLB, conta, lista + conversa, responder na tela com rascunho, "Sugestão
+   da IA", "Ensinar a IA", "Enviar e ir para a próxima", arquivar/desarquivar, "Deixar a IA tentar de novo", ao vivo via
+   Realtime, sincronizar). **Escala (Sessão 6):** no computador (≥1024 px) a página ocupa a altura da tela (mínimo 44rem)
+   e lista e conversa rolam cada uma por conta própria — o layout da área logada usa `has-[[data-fill-viewport]]` no
+   `SidebarInset`; o composer fica preso embaixo da conversa. 50 por página (rodapé "1–50 de 1.234"), linhas agrupadas por
+   dia (cabeçalho preso), ordem pela data da pergunta (`?ordem=antigas` inverte), filtro por anúncio
+   (`?anuncio=MLB…`, também muda os contadores; atalho "Todas as perguntas deste anúncio" na conversa e no Painel),
+   página que deixou de existir volta para a 1. Estado na URL montado por `inboxHref` (`lib/questions/presentation.ts`).
+   **Painel:** números da semana + Esperando você (5, com atalho para responder) + Últimas perguntas (6) + Anúncios mais
+   perguntados (7 dias, amostra das 1.000 mais recentes) + Assinatura; "Primeiros passos" some quando tudo estiver feito. E
    **Assistente de IA** (configuração guiada na 1ª vez; depois abas Sobre a loja, Jeito de responder, Respostas ensinadas,
    Anúncios bloqueados, Testar; ligar/pausar discreto no cabeçalho).
 7. Prompt: system = travas (Regra 0 da v1 etc.) + regras do vendedor + `<CONHECIMENTO_DA_LOJA>` (compilado do
@@ -694,10 +717,35 @@ webhook do ML validado, fila/reprocessamento de jobs, observabilidade, controle 
 | 2026-10-11 | Prompt da v2 herda as travas do prompt da v1 (Regra 0, contestação, contexto, checagem), mas quando não sabe **escala para o vendedor** em vez de mandar "não tenho a informação" | Na v2 existe a fila "Para responder" com rascunho; resposta vaga não vende. |
 | 2026-10-11 | Respostas ensinadas ranqueadas por semelhança (até 12 de 300), não só as mais recentes | Antes uma ensinada antiga podia ser ignorada. |
 | 2026-10-11 | Perguntas = caixa de entrada (lista + conversa), filtros com cor e contador, resposta na tela | Pedido do Breno: layout claro; fundo `--canvas` cinza para separar as superfícies brancas. |
+| 2026-10-11 | Botão de recolher o menu no topo da própria barra lateral; barra de topo só no celular | Pedido do Breno. No computador a barra de topo só repetia o título da página; sem ela sobra altura para a caixa de entrada. Recolhido, a logo vira o botão de abrir (ícone no hover). Ctrl+B continua. |
+| 2026-10-11 | Itens do menu com 4 px de espaço (`SidebarMenu gap-1`) | O preset base-nova vem com `gap-0`: item ativo e item com hover ficavam colados. Ajuste feito no uso, sem editar `components/ui`. |
+| 2026-10-11 | Caixa de entrada com altura da tela e rolagem por coluna, 50 por página, paginação por número (offset) | Padrão de e-mail/atendimento; aguenta milhares de perguntas sem a página crescer. Offset é suficiente para dezenas de milhares; cursor só se passar disso. |
+| 2026-10-11 | RLS de `ml_questions` no formato `organization_id in (select ...)` | Recomendação do Supabase: evita uma subconsulta por linha nas contagens e listas grandes. Mesma regra de acesso. |
+| 2026-10-11 | Painel focado em ação: o que espera o vendedor e o que chegou por último | Pedido do Breno (resumo das últimas perguntas com acesso rápido). Cada linha abre a pergunta direto na caixa de entrada. |
 
 ---
 
 ## 12. Diário de sessões (mais recente no topo)
+
+### 2026-10-11 — Sessão 6 · Menu lateral, Perguntas em escala e resumo no Painel (IA: Claude, via app Codex)
+- Pedido do Breno (com prints): botão de recolher o menu na própria barra; itens do menu colados no hover; a tela de
+  Perguntas (que ele gostou) funciona com 1.000+ perguntas?; Painel com resumo das últimas perguntas e acesso rápido.
+- Menu: `SidebarBrand` em `app-sidebar.tsx` (recolher no topo da barra; recolhido, a logo vira "abrir"), `gap-1` entre os
+  itens, `AppHeader` só no celular.
+- Perguntas: veja §7.0b item 6. Resumo da linha mostra o motivo (para responder) ou quem respondeu + prévia da resposta.
+  Composer mais compacto (sem o parágrafo de dica; textarea com altura máxima). `timeAgo` arredonda antes de escolher a
+  unidade (não mostra mais "há 60 minutos").
+- Painel: `components/painel/question-cards.tsx` + `getDashboardData` com as listas; "Aguardando você" passou a contar todas
+  as pendentes (igual ao menu e à aba), não só as dos últimos 7 dias.
+- Migração `20261011220000_perguntas_escala.sql` aplicada no Supabase de **testes** (ver §6.1b).
+- QA: usuário/loja temporários com **1.500 perguntas** no Supabase de testes; Chromium isolado em 1536×730 (tela do Breno),
+  1440×900 e celular 390: página sem rolagem, lista rolando por dentro, troca de página, filtro por anúncio, ordem, busca,
+  página inexistente, menu recolhido/hover, gaveta no celular, Painel. EXPLAIN com RLS: listas/contagens em 1–2 ms.
+  Teste de Realtime (evento da própria loja chega, de outra loja não) e testes de RLS ok. Dados de QA apagados.
+  ⚠️ Perguntas de QA com status `failed` atrapalham `respostas_rls.sql` (o teste usa `due_ml_questions(10)`): limpar antes.
+- Verificação: typecheck, 114 testes (14 novos em `tests/unit/inbox.test.ts`), lint 0, build ok.
+- Em paralelo, outra conversa estava criando a tela **Resultados** (analytics) numa worktree separada
+  (`codex/resultados`, migração `20261011230000_resultados`); ela integra depois deste commit.
 
 ### 2026-10-11 — Sessão 5 · Assistente de IA + caixa de entrada de Perguntas (IA: Claude, via app Codex)
 - Pedido do Breno: Perguntas confuso/"tudo branco"; renomear "Respostas da IA"; ligar/desligar discreto; configuração
@@ -799,23 +847,27 @@ webhook do ML validado, fila/reprocessamento de jobs, observabilidade, controle 
 ## 13. Próximos passos
 
 1. ✅ Infra de staging, inventário de prod, baseline, **Fundação** (sub-projeto 1) e **Respostas v2** (sub-projeto 2).
-2. **Breno: experimentar o Assistente de IA na staging** (`/assistente`): responder a configuração guiada com dados de uma
+2. **Breno: conferir na staging** o menu recolhendo pela barra, a caixa de entrada (filtro por anúncio, ordem, páginas) e o
+   novo Painel. Se quiser ver a tela com volume, dá para popular a "Loja Demonstração" com perguntas de exemplo (pedir).
+3. **Breno: experimentar o Assistente de IA na staging** (`/assistente`): responder a configuração guiada com dados de uma
    loja real, usar a aba Testar e dizer se falta alguma pergunta/opção no roteiro (`lib/assistant/questions.ts`).
-3. **Breno: teste real na staging** (`https://mlresponde-v2.vercel.app`, a conta "Noord Shop" já existe): conectar uma conta
+4. **Breno: teste real na staging** (`https://mlresponde-v2.vercel.app`, a conta "Noord Shop" já existe): conectar uma conta
    ML **segura** (sem compradores reais e que NÃO esteja no app de produção), concluir a configuração do Assistente de IA,
    ligar, e fazer uma pergunta num anúncio dessa conta a partir de outra conta ML. Conferir em Perguntas.
-4. Depois do 1º OAuth bem-sucedido: marcar PKCE como obrigatório no app ML de teste.
-5. **Decidir com o Breno o próximo passo:** (a) migração de dados v1 → v2 e cutover (clientes atuais com cortesia,
+5. Depois do 1º OAuth bem-sucedido: marcar PKCE como obrigatório no app ML de teste.
+6. **Decidir com o Breno o próximo passo:** (a) migração de dados v1 → v2 e cutover (clientes atuais com cortesia,
    reconectar contas, importar base de conhecimento → "Outras informações" e exemplos → respostas ensinadas; o prompt do
    cliente atual da v1 pode virar as respostas da configuração guiada), ou (b) sub-projeto 4 (planos e cobrança), ou (c) WhatsApp.
-6. **Breno decide:** marca ("MeLi Responde"?), SMTP próprio (Resend), textos legais, provedor de WhatsApp.
-7. **Cutover (checklist parcial):** `CRON_SECRET`, `ML_TOKEN_ENCRYPTION_KEY` (nova), `NEXT_PUBLIC_SITE_URL` em Production;
+7. **Breno decide:** marca ("MeLi Responde"?), SMTP próprio (Resend), textos legais, provedor de WhatsApp.
+8. **Cutover (checklist parcial):** `CRON_SECRET`, `ML_TOKEN_ENCRYPTION_KEY` (nova), `NEXT_PUBLIC_SITE_URL` em Production;
    `supabase migration repair --status applied 20261011150000` em prod e `db push`; URLs do app ML de produção (redirect
    `/api/auth/callback/mercadolivre`, notificações `/api/webhook/mercadolivre`) e permissões novas; clientes reconectam.
-8. **Lembrete:** P0 de prod (§8) — vazamento em `question_jobs` segue na v1 (mitigado pelo cadastro fechado).
-9. Limpeza recomendada (com aprovação): tirar Preview/Development das variáveis de produção na Vercel.
-10. Ideias anotadas (não feitas): "fichas de produto" por modelo como cadastro próprio (hoje vão em "Detalhes confirmados
+9. **Lembrete:** P0 de prod (§8) — vazamento em `question_jobs` segue na v1 (mitigado pelo cadastro fechado).
+10. Limpeza recomendada (com aprovação): tirar Preview/Development das variáveis de produção na Vercel.
+11. Ideias anotadas (não feitas): "fichas de produto" por modelo como cadastro próprio (hoje vão em "Detalhes confirmados
     dos produtos"), importar o histórico de respostas do ML como respostas ensinadas, avaliação das respostas da IA.
+    Caixa de entrada: ações em lote (arquivar / "IA tenta de novo" em várias), atalhos de teclado (j/k), busca com índice
+    trigram (`pg_trgm`) se alguma loja passar de ~100 mil perguntas.
 
 ---
 

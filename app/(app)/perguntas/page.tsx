@@ -1,24 +1,34 @@
 import { InboxIcon, SearchXIcon } from "lucide-react"
 import type { Metadata } from "next"
+import { redirect } from "next/navigation"
 
-import { AccountSelect } from "@/components/app/account-select"
 import { PageHeader } from "@/components/app/page-header"
-import { InboxList } from "@/components/perguntas/inbox-list"
+import { InboxList, InboxListFooter, InboxListToolbar } from "@/components/perguntas/inbox-list"
 import { InboxTabs } from "@/components/perguntas/inbox-tabs"
 import { LiveRefresh } from "@/components/perguntas/live-refresh"
 import { QuestionDetail, type AccountInfo } from "@/components/perguntas/question-detail"
-import { QuestionSearch } from "@/components/perguntas/question-search"
 import { SyncButton } from "@/components/perguntas/sync-button"
 import { Card } from "@/components/ui/card"
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty"
+import { ScrollArea } from "@/components/ui/scroll-area"
 import { requireSection } from "@/lib/dal/app-context"
-import { INBOX_TABS, parseInboxTab, sanitizeSearch, type InboxTab } from "@/lib/questions/presentation"
+import {
+  inboxHref,
+  pageRange,
+  parseInboxOrder,
+  parseInboxTab,
+  parseItemFilter,
+  parsePage,
+  sanitizeSearch,
+  type InboxState,
+  type InboxTab,
+} from "@/lib/questions/presentation"
 import { createClient } from "@/lib/supabase/server"
 import { cn } from "@/lib/utils"
 
 export const metadata: Metadata = { title: "Perguntas" }
 
-const PAGE_SIZE = 20
+const PAGE_SIZE = 50
 const LIST_FIELDS =
   "id, ml_account_id, item_id, item_title, item_permalink, item_thumbnail, question_text, question_created_at, created_at, status, review_reason, ai_draft, ai_confidence, ai_reason, answer_text, answer_source, answered_at"
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
@@ -36,10 +46,6 @@ const EMPTY: Record<InboxTab, { title: string; description: string }> = {
 export default async function QuestionsPage({ searchParams }: PageProps<"/perguntas">) {
   const context = await requireSection("perguntas")
   const params = await searchParams
-  const tab = parseInboxTab(params.aba)
-  const page = Math.max(1, Number.parseInt(String(params.pagina ?? "1"), 10) || 1)
-  const search = sanitizeSearch(params.busca)
-  const requestedId = typeof params.q === "string" && UUID.test(params.q) ? params.q : null
   const organizationId = context.organization.id
 
   const supabase = await createClient()
@@ -60,35 +66,48 @@ export default async function QuestionsPage({ searchParams }: PageProps<"/pergun
       },
     ])
   )
-  const accountFilter = typeof params.conta === "string" && accounts[params.conta] ? params.conta : null
   const showAccount = accountRows.length > 1
 
-  // Mesmo filtro (organização + conta) para a lista e os contadores.
-  const scoped = <T extends { eq: (column: string, value: string) => T }>(query: T) =>
-    accountFilter ? query.eq("ml_account_id", accountFilter) : query
+  const state: InboxState = {
+    tab: parseInboxTab(params.aba),
+    account: typeof params.conta === "string" && accounts[params.conta] ? params.conta : null,
+    item: parseItemFilter(params.anuncio),
+    search: sanitizeSearch(params.busca),
+    order: parseInboxOrder(params.ordem),
+    page: parsePage(params.pagina),
+    question: null,
+  }
+  const { tab, item, search, order, page } = state
+  const requestedId = typeof params.q === "string" && UUID.test(params.q) ? params.q : null
+  /** Link para outro estado da caixa de entrada (sem pergunta aberta, a menos que se peça). */
+  const href = (change: Partial<InboxState>) => inboxHref({ ...state, ...change })
+
+  // Mesmo recorte (organização + conta + anúncio) para a lista e para os contadores dos filtros.
+  const scoped = <T extends { eq: (column: string, value: string) => T }>(query: T) => {
+    let next = query.eq("organization_id", organizationId)
+    if (state.account) next = next.eq("ml_account_id", state.account)
+    if (item) next = next.eq("item_id", item)
+    return next
+  }
   const byTab = <T extends { eq: (c: string, v: string) => T; in: (c: string, v: string[]) => T }>(query: T, key: InboxTab) => {
     if (key === "responder") return query.in("status", ["needs_review", "failed"])
     if (key === "ia") return query.eq("status", "answered").eq("answer_source", "ai")
     if (key === "voce") return query.in("status", ["answered", "answered_outside"]).in("answer_source", ["manual", "external"])
     return query
   }
-  const countFor = (key: InboxTab) =>
-    byTab(scoped(supabase.from("ml_questions").select("id", { count: "exact", head: true }).eq("organization_id", organizationId)), key)
+  const countFor = (key: InboxTab) => byTab(scoped(supabase.from("ml_questions").select("id", { count: "exact", head: true })), key)
 
-  let listQuery = byTab(
-    scoped(
-      supabase
-        .from("ml_questions")
-        .select(LIST_FIELDS, { count: "exact" })
-        .eq("organization_id", organizationId)
-        .order("created_at", { ascending: false })
-        .range((page - 1) * PAGE_SIZE, page * PAGE_SIZE - 1)
-    ),
-    tab
-  )
-  if (search) listQuery = listQuery.or(`question_text.ilike.%${search}%,item_title.ilike.%${search}%`)
+  // Ordem pela data em que o comprador perguntou (perguntas ainda sem data = recém-chegadas, ficam como mais novas).
+  const ascending = order === "antigas"
+  let listQuery = byTab(scoped(supabase.from("ml_questions").select(LIST_FIELDS, { count: "exact" })), tab)
+    .order("question_created_at", { ascending, nullsFirst: !ascending })
+    .order("created_at", { ascending })
+    .range((page - 1) * PAGE_SIZE, page * PAGE_SIZE - 1)
+  if (search) {
+    listQuery = listQuery.or(`question_text.ilike.%${search}%,item_title.ilike.%${search}%,item_id.ilike.%${search}%`)
+  }
 
-  const [listResult, responder, ia, voce, todas, requested] = await Promise.all([
+  const [listResult, responder, ia, voce, todas, requested, itemInfo] = await Promise.all([
     listQuery,
     countFor("responder"),
     countFor("ia"),
@@ -97,13 +116,25 @@ export default async function QuestionsPage({ searchParams }: PageProps<"/pergun
     requestedId
       ? supabase.from("ml_questions").select(LIST_FIELDS).eq("organization_id", organizationId).eq("id", requestedId).maybeSingle()
       : Promise.resolve({ data: null, error: null }),
+    item
+      ? supabase
+          .from("ml_questions")
+          .select("item_title, item_thumbnail")
+          .eq("organization_id", organizationId)
+          .eq("item_id", item)
+          .limit(1)
+          .maybeSingle()
+      : Promise.resolve({ data: null, error: null }),
   ])
+  // Página que deixou de existir (ex.: as perguntas foram respondidas): volta para a primeira.
+  if (listResult.error?.code === "PGRST103" && page > 1) redirect(href({ page: 1, question: requestedId }))
   if (listResult.error) throw listResult.error
   if (requested.error) throw requested.error
+  if (itemInfo.error) throw itemInfo.error
 
   const questions = listResult.data
   const total = listResult.count ?? 0
-  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE))
+  const range = pageRange(page, PAGE_SIZE, total)
   const counts: Record<InboxTab, number> = {
     responder: responder.count ?? 0,
     ia: ia.count ?? 0,
@@ -117,23 +148,11 @@ export default async function QuestionsPage({ searchParams }: PageProps<"/pergun
   const next =
     position >= 0 ? (questions[position + 1] ?? questions[position - 1] ?? null) : (questions.find((q) => q.id !== selected?.id) ?? null)
 
-  const hrefFor = (change: { aba?: InboxTab; pagina?: number; q?: string | null; busca?: string }) => {
-    const query = new URLSearchParams()
-    const nextTab = change.aba ?? tab
-    if (nextTab !== "responder") query.set("aba", nextTab)
-    if (accountFilter) query.set("conta", accountFilter)
-    const nextSearch = change.busca ?? (change.aba ? "" : search)
-    if (nextSearch) query.set("busca", nextSearch)
-    const nextPage = change.pagina ?? (change.aba ? 1 : page)
-    if (nextPage > 1) query.set("pagina", String(nextPage))
-    if (change.q) query.set("q", change.q)
-    const value = query.toString()
-    return value ? `/perguntas?${value}` : "/perguntas"
-  }
-
   const hidden: Record<string, string> = {}
   if (tab !== "responder") hidden.aba = tab
-  if (accountFilter) hidden.conta = accountFilter
+  if (state.account) hidden.conta = state.account
+  if (item) hidden.anuncio = item
+  if (order !== "recentes") hidden.ordem = order
 
   return (
     <>
@@ -144,45 +163,59 @@ export default async function QuestionsPage({ searchParams }: PageProps<"/pergun
         actions={<SyncButton />}
       />
 
-      <InboxTabs active={tab} counts={counts} hrefFor={(key) => hrefFor({ aba: key })} />
+      <InboxTabs active={tab} counts={counts} hrefFor={(key) => href({ tab: key, search: "", page: 1 })} />
 
-      <div className="grid items-start gap-4 lg:grid-cols-[minmax(320px,2fr)_minmax(0,3fr)]">
-        <Card className={cn("gap-0 py-0", explicit ? "hidden lg:flex" : "flex")}>
-          <div className="flex flex-col gap-2 border-b p-3 sm:flex-row">
-            <QuestionSearch value={search} hidden={hidden} clearHref={hrefFor({ busca: "", pagina: 1 })} />
-            {showAccount ? (
-              <AccountSelect
-                allowAll
-                accounts={accountRows.map((account) => ({ id: account.id, nickname: accounts[account.id].nickname }))}
-              />
-            ) : null}
-          </div>
-          <div className="flex items-center justify-between px-4 pt-3 pb-1 text-xs font-medium text-muted-foreground">
-            <span>{INBOX_TABS[tab].label}</span>
-            <span className="tabular-nums">{total}</span>
-          </div>
+      {/* No computador as duas colunas ocupam o resto da tela e rolam por conta própria (ver layout da área logada). */}
+      <div
+        data-fill-viewport
+        className="grid gap-4 lg:min-h-0 lg:flex-1 lg:grid-cols-[minmax(320px,2fr)_minmax(0,3fr)] lg:grid-rows-[minmax(0,1fr)]"
+      >
+        <Card className={cn("gap-0 py-0 lg:min-h-0", explicit ? "hidden lg:flex" : "flex")}>
+          <InboxListToolbar
+            tab={tab}
+            total={total}
+            search={search}
+            hidden={hidden}
+            clearSearchHref={href({ search: "", page: 1 })}
+            order={order}
+            toggleOrderHref={href({ order: ascending ? "recentes" : "antigas", page: 1 })}
+            item={item ? { id: item, title: itemInfo.data?.item_title ?? null, thumbnail: itemInfo.data?.item_thumbnail ?? null } : null}
+            clearItemHref={href({ item: null, page: 1 })}
+            accounts={showAccount ? accountRows.map((account) => ({ id: account.id, nickname: accounts[account.id].nickname })) : null}
+          />
           {questions.length ? (
-            <InboxList
-              questions={questions}
-              selectedId={selected?.id ?? null}
-              accounts={accounts}
-              showAccount={showAccount}
-              hrefFor={(id) => hrefFor({ q: id })}
-              pagination={{
-                page,
-                totalPages,
-                total,
-                prevHref: hrefFor({ pagina: page - 1 }),
-                nextHref: hrefFor({ pagina: page + 1 }),
-              }}
-            />
+            <>
+              <ScrollArea
+                key={[tab, state.account, item, search, order, page].join("|")}
+                className="lg:min-h-0 lg:flex-1"
+              >
+                <InboxList
+                  questions={questions}
+                  selectedId={selected?.id ?? null}
+                  accounts={accounts}
+                  showAccount={showAccount}
+                  hrefFor={(id) => href({ question: id })}
+                />
+              </ScrollArea>
+              <InboxListFooter
+                from={range.from}
+                to={range.to}
+                total={total}
+                prevHref={page > 1 ? href({ page: page - 1 }) : null}
+                nextHref={page < range.totalPages ? href({ page: page + 1 }) : null}
+              />
+            </>
           ) : (
-            <Empty className="py-12">
+            <Empty className="py-12 lg:flex-1">
               <EmptyHeader>
                 <EmptyMedia variant="icon">{search ? <SearchXIcon /> : <InboxIcon />}</EmptyMedia>
                 <EmptyTitle>{search ? "Nada encontrado" : EMPTY[tab].title}</EmptyTitle>
                 <EmptyDescription>
-                  {search ? `Nenhuma pergunta com "${search}" nesta aba.` : EMPTY[tab].description}
+                  {search
+                    ? `Nenhuma pergunta com "${search}" nesta aba.`
+                    : item
+                      ? "Nenhuma pergunta deste anúncio nesta aba."
+                      : EMPTY[tab].description}
                 </EmptyDescription>
               </EmptyHeader>
             </Empty>
@@ -194,12 +227,17 @@ export default async function QuestionsPage({ searchParams }: PageProps<"/pergun
             question={selected}
             account={accounts[selected.ml_account_id]}
             showAccount={showAccount}
-            backHref={hrefFor({})}
-            nextHref={next ? hrefFor({ q: next.id }) : null}
-            className={cn("lg:sticky lg:top-4", explicit ? "flex" : "hidden lg:flex")}
+            backHref={href({})}
+            nextHref={next ? href({ question: next.id }) : null}
+            itemHref={
+              selected.item_id && selected.item_id !== item
+                ? href({ tab: "todas", item: selected.item_id, search: "", page: 1, question: selected.id })
+                : null
+            }
+            className={cn("lg:min-h-0", explicit ? "flex" : "hidden lg:flex")}
           />
         ) : (
-          <Card className="hidden min-h-80 items-center justify-center lg:flex">
+          <Card className="hidden items-center justify-center lg:flex">
             <Empty>
               <EmptyHeader>
                 <EmptyMedia variant="icon">

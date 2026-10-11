@@ -40,10 +40,12 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         organizationName={context.organization.name}
         user={{ name: context.profile.fullName, email: context.user.email, isPlatformAdmin: context.profile.isPlatformAdmin }}
       />
-      <SidebarInset className="bg-canvas">
+      {/* Páginas com [data-fill-viewport] (caixa de entrada) ocupam exatamente a altura da tela no computador,
+          com rolagem própria em cada coluna; abaixo de 44rem de altura a página volta a rolar. */}
+      <SidebarInset className="bg-canvas lg:has-[[data-fill-viewport]]:h-[max(100svh,44rem)]">
         <AccessBanners access={context.access} mlAccounts={context.mlAccounts} />
         <AppHeader />
-        <div className="flex flex-1 flex-col gap-6 p-4 md:p-6">{children}</div>
+        <div className="flex min-h-0 flex-1 flex-col gap-6 p-4 md:p-6">{children}</div>
       </SidebarInset>
       {context.profile.tourCompletedAt ? null : <WelcomeTour />}
     </SidebarProvider>

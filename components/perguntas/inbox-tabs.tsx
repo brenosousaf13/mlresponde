@@ -1,6 +1,7 @@
 import { BotIcon, InboxIcon, LayersIcon, UserCheckIcon, type LucideIcon } from "lucide-react"
 import Link from "next/link"
 
+import { formatNumber } from "@/lib/format"
 import { INBOX_TABS, type InboxTab } from "@/lib/questions/presentation"
 import { cn } from "@/lib/utils"
 
@@ -41,7 +42,7 @@ export function InboxTabs({
               {urgent ? <span className="absolute -top-0.5 -right-0.5 size-2.5 rounded-full bg-amber-500 ring-2 ring-card" /> : null}
             </span>
             <span className="flex min-w-0 flex-col">
-              <span className="text-xl leading-none font-semibold tabular-nums sm:text-2xl">{counts[tab]}</span>
+              <span className="text-xl leading-none font-semibold tabular-nums sm:text-2xl">{formatNumber(counts[tab])}</span>
               <span className="mt-1 text-xs leading-tight text-muted-foreground sm:truncate sm:text-sm">{INBOX_TABS[tab].label}</span>
             </span>
           </Link>

@@ -62,7 +62,7 @@ export function AnswerComposer({
   }
 
   return (
-    <div className="flex flex-col gap-3">
+    <div className="flex flex-col">
       <div className="rounded-xl border bg-card shadow-xs transition-shadow focus-within:border-ring focus-within:ring-3 focus-within:ring-ring/30">
         <div className="flex items-center justify-between gap-2 border-b px-3 py-2">
           <span className="text-xs font-medium text-muted-foreground">
@@ -84,14 +84,18 @@ export function AnswerComposer({
               send()
             }
           }}
-          rows={5}
           maxLength={ML_ANSWER_LIMIT + 200}
-          placeholder="Escreva a resposta para o comprador"
+          placeholder="Escreva a resposta para o comprador (o Mercado Livre junta tudo em um parágrafo)"
           aria-label="Resposta para o comprador"
-          className="min-h-28 resize-none rounded-none border-0 bg-transparent px-3 py-2.5 text-base shadow-none focus-visible:ring-0 md:text-sm"
+          title="O Mercado Livre junta tudo em um parágrafo. Ctrl + Enter envia."
+          className="max-h-44 min-h-20 resize-none overflow-y-auto rounded-none border-0 bg-transparent px-3 py-2.5 text-base shadow-none focus-visible:ring-0 md:text-sm"
         />
         <div className="flex flex-col gap-3 border-t px-3 py-2.5 sm:flex-row sm:items-center sm:justify-between">
-          <Field orientation="horizontal" className="w-auto">
+          <Field
+            orientation="horizontal"
+            className="w-auto"
+            title="A IA passa a usar esta resposta em perguntas parecidas deste anúncio."
+          >
             <Checkbox id={`teach-${questionId}`} checked={teach} onCheckedChange={(checked) => setTeach(checked === true)} />
             <FieldLabel htmlFor={`teach-${questionId}`} className="text-sm font-normal">
               Ensinar a IA com esta resposta
@@ -101,17 +105,19 @@ export function AnswerComposer({
             <span className={cn("text-xs tabular-nums text-muted-foreground", length > ML_ANSWER_LIMIT && "text-destructive")}>
               {length}/{ML_ANSWER_LIMIT}
             </span>
-            <Button onClick={send} disabled={busy || length === 0 || length > ML_ANSWER_LIMIT}>
+            <Button
+              onClick={send}
+              disabled={busy || length === 0 || length > ML_ANSWER_LIMIT}
+              title="Ctrl + Enter"
+              aria-keyshortcuts="Control+Enter"
+            >
               {sending ? <Spinner data-icon="inline-start" /> : <SendIcon data-icon="inline-start" />}
               {nextHref ? "Enviar e ir para a próxima" : "Enviar resposta"}
             </Button>
           </div>
         </div>
       </div>
-      <p className="text-xs text-muted-foreground">
-        {teach ? "A IA vai usar esta resposta em perguntas parecidas deste anúncio. " : ""}
-        Ctrl + Enter envia. O Mercado Livre junta tudo em um parágrafo.
-      </p>
     </div>
+
   )
 }

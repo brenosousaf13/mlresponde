@@ -6,6 +6,8 @@ import {
   LayoutDashboardIcon,
   LockIcon,
   MessageCircleQuestionIcon,
+  PanelLeftCloseIcon,
+  PanelLeftOpenIcon,
   Settings2Icon,
   StoreIcon,
   type LucideIcon,
@@ -15,6 +17,7 @@ import { usePathname } from "next/navigation"
 
 import { LogoIcon } from "@/components/brand/logo"
 import { NavUser } from "@/components/app/nav-user"
+import { Button } from "@/components/ui/button"
 import {
   Sidebar,
   SidebarContent,
@@ -27,7 +30,9 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarRail,
+  useSidebar,
 } from "@/components/ui/sidebar"
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { siteConfig } from "@/lib/config/site"
 import type { NavItemConfig } from "@/lib/navigation"
 
@@ -57,24 +62,12 @@ export function AppSidebar({
   return (
     <Sidebar collapsible="icon" {...props}>
       <SidebarHeader>
-        <SidebarMenu>
-          <SidebarMenuItem>
-            <SidebarMenuButton size="lg" render={<Link href="/painel" />}>
-              <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-sidebar-primary/10">
-                <LogoIcon className="size-6" />
-              </div>
-              <div className="grid flex-1 text-left text-sm leading-tight">
-                <span className="truncate font-semibold">{siteConfig.name}</span>
-                <span className="truncate text-xs text-muted-foreground">{organizationName}</span>
-              </div>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-        </SidebarMenu>
+        <SidebarBrand organizationName={organizationName} />
       </SidebarHeader>
       <SidebarContent>
         <SidebarGroup>
           <SidebarGroupLabel>Plataforma</SidebarGroupLabel>
-          <SidebarMenu>
+          <SidebarMenu className="gap-1">
             {items.map((item) => {
               const Icon = ICONS[item.icon]
               const isActive = pathname === item.href || pathname.startsWith(`${item.href}/`)
@@ -118,7 +111,74 @@ export function AppSidebar({
       <SidebarFooter>
         <NavUser user={user} />
       </SidebarFooter>
-      <SidebarRail />
+      <SidebarRail aria-label="Recolher ou abrir o menu" title="Recolher ou abrir o menu" />
     </Sidebar>
+  )
+}
+
+/**
+ * Topo da barra lateral: marca + botão de recolher na própria barra.
+ * Recolhida, a logo vira o botão de abrir (o ícone aparece ao passar o mouse).
+ */
+function SidebarBrand({ organizationName }: { organizationName: string }) {
+  const { state, isMobile, toggleSidebar } = useSidebar()
+  const logo = (
+    <span className="flex aspect-square size-8 shrink-0 items-center justify-center rounded-lg bg-sidebar-primary/10">
+      <LogoIcon className="size-6" />
+    </span>
+  )
+
+  if (state === "collapsed" && !isMobile) {
+    return (
+      <SidebarMenu>
+        <SidebarMenuItem>
+          <SidebarMenuButton
+            size="lg"
+            tooltip="Abrir menu (Ctrl + B)"
+            aria-label="Abrir menu"
+            onClick={toggleSidebar}
+            className="group/brand relative"
+          >
+            <span className="transition-opacity group-hover/brand:opacity-0 group-focus-visible/brand:opacity-0">{logo}</span>
+            <span className="absolute inset-0 flex items-center justify-center text-sidebar-foreground/70 opacity-0 transition-opacity group-hover/brand:opacity-100 group-focus-visible/brand:opacity-100">
+              <PanelLeftOpenIcon />
+            </span>
+          </SidebarMenuButton>
+        </SidebarMenuItem>
+      </SidebarMenu>
+    )
+  }
+
+  const closeLabel = isMobile ? "Fechar menu" : "Recolher menu"
+  return (
+    <SidebarMenu>
+      <SidebarMenuItem className="flex items-center gap-1">
+        <SidebarMenuButton size="lg" render={<Link href="/painel" />} className="min-w-0 flex-1">
+          {logo}
+          <span className="grid flex-1 text-left text-sm leading-tight">
+            <span className="truncate font-semibold">{siteConfig.name}</span>
+            <span className="truncate text-xs text-muted-foreground">{organizationName}</span>
+          </span>
+        </SidebarMenuButton>
+        <Tooltip>
+          <TooltipTrigger
+            render={
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                aria-label={closeLabel}
+                onClick={toggleSidebar}
+                className="shrink-0 text-sidebar-foreground/60 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+              />
+            }
+          >
+            <PanelLeftCloseIcon />
+          </TooltipTrigger>
+          <TooltipContent side="right" hidden={isMobile}>
+            {closeLabel} (Ctrl + B)
+          </TooltipContent>
+        </Tooltip>
+      </SidebarMenuItem>
+    </SidebarMenu>
   )
 }
