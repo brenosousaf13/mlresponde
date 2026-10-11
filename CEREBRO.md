@@ -4,7 +4,7 @@
 > inteiro antes de trabalhar e atualizá-lo ao terminar. Se algo aqui divergir do código, o código vence —
 > e este arquivo deve ser corrigido na mesma sessão.
 
-Última atualização: **2026-10-11** (Sessão 7 — tela Resultados: analytics com economia, velocidade e anúncios, branch `v2`)
+Última atualização: **2026-10-11** (Sessão 8 — IA da v2 trocada de `gpt-4o-mini` para `gpt-6-luna`, branch `v2`)
 
 ---
 
@@ -61,6 +61,8 @@ novas funcionalidades, segurança multi-tenant de verdade — **desenvolvido em 
   estimada em R$ e horas (premissas ajustáveis), projeção anual, tempo de resposta IA × você, espera evitada fora do
   horário comercial, perguntas por dia, mapa de horários, anúncios com mais perguntas, assuntos mais perguntados e onde a
   IA pode melhorar. Spec: `docs/superpowers/specs/2026-10-11-resultados-design.md`.
+  **Sessão 8 (2026-10-11): IA da v2 trocada para `gpt-6-luna`** (antes `gpt-4o-mini`), sem raciocínio (`none`), mais
+  barata; prompt reforçado para não citar variação esgotada. A v1 em produção segue com `gpt-4o-mini`.
   Falta testar com conta ML real (depende do Breno).
 - **Marca da v2:** logo `MeliLogo.png` = **"MeLi Responde"** (assumido pela IA; confirmar com o Breno). Nome centralizado em
   `lib/config/site.ts`. A v1 em produção usa "Meli Fácil".
@@ -109,7 +111,7 @@ novas funcionalidades, segurança multi-tenant de verdade — **desenvolvido em 
 | Banco | Supabase Postgres, migrações em `supabase/migrations/`, tipos gerados em `lib/supabase/database.types.ts` | painel, sem migrações |
 | Segurança | RLS só-leitura para o navegador; escritas via service role no servidor (DAL `server-only`); tokens ML AES-256-GCM | RLS fraca |
 | Testes | **Vitest** (`tests/unit`), testes de RLS em SQL (`supabase/tests`) | nenhum |
-| IA | OpenAI `gpt-4o-mini` (configurável por `OPENAI_MODEL`), saída estruturada JSON Schema `{action, answer, confidence, reason}`, temperature 0.2 | OpenAI `gpt-4o-mini`, texto livre |
+| IA | OpenAI **`gpt-6-luna`** (desde a Sessão 8; configurável por `OPENAI_MODEL`), Chat Completions com `reasoning_effort: "none"`, saída estruturada JSON Schema `{action, answer, confidence, reason}`, temperature 0.2, `max_completion_tokens` 700. SDK `openai` 4.x (tipa só low/medium/high: `"none"` vai com cast em `lib/answers/ai.ts`) | OpenAI `gpt-4o-mini`, texto livre |
 | Hospedagem | Vercel (Preview da branch `v2`) | Vercel Production |
 
 Ambiente local verificado: Node v24.18.0, npm 11.16.0, Windows + PowerShell 7. `@types/node` 24.
@@ -187,6 +189,7 @@ lib/
   questions/presentation.ts     # status → cor/rótulo, abas, resumo da linha, estado da URL de /perguntas (inboxHref,
                                 # filtros/ordem/página), ranking de anúncios (puro, testado)
   answers/ai.ts                 # runAnswerModel (OpenAI)
+  answers/model.ts              # modelo padrão (gpt-6-luna) e parâmetros por modelo (puro, testado)
   answers/engine.ts             # processQuestion, processDueQuestions, reconcileQuestion, suggestAnswer, sendManualAnswer
   answers/ingest.ts             # registerQuestion, syncUnansweredQuestions
   dal/dashboard.ts              # números do painel (question_stats) + listas Esperando você / Últimas / Anúncios
@@ -230,7 +233,7 @@ Novas na v2:
 |---|---|
 | `ML_TOKEN_ENCRYPTION_KEY` | 32 bytes base64; criptografa tokens do ML e o cookie do OAuth. **Trocar a chave invalida os tokens já gravados** (contas precisam reconectar). Prod terá chave própria. |
 | `NEXT_PUBLIC_SITE_URL` | URL base para os links dos e-mails de auth (staging: `https://mlresponde-v2.vercel.app`; local: `http://localhost:3000`) |
-| `OPENAI_MODEL` | opcional; padrão `gpt-4o-mini` |
+| `OPENAI_MODEL` | opcional; padrão `gpt-6-luna`. Não existe na Vercel (verificado na Sessão 8). Para voltar ao modelo antigo sem mexer no código: `OPENAI_MODEL=gpt-4o-mini` (modelos `gpt-4*`/`gpt-3.5*` não recebem `reasoning_effort`). |
 | `CRON_SECRET` | protege `/api/cron/questions`. **Precisa existir em Production no cutover** (o cron só roda em produção). |
 
 Obsoletas (citadas no `instructions.md`, não usadas): `ANTHROPIC_API_KEY`, `NEXT_PUBLIC_APP_URL`.
@@ -752,10 +755,27 @@ webhook do ML validado, fila/reprocessamento de jobs, observabilidade, controle 
 | 2026-10-11 | Números de Resultados numa única função SQL (`analytics_overview`, security invoker) | Uma ida ao banco, agregação no Postgres (escala) e o RLS continua valendo. Lógica de apresentação pura em `lib/results`, testada. |
 | 2026-10-11 | Tempo de resposta pela **mediana** e sem as perguntas importadas ao conectar a conta | Média distorce com poucas respostas lentas; as importadas não refletem a velocidade da IA. |
 | 2026-10-11 | Gráficos com o `chart` do shadcn (Recharts); mapa de calor como grade simples | Regra de UI = shadcn; o shadcn não tem heatmap. |
+| 2026-10-11 | IA da v2: `gpt-4o-mini` → **`gpt-6-luna`** com `reasoning_effort: "none"`, mantendo Chat Completions | Pedido do Breno: modelo mais atual e mais barato (US$ 0,10 entrada / US$ 0,50 saída por 1M tokens). `none` preserva o comportamento da gpt-4o-mini (sem raciocínio, menor custo e latência) e é o único modo do GPT-6 que aceita `temperature`. Responses API não é necessária (sem ferramentas); SDK não foi atualizado (salto de versão grande, fora do escopo). |
 
 ---
 
 ## 12. Diário de sessões (mais recente no topo)
+
+### 2026-10-11 — Sessão 8 · Troca do modelo de IA para GPT-6 Luna (IA: Claude, via app Codex)
+- Pedido do Breno: trocar o modelo que responde (gpt-4o-mini) pelo **GPT-6 Luna**, mais atual e mais barato, na `v2`.
+- Conferido na documentação oficial da OpenAI: id `gpt-6-luna`, suporta Chat Completions e Structured Outputs; `reasoning_effort`
+  aceita `none`; fora do `none` não aceita `temperature`; preço US$ 0,10 (entrada) e US$ 0,50 (saída) por 1M tokens.
+- Código: `lib/answers/model.ts` (novo, padrão e parâmetros por modelo), `lib/answers/ai.ts` (`reasoning_effort: "none"`,
+  `max_completion_tokens` no lugar de `max_tokens`), `lib/env.ts` (padrão `gpt-6-luna`), `.env.example`,
+  `tests/unit/model.test.ts` (3 testes).
+- Prompt (`lib/answers/prompt.ts`): com o Luna, a resposta sobre "comprar duas cores" avisava que a preta estava esgotada
+  (quebra a trava "nunca citar variação esgotada"). Regra reforçada: não mencionar variação esgotada salvo se o comprador
+  perguntar por ela pelo nome; ao explicar o carrinho, citar só as com estoque.
+- Verificação: IA real (`gpt-6-luna`): antes do ajuste 11/12 (só o caso das variações); com o prompt final **12/12 em 3 rodadas
+  completas** + 6/6 repetindo só o caso das variações;
+  ~1–2 s por resposta. Chave `OPENAI_API_KEY` lida pela API da Vercel só na memória do processo. typecheck, 151 testes,
+  lint e build ok. `OPENAI_MODEL` não existe na Vercel → staging passa a usar o Luna no próximo deploy da `v2`.
+- Produção (v1, `main`) **não** foi alterada: continua com `gpt-4o-mini`.
 
 ### 2026-10-11 — Sessão 7 · Tela Resultados (analytics do vendedor) (IA: Claude, via app Codex)
 - Pedido do Breno: faltava no menu uma opção de analytics para o cliente ver que a IA resolve — quanto respondeu mais
@@ -895,7 +915,10 @@ webhook do ML validado, fila/reprocessamento de jobs, observabilidade, controle 
 2. **Breno: conferir na staging** o menu recolhendo pela barra, a caixa de entrada (filtro por anúncio, ordem, páginas), o
    novo Painel e a tela **Resultados** (a "Loja Demonstração" já tem 90 dias de histórico). Dizer se as premissas padrão
    da economia (3 min por resposta, R$ 20/h) fazem sentido para os clientes dele.
-3. **Breno: experimentar o Assistente de IA na staging** (`/assistente`): responder a configuração guiada com dados de uma
+3. **Breno: observar as respostas do `gpt-6-luna` na staging** (aba Testar do Assistente e perguntas reais). Se algo piorar,
+   dá para voltar ao antigo sem código: variável `OPENAI_MODEL=gpt-4o-mini` (Preview + `v2`) e novo deploy.
+   No cutover, a produção passa a usar o Luna automaticamente (padrão do código).
+3b. **Breno: experimentar o Assistente de IA na staging** (`/assistente`): responder a configuração guiada com dados de uma
    loja real, usar a aba Testar e dizer se falta alguma pergunta/opção no roteiro (`lib/assistant/questions.ts`).
 4. **Breno: teste real na staging** (`https://mlresponde-v2.vercel.app`, a conta "Noord Shop" já existe): conectar uma conta
    ML **segura** (sem compradores reais e que NÃO esteja no app de produção), concluir a configuração do Assistente de IA,

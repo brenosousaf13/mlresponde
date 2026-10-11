@@ -1,5 +1,7 @@
 import "server-only"
 
+import { DEFAULT_ANSWER_MODEL } from "@/lib/answers/model"
+
 function required(name: string): string {
   const value = process.env[name]
   if (!value) {
@@ -17,6 +19,6 @@ export const serverEnv = {
   mlRedirectUri: () => required("ML_REDIRECT_URI"),
   tokenEncryptionKey: () => required("ML_TOKEN_ENCRYPTION_KEY"),
   openaiApiKey: () => required("OPENAI_API_KEY"),
-  openaiModel: () => process.env.OPENAI_MODEL || "gpt-4o-mini",
+  openaiModel: () => process.env.OPENAI_MODEL?.trim() || DEFAULT_ANSWER_MODEL,
   cronSecret: () => process.env.CRON_SECRET || "",
 }

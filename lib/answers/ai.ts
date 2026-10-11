@@ -1,9 +1,11 @@
 import "server-only"
 
 import OpenAI from "openai"
+import type { ReasoningEffort } from "openai/resources/shared"
 import { z } from "zod"
 
 import type { AiResult } from "@/lib/answers/decision"
+import { answerModelOptions } from "@/lib/answers/model"
 import { AI_RESULT_SCHEMA, buildMessages, type PromptInput } from "@/lib/answers/prompt"
 import { serverEnv } from "@/lib/env"
 
@@ -25,11 +27,13 @@ export type AiRun = { result: AiResult; model: string; tokens: number }
 
 export async function runAnswerModel(input: PromptInput): Promise<AiRun> {
   const model = serverEnv.openaiModel()
+  const { reasoning_effort, ...options } = answerModelOptions(model)
   const completion = await getClient().chat.completions.create({
     model,
     messages: buildMessages(input),
-    temperature: 0.2,
-    max_tokens: 700,
+    ...options,
+    // O SDK 4.x só tipa low|medium|high; a API aceita "none" no GPT-6 Luna (sem raciocínio, como a gpt-4o-mini).
+    ...(reasoning_effort ? { reasoning_effort: reasoning_effort as unknown as ReasoningEffort } : {}),
     response_format: {
       type: "json_schema",
       json_schema: { name: "resposta_pergunta", strict: true, schema: AI_RESULT_SCHEMA },
