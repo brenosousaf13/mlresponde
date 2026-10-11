@@ -169,7 +169,8 @@ adicionar a exceção `!.env.example`.
 > Snapshot completo: `docs/db/prod-schema-2026-10-11.json` (estrutura + contagens; **sem dados de clientes**).
 > Para atualizar: rodar o SQL de novo em prod e substituir o snapshot.
 
-Não há migrações no repositório: tudo foi criado no painel. Postgres 17.6. Sem enums, sem triggers, sem funções
+Em prod não há histórico de migrações: tudo foi criado no painel. A partir de 2026-10-11 o schema da v1 está versionado
+em `supabase/migrations/20261011150000_baseline_v1.sql` (espelho exato de prod, aplicado só no Supabase de testes). Postgres 17.6. Sem enums, sem triggers, sem funções
 próprias (só `rls_auto_enable`, event trigger padrão do Supabase), sem buckets de Storage, sem pg_cron.
 Extensões: pgcrypto, uuid-ossp, pg_stat_statements, pg_graphql, supabase_vault (padrão).
 
@@ -357,8 +358,12 @@ Legenda: 🔴 P0 crítico · 🟠 P1 importante · 🟡 P2 melhoria. Marcar ✅ 
   As IAs rodam os demais comandos (`link`, `migration`, `db push`) na mesma máquina/usuário.
 - O token da CLI vale para **todos os projetos da conta logada** → por isso a CLI fica na conta de testes.
 - SQL no projeto de testes sem Docker: `npx supabase db query --linked --project-ref ookosqyfazobiwmopiix -f <arquivo>`
-  (via Management API; `--project-ref` só funciona junto com `--linked`; `-o json` para saída parseável). A pasta
-  `supabase/.temp/linked-project.json` aponta para o projeto de testes (está no `.gitignore`).
+  (via Management API; `--project-ref` só funciona junto com `--linked`; `-o json` para saída parseável).
+- Pasta linkada ao projeto de **testes** (`supabase link --project-ref ookosqyfazobiwmopiix`, sem senha: a CLI usa
+  "login role" temporário). `supabase/config.toml` criado por `supabase init`; `supabase/.temp/` fica fora do git.
+- ⚠️ **Contas ML para testar a staging:** nunca conectar no app de teste uma conta ML que também está conectada ao app de
+  produção (loja real de cliente): os dois apps receberiam as perguntas e a staging responderia compradores reais
+  (o robô da v1 sempre responde). Usar usuários de teste do ML (`POST /users/test_user`) ou uma conta sem anúncios.
 - Projeto de testes: **"Mercado Livre Responde v2"** · ref `ookosqyfazobiwmopiix` · região `us-east-2` · Postgres 17.
   Login da CLI feito e testado em 2026-10-11 (`npx supabase projects list` ok); pasta ainda **não linkada**.
 - ⚠️ A conta logada na CLI também tem projetos de **outro negócio** do Breno (**"Noord Analytics"** e um projeto
@@ -377,6 +382,13 @@ Legenda: 🔴 P0 crítico · 🟠 P1 importante · 🟡 P2 melhoria. Marcar ✅ 
   cópia de dados vs. evolução das atuais) será definida depois do inventário. A regra continua: nada em prod pode
   quebrar a v1 antes do cutover.
 - O Supabase de testes (projeto novo) já vem com a função `public.rls_auto_enable` (padrão dos projetos novos).
+- ✅ **Baseline aplicada no Supabase de testes (2026-10-11):** `supabase/migrations/20261011150000_baseline_v1.sql`
+  (gerada do snapshot de prod). Comparação automática teste × prod: tabelas, colunas, constraints, índices, RLS,
+  policies, privilégios e Realtime **idênticos**. Única diferença: extensão `pg_graphql` só em prod (não usada).
+- **No cutover:** a baseline **não** roda em prod (as tabelas já existem). Linkar a CLI ao projeto de prod e rodar
+  `supabase migration repair --status applied 20261011150000`; depois `db push` aplica só as migrações da v2.
+- Toda mudança de banco da v2 = nova migração em `supabase/migrations/` (`npx supabase migration new <nome>`),
+  testada no Supabase de testes com `db push --linked`.
 - Primeiro passo: capturar o schema real de prod (`supabase db pull` ou dump de schema) como **migração baseline**
   em `supabase/migrations/`. A partir daí, toda mudança vira migração versionada.
 - Migrações da v2 aditivas e compatíveis com a v1, para poderem ser aplicadas em prod **antes** do merge.
@@ -422,6 +434,7 @@ Ainda não decidido. Temas levantados até agora:
 | 2026-10-11 | Staging usa as chaves legacy (anon/service_role) do Supabase de testes | Mesmo formato da produção; zero mudança de código. Migrar para `sb_publishable`/`sb_secret` pode ser feito depois. |
 | 2026-10-11 | Schema da v2 será redesenhado; inventário de prod só para entendimento e migração de dados | Breno: "muita coisa vamos refazer". |
 | 2026-10-11 | Inventário de prod via SQL só de leitura rodado pelo próprio Breno no SQL Editor | IA não precisa de credencial de prod; zero risco de escrita. |
+| 2026-10-11 | Baseline = espelho exato de prod (inclusive os problemas) como 1ª migração | Ponto de partida das migrações da v2; no cutover é marcada como aplicada em prod. |
 | 2026-10-11 | Variáveis da v2 na Vercel sempre com escopo Preview + branch `v2` | Hoje as variáveis de produção também valem para previews; sem override a v2 usaria o banco de produção. |
 | 2026-10-11 | App ML de teste com permissões amplas (ver §9) e PKCE desligado até o OAuth novo da v2 | v2 vai usar IA em várias áreas (anúncios, vendas, publicidade, promoções); PKCE quebraria o código atual. |
 
@@ -441,6 +454,8 @@ Ainda não decidido. Temas levantados até agora:
   `mlresponde-v2.vercel.app` → `v2`, Vercel Authentication desligada. O 1º deploy da `v2` saiu antes das variáveis
   (usaria prod) → substituído por novo deploy e apagado.
 - `MeliLogo.png` (logo colocada pelo Breno) commitada na `v2`.
+- `supabase init` + `link` no projeto de testes; baseline `20261011150000_baseline_v1.sql` aplicada nele e conferida
+  (idêntica a prod).
 - Inventário de prod recebido e analisado: §6 reescrita com o modelo real; P0 de RLS **confirmado** em `question_jobs`;
   `connection_logs` não existe. Snapshot salvo em `docs/db/prod-schema-2026-10-11.json`; CSV original apagado.
 - Breno colocou o `ML_CLIENT_SECRET` real (Preview + `v2`) na Vercel; novo deploy da `v2` disparado pelo push.
@@ -462,17 +477,13 @@ Ainda não decidido. Temas levantados até agora:
 
 ## 13. Próximos passos
 
-1. ✅ Supabase de testes, app ML de teste, branch `v2` e staging na Vercel (`mlresponde-v2.vercel.app`) prontos.
-2. ✅ Inventário do banco de prod analisado (§6).
-3. **Decidir com o Breno:** aplicar a **baseline** (schema atual de prod, 4 tabelas) como 1ª migração em
-   `supabase/migrations/` e no Supabase de testes. Serve para: (a) a staging funcionar já com o código atual e validar
-   o app ML de teste ponta a ponta; (b) ser o ponto de partida das migrações da v2, que no cutover transformam o banco
-   de prod (baseline → schema novo) levando os dados junto.
-4. **Definir o escopo da v2** (§10) junto com o Breno → desenhar o schema novo (multi-tenant correto, tokens só no
-   servidor/criptografados, `user_id`/tenant em todas as tabelas, logs) e o plano de migração dos dados.
-5. Depois: criar usuário de teste no Supabase de testes, conectar uma conta ML de teste e validar pergunta → resposta.
-6. **Lembrete:** revisitar os P0 (§8) antes de abrir o app para novos clientes. O vazamento entre lojas em
-   `question_jobs` foi confirmado; corrigir em prod é 1 policy (mudança pequena, mas é escrita em prod → só com aprovação).
+1. ✅ Supabase de testes, app ML de teste, branch `v2`, staging na Vercel (`mlresponde-v2.vercel.app`).
+2. ✅ Inventário do banco de prod (§6) e baseline aplicada no Supabase de testes.
+3. **Agora: definir o escopo da v2** (§10) com o Breno (brainstorming): público-alvo, funcionalidades de IA,
+   planos/cobrança, autenticação, admin. Resultado → spec em `docs/` + atualização de §10.
+4. Desenhar o schema novo da v2 (migrações após a baseline) e o plano de migração dos dados de prod.
+5. Validar a staging ponta a ponta: usuário de teste no Supabase de testes + conta ML de teste segura (ver aviso em §9).
+6. **Lembrete:** revisitar os P0 (§8) antes de abrir o app para novos clientes (vazamento em `question_jobs` confirmado).
 7. Limpeza recomendada (com aprovação): tirar Preview/Development das variáveis de produção na Vercel.
 
 ---
@@ -497,6 +508,7 @@ npx supabase migration new <nome>       # cria supabase/migrations/<timestamp>_<
 npx supabase migration list             # compara migrações locais x remotas
 npx supabase db push                    # aplica migrações pendentes no projeto linkado (NUNCA em prod fora do cutover)
 npx supabase db query --linked --project-ref ookosqyfazobiwmopiix -f <arquivo.sql>   # roda SQL no banco de TESTES
+npx supabase db push --linked --dry-run  # mostra o que seria aplicado (sempre antes do push de verdade)
 ```
 
 Webhook local exige túnel público (ex.: ngrok) e um app ML de teste apontando para ele.
