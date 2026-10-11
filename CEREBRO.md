@@ -403,14 +403,46 @@ Legenda: 🔴 P0 crítico · 🟠 P1 importante · 🟡 P2 melhoria. Marcar ✅ 
 
 ---
 
-## 10. Roadmap v2 (a definir com o Breno)
+## 10. Roadmap v2 (em definição com o Breno — brainstorming iniciado em 2026-10-11)
 
-Ainda não decidido. Temas levantados até agora:
-- Autenticação "de verdade": cadastro, recuperação de senha, convites/time, possivelmente login social.
-- Segurança multi-tenant (RLS correto, OAuth com `state`, tokens criptografados, webhook validado).
-- Funcionalidades novas (a levantar com o Breno e os clientes).
-- Comercialização: planos, cobrança, onboarding self-service, painel admin.
-- Escalabilidade: fila/reprocessamento de jobs, observabilidade, métricas.
+**Processo:** projeto **arquitetural** → perguntas (uma por vez) → abordagens → design por partes → spec escrita em
+`docs/superpowers/specs/` → plano de implementação. **Nada de código da v2 antes da spec aprovada pelo Breno.**
+Referências de mercado e pesquisa: `docs/v2/referencias-mercado.md`.
+
+**Divisão proposta em sub-projetos** (cada um com sua spec; ordem sugerida):
+1. **Fundação** — cadastro/login, multi-contas ML por cliente, OAuth seguro, schema novo multi-tenant, migração dos
+   dados de prod (resolve os P0).
+2. **Respostas automáticas v2** — evolução do que existe.
+3. **Módulos de IA** — anúncios, pós-venda, reclamações, preço/promoções, publicidade, insights (um por vez).
+4. **Comercial** — planos, cobrança recorrente, painel admin do Breno, controle de custo de IA.
+
+**Visão do produto — o que o Breno disse (2026-10-11):**
+- Venda por uma **página de vendas** (tudo sobre a plataforma) + **Instagram** com mais informações.
+- CTA da página leva direto à **assinatura**: o cliente escolhe entre os **planos** e paga. **Cobrança mensal.**
+- Logo após pagar, o cliente precisa **acessar a plataforma com login e senha** ligados ao pagamento.
+  O Breno não sabe como isso deve funcionar: quer **igual às plataformas de assinatura atuais** e pediu que a IA
+  defina o melhor caminho.
+- Dentro do app: o cliente **conecta a conta do ML** e **configura tudo** (o que responder, como responder, dados da loja).
+- Quer **teste grátis de 7 dias** (como o AgilizaPRO).
+- Quer a **plataforma toda bloqueada até conectar a conta ML** (como o AgilizaPRO).
+- Referência principal: **AgilizaPRO** (gosta muito); também **Zelure** (landing). Detalhes em `docs/v2/referencias-mercado.md`.
+- Quer usar IA ao máximo para ajudar o vendedor do ML (não só responder perguntas).
+- ⏳ **O Breno vai mandar um arquivo REA (engenharia reversa do AgilizaPRO).** Aguardar esse arquivo antes de avançar
+  no brainstorming.
+
+**Pontos em aberto (perguntar depois do arquivo REA):**
+- Teste de 7 dias **sem cartão** (como o AgilizaPRO: começa no cadastro) **ou** pagamento/cartão antes (o fluxo descrito
+  pelo Breno começa pelo pagamento)?
+- Fluxo "pagou → acessa": conta criada antes do checkout ou depois (link mágico/definir senha por e-mail)?
+- Gateway de pagamento (Stripe, Mercado Pago, Asaas, Kiwify/Hotmart etc.) e emissão de nota.
+- Planos: o que diferencia (nº de contas ML, nº de respostas, módulos de IA)?
+- WhatsApp como canal (notificações e "escalar para humano"), igual ao AgilizaPRO?
+- Público: só lojistas ou também agências que gerenciam várias lojas (times/convites)?
+- Clientes atuais da v1 (7 usuários): como entram nos planos no cutover?
+
+**Temas técnicos já levantados:** segurança multi-tenant (RLS correto, OAuth com `state`+PKCE, tokens
+criptografados e só no servidor, webhook validado), fila/reprocessamento de jobs, observabilidade e métricas,
+controle de custo de IA por cliente.
 
 ---
 
@@ -454,6 +486,9 @@ Ainda não decidido. Temas levantados até agora:
   `mlresponde-v2.vercel.app` → `v2`, Vercel Authentication desligada. O 1º deploy da `v2` saiu antes das variáveis
   (usaria prod) → substituído por novo deploy e apagado.
 - `MeliLogo.png` (logo colocada pelo Breno) commitada na `v2`.
+- Brainstorming da v2 iniciado: Breno descreveu a jornada do cliente (página de vendas → assinatura mensal → login →
+  conectar ML → configurar), quer teste de 7 dias e app bloqueado até conectar o ML; referências AgilizaPRO e Zelure
+  (§10 e `docs/v2/referencias-mercado.md`). **Aguardando o arquivo REA do AgilizaPRO.**
 - `supabase init` + `link` no projeto de testes; baseline `20261011150000_baseline_v1.sql` aplicada nele e conferida
   (idêntica a prod).
 - Inventário de prod recebido e analisado: §6 reescrita com o modelo real; P0 de RLS **confirmado** em `question_jobs`;
@@ -479,8 +514,9 @@ Ainda não decidido. Temas levantados até agora:
 
 1. ✅ Supabase de testes, app ML de teste, branch `v2`, staging na Vercel (`mlresponde-v2.vercel.app`).
 2. ✅ Inventário do banco de prod (§6) e baseline aplicada no Supabase de testes.
-3. **Agora: definir o escopo da v2** (§10) com o Breno (brainstorming): público-alvo, funcionalidades de IA,
-   planos/cobrança, autenticação, admin. Resultado → spec em `docs/` + atualização de §10.
+3. **Agora: definir o escopo da v2** (§10) com o Breno (brainstorming). ⏳ **Aguardando o Breno enviar o arquivo REA
+   do AgilizaPRO**; depois, seguir com os "pontos em aberto" de §10, uma pergunta por vez. Resultado → spec em
+   `docs/superpowers/specs/` + atualização de §10.
 4. Desenhar o schema novo da v2 (migrações após a baseline) e o plano de migração dos dados de prod.
 5. Validar a staging ponta a ponta: usuário de teste no Supabase de testes + conta ML de teste segura (ver aviso em §9).
 6. **Lembrete:** revisitar os P0 (§8) antes de abrir o app para novos clientes (vazamento em `question_jobs` confirmado).
