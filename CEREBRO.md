@@ -165,6 +165,11 @@ adicionar a exceção `!.env.example`.
 
 ## 6. Modelo de dados (inferido do código — **CONFIRMAR no Supabase**)
 
+> Inventário real da produção: rodar `docs/db/inventario-schema.sql` no SQL Editor do Supabase de **prod** (só leitura;
+> devolve um JSON com tabelas, colunas, constraints, índices, triggers, RLS/policies, privilégios anon/authenticated,
+> funções, enums, Realtime, extensões, contagem de usuários e buckets; mascara strings com cara de segredo).
+> Validada no Supabase de testes em 2026-10-11. **Pendente:** Breno rodar em prod e a IA atualizar esta seção.
+
 Não há migrações no repositório. O SQL original está no `instructions.md` (Fase 2); colunas e tabelas posteriores
 foram criadas direto no painel do Supabase e **não estão versionadas**.
 
@@ -297,7 +302,7 @@ Legenda: 🔴 P0 crítico · 🟠 P1 importante · 🟡 P2 melhoria. Marcar ✅ 
   branch `v2`**: `NEXT_PUBLIC_SUPABASE_URL` (testes), `NEXT_PUBLIC_SUPABASE_ANON_KEY` e `SUPABASE_SERVICE_ROLE_KEY`
   (chaves **legacy** JWT do projeto de testes, compatíveis com o código atual; o projeto também tem as novas
   `sb_publishable`/`sb_secret`), `ML_CLIENT_ID` (app de teste), `ML_REDIRECT_URI` (v2) e `ML_CLIENT_SECRET`
-  (**placeholder `PENDENTE_BRENO_PREENCHER`** até o Breno colocar o valor real). `OPENAI_API_KEY` é herdada da geral.
+  (valor real colocado pelo Breno no painel em 2026-10-11). `OPENAI_API_KEY` é herdada da geral.
 - A Vercel só aceita variáveis/domínio com `gitBranch` depois que a branch existe no GitHub. Variáveis entram no
   build: depois de mudar uma variável, é preciso um novo deploy (push ou "Redeploy").
 
@@ -331,6 +336,9 @@ Legenda: 🔴 P0 crítico · 🟠 P1 importante · 🟡 P2 melhoria. Marcar ✅ 
   O token fica no Gerenciador de Credenciais do Windows: não passa pelo chat nem vai para o repositório.
   As IAs rodam os demais comandos (`link`, `migration`, `db push`) na mesma máquina/usuário.
 - O token da CLI vale para **todos os projetos da conta logada** → por isso a CLI fica na conta de testes.
+- SQL no projeto de testes sem Docker: `npx supabase db query --linked --project-ref ookosqyfazobiwmopiix -f <arquivo>`
+  (via Management API; `--project-ref` só funciona junto com `--linked`; `-o json` para saída parseável). A pasta
+  `supabase/.temp/linked-project.json` aponta para o projeto de testes (está no `.gitignore`).
 - Projeto de testes: **"Mercado Livre Responde v2"** · ref `ookosqyfazobiwmopiix` · região `us-east-2` · Postgres 17.
   Login da CLI feito e testado em 2026-10-11 (`npx supabase projects list` ok); pasta ainda **não linkada**.
 - ⚠️ A conta logada na CLI também tem projetos de **outro negócio** do Breno (**"Noord Analytics"** e um projeto
@@ -342,6 +350,13 @@ Legenda: 🔴 P0 crítico · 🟠 P1 importante · 🟡 P2 melhoria. Marcar ✅ 
   provavelmente exigem Docker → para a baseline, alternativa é instalar o cliente PostgreSQL (`pg_dump`) via `winget`.
 
 **Banco**
+- ⚠️ **Breno (2026-10-11): "muita coisa vamos refazer".** O schema da v2 será **desenhado do zero** (multi-tenant
+  correto), e não copiado da v1. O inventário da produção serve para (1) entender o que existe e (2) planejar a
+  **migração dos dados** de prod para o schema novo no cutover (usuários, contas ML, base de conhecimento,
+  exemplos de treino, histórico de perguntas). A estratégia de cutover do banco (tabelas novas em paralelo +
+  cópia de dados vs. evolução das atuais) será definida depois do inventário. A regra continua: nada em prod pode
+  quebrar a v1 antes do cutover.
+- O Supabase de testes (projeto novo) já vem com a função `public.rls_auto_enable` (padrão dos projetos novos).
 - Primeiro passo: capturar o schema real de prod (`supabase db pull` ou dump de schema) como **migração baseline**
   em `supabase/migrations/`. A partir daí, toda mudança vira migração versionada.
 - Migrações da v2 aditivas e compatíveis com a v1, para poderem ser aplicadas em prod **antes** do merge.
@@ -385,6 +400,8 @@ Ainda não decidido. Temas levantados até agora:
 | 2026-10-11 | URL fixa de staging `mlresponde-v2.vercel.app` (domínio associado ao branch `v2`) | O app ML de teste precisa de redirect/webhook estáveis; URLs de preview mudam a cada deploy. |
 | 2026-10-11 | Branch `v2` criada/publicada; Vercel Authentication desligada; staging em `mlresponde-v2.vercel.app` | Aprovado pelo Breno; webhook do ML precisa alcançar a staging. |
 | 2026-10-11 | Staging usa as chaves legacy (anon/service_role) do Supabase de testes | Mesmo formato da produção; zero mudança de código. Migrar para `sb_publishable`/`sb_secret` pode ser feito depois. |
+| 2026-10-11 | Schema da v2 será redesenhado; inventário de prod só para entendimento e migração de dados | Breno: "muita coisa vamos refazer". |
+| 2026-10-11 | Inventário de prod via SQL só de leitura rodado pelo próprio Breno no SQL Editor | IA não precisa de credencial de prod; zero risco de escrita. |
 | 2026-10-11 | Variáveis da v2 na Vercel sempre com escopo Preview + branch `v2` | Hoje as variáveis de produção também valem para previews; sem override a v2 usaria o banco de produção. |
 | 2026-10-11 | App ML de teste com permissões amplas (ver §9) e PKCE desligado até o OAuth novo da v2 | v2 vai usar IA em várias áreas (anúncios, vendas, publicidade, promoções); PKCE quebraria o código atual. |
 
@@ -403,7 +420,10 @@ Ainda não decidido. Temas levantados até agora:
 - Branch `v2` criada e publicada (commit de docs `7b01413`). Na Vercel: 6 variáveis Preview+`v2`, domínio
   `mlresponde-v2.vercel.app` → `v2`, Vercel Authentication desligada. O 1º deploy da `v2` saiu antes das variáveis
   (usaria prod) → substituído por novo deploy e apagado.
-- `MeliLogo.png` apareceu na raiz sem ser criado pela IA → **não** commitado; perguntar ao Breno.
+- `MeliLogo.png` (logo colocada pelo Breno) commitada na `v2`.
+- Breno colocou o `ML_CLIENT_SECRET` real (Preview + `v2`) na Vercel; novo deploy da `v2` disparado pelo push.
+- Criado `docs/db/inventario-schema.sql` (inventário só leitura do schema), validado no Supabase de testes com
+  objetos de teste temporários (criados e removidos). `supabase/.temp/` adicionado ao `.gitignore`.
 - Vercel inspecionada (somente leitura, só nomes): todas as variáveis de prod também valem para Preview/Development
   (risco: preview da `v2` usaria o banco de produção) e a proteção Standard bloquearia o webhook do ML.
 - Nada commitado/pushado. Produção intocada.
@@ -420,21 +440,16 @@ Ainda não decidido. Temas levantados até agora:
 
 ## 13. Próximos passos
 
-1. ✅ Supabase de testes criado e login da CLI feito/testado (2026-10-11).
-2. ✅ App ML de teste criado (Client ID `8693830632560554`).
-3. ✅ Branch `v2` + staging na Vercel (`mlresponde-v2.vercel.app`, variáveis Preview+`v2`, proteção desligada).
-4. **Breno:** trocar o valor de `ML_CLIENT_SECRET` (Preview, branch `v2`, hoje `PENDENTE_BRENO_PREENCHER`) pelo
-   Client Secret do app ML de teste no painel da Vercel e avisar → IA faz um redeploy da `v2`.
-5. **Breno:** liberar acesso **somente leitura** ao Supabase de prod (sem acesso às colunas de tokens do ML) →
-   IA captura o schema real como migração baseline em `supabase/migrations/`, confirma RLS/policies (atualizar §6)
-   e aplica no Supabase de testes (`supabase init` + `supabase link --project-ref ookosqyfazobiwmopiix`).
-   Sem isso o banco de testes fica vazio e a v2 não roda.
-6. Depois da baseline: criar usuário de teste no Supabase de testes, conectar uma conta ML de teste e validar o fluxo
-   pergunta → resposta na staging.
-7. **Definir o escopo da v2** (§10) junto com o Breno.
-8. **Lembrete:** revisitar os P0 (§8) antes de abrir o app para novos clientes.
-9. Limpeza recomendada (com aprovação): tirar Preview/Development das variáveis de produção na Vercel.
-10. Perguntar ao Breno sobre o `MeliLogo.png` não versionado na raiz.
+1. ✅ Supabase de testes, app ML de teste, branch `v2` e staging na Vercel (`mlresponde-v2.vercel.app`) prontos.
+2. ✅ `ML_CLIENT_SECRET` real da `v2` colocado pelo Breno.
+3. **Breno:** rodar `docs/db/inventario-schema.sql` no SQL Editor do Supabase de **produção** e baixar o resultado
+   (Export → Download CSV) → avisar a IA (o arquivo fica em `Downloads`).
+4. **IA:** analisar o inventário, atualizar §6 (modelo real, RLS, policies, triggers) e §8 (confirmar/descartar o P0 de RLS).
+5. **Definir o escopo da v2** (§10) junto com o Breno → desenhar o schema novo da v2 (migrações em `supabase/migrations/`)
+   e o plano de migração dos dados de prod no cutover.
+6. Depois: criar usuário de teste no Supabase de testes, conectar uma conta ML de teste e validar pergunta → resposta.
+7. **Lembrete:** revisitar os P0 (§8) antes de abrir o app para novos clientes.
+8. Limpeza recomendada (com aprovação): tirar Preview/Development das variáveis de produção na Vercel.
 
 ---
 
@@ -457,6 +472,7 @@ npx supabase link --project-ref <ref>   # liga a pasta ao projeto de testes
 npx supabase migration new <nome>       # cria supabase/migrations/<timestamp>_<nome>.sql
 npx supabase migration list             # compara migrações locais x remotas
 npx supabase db push                    # aplica migrações pendentes no projeto linkado (NUNCA em prod fora do cutover)
+npx supabase db query --linked --project-ref ookosqyfazobiwmopiix -f <arquivo.sql>   # roda SQL no banco de TESTES
 ```
 
 Webhook local exige túnel público (ex.: ngrok) e um app ML de teste apontando para ele.
