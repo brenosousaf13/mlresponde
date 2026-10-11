@@ -77,6 +77,13 @@ describe("decideSectionAccess", () => {
     expect(decideSectionAccess("respostas", ctx).allowed).toBe(true)
   })
 
+  it("administrador da plataforma acessa tudo, mesmo sem conta ML ou com teste vencido", () => {
+    const ctx = { access: "blocked" as const, hasActiveMlAccount: false, isPlatformAdmin: true }
+    expect(decideSectionAccess("painel", ctx).allowed).toBe(true)
+    expect(decideSectionAccess("perguntas", ctx).allowed).toBe(true)
+    expect(decideSectionAccess("contas", ctx).allowed).toBe(true)
+  })
+
   it("perguntas e respostas exigem conta ML e assinatura em dia", () => {
     expect(decideSectionAccess("perguntas", { access: "trial", hasActiveMlAccount: false }).allowed).toBe(false)
     expect(decideSectionAccess("respostas", { access: "blocked", hasActiveMlAccount: true }).allowed).toBe(false)

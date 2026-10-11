@@ -6,6 +6,7 @@ import { useTransition } from "react"
 
 import { signOut } from "@/app/(auth)/actions"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+import { Badge } from "@/components/ui/badge"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -29,7 +30,7 @@ function initials(name: string, email: string) {
   return letters.toUpperCase()
 }
 
-export function NavUser({ user }: { user: { name: string; email: string } }) {
+export function NavUser({ user }: { user: { name: string; email: string; isPlatformAdmin?: boolean } }) {
   const { isMobile } = useSidebar()
   const [, startTransition] = useTransition()
   const fallback = initials(user.name, user.email)
@@ -66,6 +67,7 @@ export function NavUser({ user }: { user: { name: string; email: string } }) {
                     <span className="truncate font-medium">{user.name || "Minha conta"}</span>
                     <span className="truncate text-xs">{user.email}</span>
                   </div>
+                  {user.isPlatformAdmin ? <Badge variant="secondary">Admin</Badge> : null}
                 </div>
               </DropdownMenuLabel>
             </DropdownMenuGroup>

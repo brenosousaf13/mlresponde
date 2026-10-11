@@ -233,6 +233,9 @@ localmente, definir no terminal).
 - Privilégios: `anon` nada; `authenticated` só **SELECT** (RLS: membro da organização / próprio perfil); escrita só
   via servidor. Testado em `supabase/tests/fundacao_rls.sql`.
 - ⚠️ Usuários antigos (sem perfil/organização) são completados na hora por `ensureAccountSetup` (DAL) — útil no cutover.
+- **Administrador da plataforma:** `profiles.is_platform_admin = true` → passa por todos os bloqueios de seção
+  (`decideSectionAccess`) e aparece o selo "Admin" no menu do usuário. Base para o futuro painel admin do Breno.
+  Só pode ser ligado direto no banco (service role); não existe tela para isso.
 
 ### 6.1b v2 — Respostas (migração `20261011180000_respostas_v2.sql`)
 
@@ -487,6 +490,12 @@ Legenda: 🔴 P0 crítico · 🟠 P1 importante · 🟡 P2 melhoria. Marcar ✅ 
   senha mínima 8; confirmação de e-mail ligada; cadastro aberto (é o fluxo do produto).
 - ⚠️ Plano free + SMTP padrão: **não** dá para editar templates de e-mail, o envio é limitado (~2/hora) e **só entrega para
   e-mails de membros da organização Supabase**. Para testes com outros e-mails ou para lançar: SMTP próprio (ex.: Resend).
+- **Admin de testes (2026-10-11):** login do Breno `brenosousaf13@gmail.com` (senha só com o Breno — nunca registrar aqui)
+  com `is_platform_admin`, organização **"Loja Demonstração"** (`billing_exempt`, `plan='admin'`, até 10 contas ML) e
+  conta ML **fictícia** `LOJA_DEMONSTRACAO` (`ml_user_id 999000000001`, sem tokens) + 12 perguntas, 2 respostas ensinadas
+  e 1 anúncio bloqueado de exemplo (ids `MLB99900000xx`, `ml_question_id 9991000000xx`). Serve para ver as telas; ações
+  que falam com o ML falham nessa conta ("sem tokens"). Para apagar a demonstração: excluir a conta ML fictícia (as
+  perguntas/exemplos/bloqueios saem em cascata). A conta "Noord Shop" (Gmail, criada pelo Breno) também é dele.
 - Token da CLI fica no Gerenciador de Credenciais do Windows (`Supabase CLI:supabase`); a IA o usa para a Management API
   sem exibir o valor.
 
@@ -654,6 +663,12 @@ webhook do ML validado, fila/reprocessamento de jobs, observabilidade, controle 
 ---
 
 ## 12. Diário de sessões (mais recente no topo)
+
+### 2026-10-11 — Sessão 4b · Login de administrador (IA: Claude, via app Codex)
+- Pedido do Breno: login de admin com tudo liberado para ver as telas (e para o futuro painel admin).
+- Código: `decideSectionAccess` aceita `isPlatformAdmin` (libera tudo); selo "Admin" no menu do usuário; teste unitário.
+- Supabase de testes: usuário admin criado já confirmado + "Loja Demonstração" com dados de exemplo (ver §9).
+- ⚠️ A senha foi enviada no chat → recomendado o Breno trocar em Configurações depois do primeiro acesso.
 
 ### 2026-10-11 — Sessão 4 · Respostas automáticas v2 (IA: Claude, via app Codex)
 - Spec `docs/superpowers/specs/2026-10-11-respostas-v2-design.md`; migração `respostas_v2` aplicada no Supabase de testes;

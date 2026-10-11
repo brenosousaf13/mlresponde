@@ -48,9 +48,9 @@ const ALWAYS_ALLOWED: readonly AppSection[] = ["assinatura", "configuracoes"]
 
 export function decideSectionAccess(
   section: AppSection,
-  context: { access: AccessState; hasActiveMlAccount: boolean }
+  context: { access: AccessState; hasActiveMlAccount: boolean; isPlatformAdmin?: boolean }
 ): SectionDecision {
-  if (ALWAYS_ALLOWED.includes(section)) {
+  if (context.isPlatformAdmin || ALWAYS_ALLOWED.includes(section)) {
     return { allowed: true }
   }
   if (context.access === "blocked") {

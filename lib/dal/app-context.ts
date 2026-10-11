@@ -156,6 +156,7 @@ export async function requireSection(section: AppSection) {
   const decision = decideSectionAccess(section, {
     access: context.access.state,
     hasActiveMlAccount: context.mlAccounts.active > 0,
+    isPlatformAdmin: context.profile.isPlatformAdmin,
   })
   if (!decision.allowed) redirect(decision.redirectTo)
   return context

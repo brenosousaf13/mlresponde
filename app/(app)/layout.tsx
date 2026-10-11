@@ -27,6 +27,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     const decision = decideSectionAccess(item.section, {
       access: context.access.state,
       hasActiveMlAccount,
+      isPlatformAdmin: context.profile.isPlatformAdmin,
     })
     if (!decision.allowed) return { ...item, lockedReason: LOCK_REASONS[decision.reason] }
     return item.section === "perguntas" ? { ...item, badge: reviewCount ?? 0 } : item
@@ -37,7 +38,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       <AppSidebar
         items={items}
         organizationName={context.organization.name}
-        user={{ name: context.profile.fullName, email: context.user.email }}
+        user={{ name: context.profile.fullName, email: context.user.email, isPlatformAdmin: context.profile.isPlatformAdmin }}
       />
       <SidebarInset>
         <AccessBanners access={context.access} mlAccounts={context.mlAccounts} />

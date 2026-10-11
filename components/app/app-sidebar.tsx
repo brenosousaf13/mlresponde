@@ -49,7 +49,7 @@ export function AppSidebar({
   ...props
 }: React.ComponentProps<typeof Sidebar> & {
   items: SidebarNavItem[]
-  user: { name: string; email: string }
+  user: { name: string; email: string; isPlatformAdmin?: boolean }
   organizationName: string
 }) {
   const pathname = usePathname()
