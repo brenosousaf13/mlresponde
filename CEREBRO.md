@@ -4,7 +4,7 @@
 > inteiro antes de trabalhar e atualizá-lo ao terminar. Se algo aqui divergir do código, o código vence —
 > e este arquivo deve ser corrigido na mesma sessão.
 
-Última atualização: **2026-10-11** (Sessão 9 — cadastro pede CPF/CNPJ e endereço de cobrança, branch `v2`)
+Última atualização: **2026-10-11** (Sessão 11 — pós-venda com IA, exclusivo do plano Essencial, branch `v2`)
 
 ---
 
@@ -75,6 +75,12 @@ novas funcionalidades, segurança multi-tenant de verdade — **desenvolvido em 
   nome, tabela de medidas, dados do catálogo e a descrição inteira (até 20 mil caracteres); falha passageira ao ler a
   descrição faz a fila tentar de novo. Testar mostra "O que a IA leu deste anúncio".
   Spec: `docs/superpowers/specs/2026-10-11-modo-sempre-e-leitura-do-anuncio-design.md`.
+  **Sessão 11 (2026-10-11): Pós-venda com IA, exclusivo do plano Essencial** — menu **Pós-venda** (`/pos-venda`) que só
+  aparece para organizações com `plan = 'essencial'` (ou `admin`); caixa de entrada das mensagens de quem já comprou e um
+  **agente** que lê a conversa inteira, a venda, o envio (rastreio, previsão) e o anúncio e responde sozinho quando tem certeza
+  (limite de 350 caracteres do ML); assuntos delicados ficam com o vendedor (ou o agente acolhe e orienta, se a loja escolher);
+  configuração em `/pos-venda/agente` (instruções, assuntos delicados, certeza, assinatura, respostas ensinadas, Testar).
+  Primeira regra de plano do produto (`lib/plans/plans.ts` + RLS). Spec: `docs/superpowers/specs/2026-10-11-pos-venda-design.md`.
   Falta testar com conta ML real (depende do Breno).
 - **Marca da v2:** logo `MeliLogo.png` = **"MeLi Responde"** (assumido pela IA; confirmar com o Breno). Nome centralizado em
   `lib/config/site.ts`. A v1 em produção usa "Meli Fácil".
@@ -153,6 +159,10 @@ app/
     layout.tsx                    # requireOnboardedContext + menu com cadeados (decideSectionAccess)
     actions.ts                    # completeTour
     painel/ perguntas/ resultados/ assistente/ contas/ assinatura/ configuracoes/   # cada page chama requireSection(...)
+    pos-venda/ (+ agente/)        # caixa de entrada do pós-venda e configuração do agente (só plano Essencial)
+    pos-venda/actions.ts          # sendReply (FormData com anexos), generateSuggestion, refreshFromMl, retryWithAgent,
+                                  # archive/restoreConversation, syncConversations, setAgentEnabled, updateAgentSettings,
+                                  # add/deleteAfterSaleExample, testAfterSaleAgent
     resultados/actions.ts         # updateAssumptions (premissas da economia; só dono/admin)
     perguntas/actions.ts          # answerQuestion (+ensinar), generateSuggestion, ignoreQuestion, restoreQuestion,
                                   # retryWithAi, syncQuestions
@@ -164,6 +174,8 @@ app/
                                   # troca code+verifier, /users/me, connectMlAccount
   api/webhook/mercadolivre/route.ts        # webhook ML: valida topic/application_id/conta, registra, 200 na hora, after()
   api/cron/questions/route.ts   # reprocessa a fila (Vercel Cron 1/min, só em produção; Bearer CRON_SECRET)
+  api/cron/pos-venda/route.ts   # fila do pós-venda (1/min) + a cada 15 min não lidas e conferência (Bearer CRON_SECRET)
+  api/pos-venda/anexo/route.ts  # abre anexos das conversas (token do ML só no servidor; confere plano e conversa)
 components/
   ui/                             # shadcn (não editar à toa; regenerar com a CLI)
   app/                            # app-sidebar (botão de recolher no topo da própria barra), nav-user, app-header (só no
@@ -172,6 +184,9 @@ components/
                                   # inbox-row-link, question-detail, answer-composer, question-menu,
                                   # question-search (next/form), live-refresh, sync-button
   painel/question-cards.tsx       # cards do Painel: Esperando você, Últimas perguntas, Anúncios mais perguntados
+  pos-venda/                      # conversation-list (abas, toolbar, linhas), conversation-detail (venda, histórico, avisos),
+                                  # reply-composer (anexos, sugestão, ensinar), conversation-menu, agent-status,
+                                  # agent-settings-form, after-sale-examples, agent-test-panel, summary-card, sync-button
   resultados/                     # impact-hero (economia), kpi-cards, daily-chart / speed-chart (shadcn chart = Recharts),
                                   # hours-heatmap (grade dia × hora), top-items-card, topics-card, improve-card,
                                   # assumptions-dialog, period-toggle
@@ -216,17 +231,28 @@ lib/
   results/metrics.ts            # Resultados (puro, testado): período, economia, fator de velocidade, horário comercial e
                                 # espera evitada, série diária, distribuição de velocidade, assuntos por palavra-chave
   results/format.ts             # R$, horas, dias de trabalho, variação
+  plans/plans.ts                  # planos e o que liberam (essencial → pos_venda; admin → tudo). Espelho no banco:
+                                  #   plan_includes_after_sale(). featureAccess (admin da plataforma vê tudo)
+  after-sale/                     # PÓS-VENDA (puro e testado, salvo engine/ai): text (latin1, 350 caracteres, assinatura),
+                                  #   conversation (páginas do ML, pendentes, pack, não lidas, destinatário/agente do ML, erros,
+                                  #   motivos de bloqueio), order (venda/envio → resumo da tela e texto da IA), decision
+                                  #   (assuntos, política de delicados, certeza, decideAfterSale), prompt, notification
+                                  #   (tópico messages), presentation (abas, tons, URL, busca, atraso), ai (runAfterSaleModel),
+                                  #   engine (fila, sync com o ML, envio, manual, sugestão, teste, não lidas, conferência)
+  mercadolivre/messages.ts        # mensagens pós-venda (páginas, detalhe, não lidas, enviar, anexos), packs/vendas, envio
+  dal/after-sale.ts               # números do cartão Pós-venda do Painel
   supabase/server.ts              # createClient (sessão) + createAdminClient (legado v1, sem tipos)
   supabase/admin.ts               # createServiceClient (service role, tipado) + createStatelessAuthClient
   supabase/database.types.ts      # gerado: npx supabase gen types typescript --linked --schema public
   http/site-url.ts                # NEXT_PUBLIC_SITE_URL → URLs de retorno dos e-mails
 supabase/
   config.toml, migrations/        # baseline_v1 (espelho de prod) + fundacao_v2 + respostas_v2 + assistente_ia +
-                                  # perguntas_escala + resultados + dados_cobranca
-  tests/fundacao_rls.sql, respostas_rls.sql, resultados_rls.sql, cobranca_rls.sql   # sucesso = erro "TESTES_..._OK"
-tests/unit/                       # vitest: crypto, pkce, access, forms, answers, assistant, inbox, results, billing
-tests/integration/ai-live.test.ts # 7 cenários com a IA real; só roda com RUN_LIVE_AI=1 + OPENAI_API_KEY
-vercel.json                       # cron /api/cron/questions a cada minuto (efeito só em produção)
+                                  # perguntas_escala + resultados + dados_cobranca + modo_responder_sempre + pos_venda
+  tests/fundacao_rls.sql, respostas_rls.sql, resultados_rls.sql, cobranca_rls.sql, pos_venda_rls.sql   # sucesso = erro "TESTES_..._OK"
+tests/unit/                       # vitest: crypto, pkce, access, forms, answers, assistant, inbox, results, billing, after-sale...
+tests/integration/ai-live.test.ts # 22 cenários com a IA real; só roda com RUN_LIVE_AI=1 + OPENAI_API_KEY
+tests/integration/after-sale-live.test.ts # 12 cenários do agente de pós-venda com a IA real (mesmas variáveis)
+vercel.json                       # crons /api/cron/questions e /api/cron/pos-venda a cada minuto (efeito só em produção)
 docs/                             # specs (superpowers/specs), db (inventário/snapshot de prod), v2 (referências)
 public/brand/                     # logo-wordmark.png e logo-icon.png (recortados de MeliLogo.png)
 ```
@@ -342,6 +368,23 @@ localmente, definir no terminal).
   organização); `needsOnboarding` manda para `/onboarding` quem administra a loja e ainda não tem os dados (admin da
   plataforma dispensado).
 
+### 6.1d v2 — Pós-venda (migração `20261011235900_pos_venda.sql`, aditiva)
+
+- Função `plan_includes_after_sale(plan)` (`essencial`/`admin`; espelho de `lib/plans/plans.ts`) e
+  `current_user_after_sale_organization_ids()` (security definer): o RLS das 3 tabelas novas exige ser membro **e** o plano.
+- `ml_accounts` + `after_sale_enabled` (**começa false**), `after_sale_instructions` (≤ 4000), `after_sale_confidence_threshold`
+  (0,85), `after_sale_sensitive_policy` (`review` padrão | `guide`), `after_sale_signature` (≤ 80).
+- `ml_conversations` (1 por venda/pack e conta, `unique (ml_account_id, pack_id)`, `pack_id` só dígitos): comprador, produto,
+  `order_summary` jsonb (itens, valores, pagamento, envio — sem endereço), colunas do envio (`shipping_status`, rastreio,
+  `estimated_delivery_at`…), `ml_status`/`ml_substatus`/`claim_open`/`max_message_length`, `status`
+  (`pending|processing|failed|needs_review|answered|blocked|archived`), `review_reason`, última mensagem, `pending_count`,
+  `awaiting_since`, campos `ai_*` (inclui `ai_topic`), fila (`attempts`, `next_attempt_at`, `locked_until`,
+  `resync_requested`), `synced_at`. Realtime ligado.
+- `ml_conversation_messages` (`unique (conversation_id, ml_message_id)`; `local:<uuid>` = enviada por nós, ainda sem id do ML),
+  `sender` buyer/seller, `source` buyer/ai/manual/external, anexos jsonb, status/moderação do ML.
+- `after_sale_examples` (respostas ensinadas do pós-venda). Funções `claim_ml_conversation`/`due_ml_conversations` só service role.
+- Testado em `supabase/tests/pos_venda_rls.sql` (organização sem o plano não lê nem as próprias conversas).
+
 ### 6.2 v1 — produção (✅ CONFIRMADO em 2026-10-11)
 
 > Fonte: inventário só leitura de prod (`docs/db/inventario-schema.sql`, rodado pelo Breno no SQL Editor).
@@ -449,6 +492,21 @@ Extensões: pgcrypto, uuid-ossp, pg_stat_statements, pg_graphql, supabase_vault 
    negociação → condições do anúncio; pedido/reclamação → desculpas + "Minhas compras"; contato → "atendimento por aqui").
    A "Sugestão da IA" na caixa de entrada sempre usa o modo cuidadoso.
 - Realtime no navegador: chamar `supabase.realtime.setAuth(access_token)` antes de assinar (sem isso o RLS bloqueia os eventos).
+
+### 7.0c v2 — Pós-venda (plano Essencial)
+1. ML → webhook `topic=messages` (`actions` com `created`) → só contas cujo plano inclui pós-venda → 200 → `after()`:
+   `GET /messages/{id}` → pack (`message_resources`) → `registerConversation` → `processConversation`.
+   Também entram: "Sincronizar com o ML" e conexão da conta (`/messages/unread`), cron (fila 1/min; a cada 15 min não lidas
+   das contas com o agente ligado e conferência das conversas esperando o vendedor há > 30 min).
+2. `processConversation`: lock → relê no ML todas as páginas da conversa (`mark_as_read=false`), pack/vendas e envio → grava.
+   ML bloqueou → `blocked`; sem mensagem do comprador esperando → `answered`; conta inativa / assinatura / plano /
+   reclamação aberta / agente pausado → `needs_review` sem IA. Senão IA (`gpt-6-luna`, prompt próprio com Regra 0) →
+   `decideAfterSale` (mudança no pedido sempre para o vendedor; delicados conforme a política; certeza ≥ 0,85; sem contato;
+   ≤ 350) → envio em latin1 (no Brasil `to` = agente do ML `3037675074`, comprador como 2ª tentativa) ou `needs_review` com rascunho.
+3. Chegou mensagem durante o processamento → `resync_requested` → roda de novo. Erro passageiro → 1/2/4/8/16 min.
+4. Envio manual reserva a conversa por 90 s (o agente não responde junto), relê o ML antes, aceita até 5 anexos (4 MB) e pode
+   ensinar o agente (`after_sale_examples`).
+- Detalhes e limites: `docs/superpowers/specs/2026-10-11-pos-venda-design.md`.
 
 ### 7.1 v1 (produção) — Login
 `/login` → server action `login` (`signInWithPassword`) → `/`. `proxy.ts` redireciona não-logados para `/login`
@@ -692,7 +750,11 @@ Decisões de **produto** (preços, planos, textos legais, marca, WhatsApp) conti
   `knowledge_base` da v1 para "Outras informações" e os `training_examples` para respostas ensinadas.
 - ✅ **2c. Dados de cobrança no cadastro** (CPF/CNPJ + endereço) — implementado em 2026-10-11 (spec
   `2026-10-11-dados-cobranca-design.md`). Base para o sub-projeto 4 (gateway e nota fiscal leem `billing_profiles`).
-- ⏭️ **Próximo (sugestão):** migração de dados v1 → v2 + plano de cutover, ou sub-projeto 4 (planos/cobrança) — decidir com o Breno.
+- ✅ **3a. Pós-venda com IA** (primeiro módulo do sub-projeto 3, exclusivo do plano Essencial) — implementado em 2026-10-11
+  (spec `2026-10-11-pos-venda-design.md`). Pendências: teste com conta ML real com venda; reclamações/mediações pela API de
+  claims; números do pós-venda em Resultados; definir se o teste grátis inclui o pós-venda.
+- ⏭️ **Próximo (sugestão):** migração de dados v1 → v2 + plano de cutover, ou sub-projeto 4 (planos/cobrança — os planos
+  agora já têm onde morar: `lib/plans/plans.ts` + `organizations.plan`) — decidir com o Breno.
 - ⏳ 3. Módulos de IA/gestão · ⏳ 4. Comercial (planos, Stripe/gateway, admin).
 
 **Referências:**
@@ -814,10 +876,38 @@ webhook do ML validado, fila/reprocessamento de jobs, observabilidade, controle 
 | 2026-10-11 | No modo sempre, desconto, reclamação, pedido e contato recebem respostas de **procedimento** (condições do anúncio, desculpas + "Minhas compras", atendimento pelo ML) em vez da mensagem padrão | "Não temos essa informação" para uma reclamação soaria descaso; as respostas de procedimento não afirmam nada do produto. |
 | 2026-10-11 | Anúncio bloqueado, respostas pausadas, conta inativa e erro continuam indo para o vendedor mesmo no modo sempre | O bloqueio é uma escolha explícita do vendedor; os outros casos nem chegam à IA. |
 | 2026-10-11 | Falha passageira (5xx/429/rede) ao ler a descrição do anúncio **não** é mais engolida: a fila tenta de novo | Antes a IA respondia sem ter lido a descrição — principal fonte de "não está no anúncio" errado. 404/4xx seguem sem descrição. |
+| 2026-10-11 | Pós-venda é o primeiro recurso **por plano**: `organizations.plan = 'essencial'` (e `admin`) libera; regra em `lib/plans/plans.ts`, espelhada no RLS (`plan_includes_after_sale`) | Pedido do Breno (exclusivo do Essencial). Bloqueio vale no servidor, na RLS e no webhook (contas sem o plano nem gastam chamadas ao ML). Planos ainda não existem (sub-projeto 4): o código já tem onde cadastrá-los. |
+| 2026-10-11 | Menu Pós-venda **só aparece** para quem tem o plano; quem abre a URL sem o plano vai para Assinatura com o aviso "exclusivo do plano Essencial" | Literal ao pedido ("item no menu exclusivo"). Se o Breno quiser usar como vitrine, basta mostrar com cadeado (motivo `plan` já existe em `LOCK_REASONS`). |
+| 2026-10-11 | Teste grátis **sem** pós-venda (plano nulo durante o teste) | Decisão provisória da IA; confirmar com o Breno junto com os planos. |
+| 2026-10-11 | Agente de pós-venda separado do de perguntas (prompt, decisão, fila e tabelas próprias), reaproveitando o conhecimento da loja do Assistente | Quem já comprou precisa de outras fontes (venda, envio, histórico) e outras travas (nunca prometer reembolso/troca/prazo). A loja não precisa repetir as políticas. |
+| 2026-10-11 | Agente começa **pausado**, certeza padrão **0,85**, assuntos delicados ficam com o vendedor por padrão; mudança no pedido e reclamação/mediação aberta **sempre** ficam | Pós-venda mexe com reputação (reclamações). Mais conservador que as perguntas; a loja pode afrouxar. |
+| 2026-10-11 | Conversa por venda (pack) com fila no Postgres, igual às perguntas, e o ML como fonte da verdade (relê a conversa antes de responder) | Evita resposta dupla e responde todas as mensagens pendentes de uma vez; sem serviço extra. |
+| 2026-10-11 | No Brasil a mensagem vai para o **agente de mensageria do ML** (`to` = 3037675074) e, se o ML recusar o destinatário, para o comprador | Exigência da "nova arquitetura de mensageria" (02/02/2026), com implantação gradual; as duas tentativas cobrem conversas antigas e novas. |
+| 2026-10-11 | Dados de envio/pedido guardados sem endereço nem dados pessoais do comprador | LGPD: o agente e a tela só precisam de situação, rastreio e previsão. |
 
 ---
 
 ## 12. Diário de sessões (mais recente no topo)
+
+### 2026-10-11 — Sessão 11 · Pós-venda com IA, exclusivo do plano Essencial (IA: Claude, via app Codex)
+- Pedido do Breno: feature exclusiva do plano Essencial — agente que responde as mensagens de pós-venda (compras feitas),
+  mantém a conversa e usa o histórico; item novo no menu só para clientes Essencial; "do início ao fim, pensando em tudo".
+- Documentação do ML conferida na hora (mensagens pós-venda, bloqueios, não lidas, notificações, vendas, envios): limite de
+  350 caracteres em latin1, agentes de mensageria no Brasil desde 02/02/2026, vendedor não inicia conversa, motivos de bloqueio.
+- Migração `20261011235900_pos_venda.sql` aplicada no Supabase de **testes** (dry-run antes); tipos regenerados.
+- Novo: `lib/plans/plans.ts`, `lib/after-sale/*`, `lib/mercadolivre/messages.ts` (+ `mlFetchRaw` e FormData em `client.ts`),
+  `lib/dal/after-sale.ts`, `app/(app)/pos-venda/*`, `app/api/cron/pos-venda`, `app/api/pos-venda/anexo`, `components/pos-venda/*`;
+  webhook trata o tópico `messages`; callback do OAuth traz as não lidas; Painel (cartão), Assinatura (recursos do plano e
+  aviso), menu com contador; `QuestionSearch` e `LiveRefresh` reutilizáveis; Server Actions aceitam 4,5 MB (anexos).
+- Verificação: typecheck, **262 testes** (46 novos em `tests/unit/after-sale.test.ts`), lint 0, build ok; RLS
+  `pos_venda_rls.sql` + os 4 anteriores ok; **IA real 12/12 em 2 rodadas** (1ª rodada 11/12 → ajuste da ordem dos motivos).
+  A chave `OPENAI_API_KEY` foi lida pela API da Vercel só na memória (o login da CLI tinha expirado: `vercel whoami` renovou).
+- QA no navegador (servidor local → Supabase de testes, 1440 e 390 px) com loja temporária "Passo Certo (QA)" no plano
+  Essencial e 6 conversas fictícias: menu/contador, cartão do Painel, abas, conversa com anexo e rascunho, conversa fechada por
+  mediação, configuração (recusa telefone, salva, liga), ensinar, celular, bloqueio sem plano (redireciona + aviso; anexo 403).
+  Ajustes feitos no QA: detalhes da venda recolhíveis com resumo no título, conversa abre na última mensagem, plural no Painel.
+  Usuário/loja de QA apagados.
+- Não testado com conta ML real (precisa de conta de teste com uma venda). Produção (`main`) intocada.
 
 ### 2026-10-11 — Sessão 10 · Modo "Responder sempre" e leitura completa do anúncio (IA: Claude, via app Codex)
 - Pedido do Breno: (1) chave para a IA sempre responder, com mensagem personalizável quando não souber; (2) garantir que a
@@ -1008,6 +1098,14 @@ webhook do ML validado, fila/reprocessamento de jobs, observabilidade, controle 
 ## 13. Próximos passos
 
 1. ✅ Infra de staging, inventário de prod, baseline, **Fundação** (sub-projeto 1) e **Respostas v2** (sub-projeto 2).
+1b. **Breno: Pós-venda (plano Essencial).** (a) No app ML de **teste** (DevCenter), conferir o tópico **`messages`** marcado
+   e as permissões **Comunicações pré e pós-vendas** e **Venda e envios** (leitura e escrita) — sem isso o agente não recebe
+   nada; se mudar permissões, reconectar a conta. (b) Para testar na staging, a organização precisa do plano: entrar com o
+   login admin (a "Loja Demonstração" tem `plan='admin'` e já vê o menu) ou rodar no Supabase de **testes**
+   `update organizations set plan = 'essencial' where id = '<id da organização>';`. (c) Teste real: com uma conta ML de
+   teste segura, fazer uma compra a partir de outra conta de teste, mandar mensagem pela compra, ligar o agente em
+   `/pos-venda/agente` e ver a resposta em Pós-venda. (d) Decidir: o teste grátis inclui o pós-venda? O menu deve aparecer
+   com cadeado para quem não tem o plano (vitrine) ou continuar escondido? Preço/limites do Essencial.
 2. **Breno: conferir na staging** o menu recolhendo pela barra, a caixa de entrada (filtro por anúncio, ordem, páginas), o
    novo Painel e a tela **Resultados** (a "Loja Demonstração" já tem 90 dias de histórico). Dizer se as premissas padrão
    da economia (3 min por resposta, R$ 20/h) fazem sentido para os clientes dele.

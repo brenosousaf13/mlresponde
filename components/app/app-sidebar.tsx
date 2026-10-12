@@ -7,6 +7,7 @@ import {
   LayoutDashboardIcon,
   LockIcon,
   MessageCircleQuestionIcon,
+  MessagesSquareIcon,
   PanelLeftCloseIcon,
   PanelLeftOpenIcon,
   Settings2Icon,
@@ -40,6 +41,7 @@ import type { NavItemConfig } from "@/lib/navigation"
 const ICONS: Record<NavItemConfig["icon"], LucideIcon> = {
   painel: LayoutDashboardIcon,
   perguntas: MessageCircleQuestionIcon,
+  pos_venda: MessagesSquareIcon,
   resultados: ChartColumnIncreasingIcon,
   assistente: BotIcon,
   contas: StoreIcon,

@@ -8,7 +8,7 @@ export async function mlRequest<T>(accountId: string, path: string, init: Reques
   const headers = new Headers(init.headers)
   headers.set("authorization", `Bearer ${accessToken}`)
   headers.set("accept", "application/json")
-  if (init.body) headers.set("content-type", "application/json")
+  if (init.body && !(init.body instanceof FormData)) headers.set("content-type", "application/json")
 
   const response = await fetch(`${ML_API_URL}${path}`, { ...init, headers, cache: "no-store" })
 
@@ -27,4 +27,17 @@ export async function mlRequest<T>(accountId: string, path: string, init: Reques
     throw new MlApiError(`Mercado Livre: ${message}`, response.status, code)
   }
   return data as T
+}
+
+/** Resposta bruta do ML (para arquivos, como anexos de mensagens). 401 marca o token como inválido. */
+export async function mlFetchRaw(accountId: string, path: string, init: RequestInit = {}): Promise<Response> {
+  const accessToken = await getValidAccessToken(accountId)
+  const headers = new Headers(init.headers)
+  headers.set("authorization", `Bearer ${accessToken}`)
+  const response = await fetch(`${ML_API_URL}${path}`, { ...init, headers, cache: "no-store" })
+  if (response.status === 401) {
+    await markTokenInvalid(accountId, "O Mercado Livre recusou o token (HTTP 401).")
+    throw new MlAccountUnavailableError("A autorização do Mercado Livre expirou. Reconecte a conta.")
+  }
+  return response
 }

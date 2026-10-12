@@ -9,6 +9,7 @@ import {
   type Access,
   type AppSection,
 } from "@/lib/access/access"
+import { featureAccess, type PlanFeature } from "@/lib/plans/plans"
 import { createServiceClient } from "@/lib/supabase/admin"
 import { createClient } from "@/lib/supabase/server"
 
@@ -33,6 +34,8 @@ export type AppContext = {
   role: MemberRole
   access: Access
   mlAccounts: { total: number; active: number }
+  /** Funcionalidades liberadas pelo plano (o administrador da plataforma vê todas). */
+  features: Record<PlanFeature, boolean>
   /**
    * Dados de cobrança (CPF/CNPJ + endereço). `required`: este usuário precisa preencher antes de usar o app
    * (dono/administrador; o admin da plataforma está dispensado). `completed`: a organização já tem o cadastro.
@@ -149,6 +152,7 @@ export const getAppContext = cache(async (): Promise<AppContext> => {
       total: mlAccounts.length,
       active: mlAccounts.filter((account) => account.status === "active").length,
     },
+    features: featureAccess(organization.plan, profile.is_platform_admin),
     billing: {
       required: canManageOrganization(role) && !profile.is_platform_admin,
       completed: Boolean(organization.billing_profiles),
@@ -175,6 +179,7 @@ export async function requireSection(section: AppSection) {
     access: context.access.state,
     hasActiveMlAccount: context.mlAccounts.active > 0,
     isPlatformAdmin: context.profile.isPlatformAdmin,
+    features: context.features,
   })
   if (!decision.allowed) redirect(decision.redirectTo)
   return context

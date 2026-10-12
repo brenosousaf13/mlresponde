@@ -2,8 +2,11 @@ import { timingSafeEqual } from "node:crypto"
 
 import { after, NextResponse, type NextRequest } from "next/server"
 
+import { processConversation, syncUnreadConversations } from "@/lib/after-sale/engine"
 import { processQuestion } from "@/lib/answers/engine"
 import { syncUnansweredQuestions } from "@/lib/answers/ingest"
+import { planIncludes } from "@/lib/plans/plans"
+import { createServiceClient } from "@/lib/supabase/admin"
 
 import { getCurrentUser } from "@/lib/dal/app-context"
 import { connectMlAccount } from "@/lib/mercadolivre/accounts"
@@ -68,6 +71,15 @@ export async function GET(request: NextRequest) {
         try {
           const { created } = await syncUnansweredQuestions(accountId)
           for (const id of created) await processQuestion(id)
+          // Pós-venda (plano Essencial): traz as conversas com mensagens não lidas.
+          const { data: organization } = await createServiceClient()
+            .from("organizations")
+            .select("plan")
+            .eq("id", payload.organizationId)
+            .single()
+          if (planIncludes(organization?.plan, "pos_venda")) {
+            for (const id of await syncUnreadConversations(accountId)) await processConversation(id)
+          }
         } catch (error) {
           console.error("[ml-oauth-callback] sync:", error instanceof Error ? error.message : error)
         }

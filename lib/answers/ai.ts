@@ -18,7 +18,8 @@ const resultSchema = z.object({
 
 let client: OpenAI | null = null
 
-function getClient() {
+/** Cliente OpenAI compartilhado (perguntas e pós-venda). */
+export function getOpenAIClient() {
   client ??= new OpenAI({ apiKey: serverEnv.openaiApiKey() })
   return client
 }
@@ -28,7 +29,7 @@ export type AiRun = { result: AiResult; model: string; tokens: number }
 export async function runAnswerModel(input: PromptInput): Promise<AiRun> {
   const model = serverEnv.openaiModel()
   const { reasoning_effort, ...options } = answerModelOptions(model)
-  const completion = await getClient().chat.completions.create({
+  const completion = await getOpenAIClient().chat.completions.create({
     model,
     messages: buildMessages(input),
     ...options,

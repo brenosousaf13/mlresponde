@@ -4,9 +4,21 @@ import Link from "next/link"
 
 import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/input-group"
 
-export function QuestionSearch({ value, hidden, clearHref }: { value: string; hidden: Record<string, string>; clearHref: string }) {
+export function QuestionSearch({
+  value,
+  hidden,
+  clearHref,
+  action = "/perguntas",
+  placeholder = "Buscar pergunta ou anúncio",
+}: {
+  value: string
+  hidden: Record<string, string>
+  clearHref: string
+  action?: string
+  placeholder?: string
+}) {
   return (
-    <Form action="/perguntas" className="flex-1">
+    <Form action={action} className="flex-1">
       {Object.entries(hidden).map(([name, hiddenValue]) => (
         <input key={name} type="hidden" name={name} value={hiddenValue} />
       ))}
@@ -14,7 +26,7 @@ export function QuestionSearch({ value, hidden, clearHref }: { value: string; hi
         <InputGroupAddon>
           <SearchIcon />
         </InputGroupAddon>
-        <InputGroupInput name="busca" defaultValue={value} placeholder="Buscar pergunta ou anúncio" aria-label="Buscar perguntas" />
+        <InputGroupInput name="busca" defaultValue={value} placeholder={placeholder} aria-label={placeholder} />
         {value ? (
           <InputGroupAddon align="inline-end">
             <Link href={clearHref} aria-label="Limpar busca" className="rounded-sm p-0.5 text-muted-foreground hover:text-foreground">

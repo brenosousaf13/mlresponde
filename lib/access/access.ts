@@ -1,3 +1,5 @@
+import type { PlanFeature } from "@/lib/plans/plans"
+
 export type AccessState = "trial" | "active" | "blocked"
 
 export type OrganizationBilling = {
@@ -35,6 +37,7 @@ export function computeAccess(
 export type AppSection =
   | "painel"
   | "perguntas"
+  | "pos_venda"
   | "resultados"
   | "assistente"
   | "contas"
@@ -43,19 +46,34 @@ export type AppSection =
 
 export type SectionDecision =
   | { allowed: true }
-  | { allowed: false; redirectTo: string; reason: "blocked" | "no_ml_account" }
+  | { allowed: false; redirectTo: string; reason: "blocked" | "no_ml_account" | "plan" }
 
 const ALWAYS_ALLOWED: readonly AppSection[] = ["assinatura", "configuracoes"]
 
+/** Seções exclusivas de um plano (o resto vale para todos os planos). */
+export const SECTION_FEATURES: Partial<Record<AppSection, PlanFeature>> = {
+  pos_venda: "pos_venda",
+}
+
 export function decideSectionAccess(
   section: AppSection,
-  context: { access: AccessState; hasActiveMlAccount: boolean; isPlatformAdmin?: boolean }
+  context: {
+    access: AccessState
+    hasActiveMlAccount: boolean
+    isPlatformAdmin?: boolean
+    /** Funcionalidades que o plano da organização libera. */
+    features?: Partial<Record<PlanFeature, boolean>>
+  }
 ): SectionDecision {
   if (context.isPlatformAdmin || ALWAYS_ALLOWED.includes(section)) {
     return { allowed: true }
   }
   if (context.access === "blocked") {
     return { allowed: false, redirectTo: "/assinatura", reason: "blocked" }
+  }
+  const feature = SECTION_FEATURES[section]
+  if (feature && !context.features?.[feature]) {
+    return { allowed: false, redirectTo: `/assinatura?recurso=${feature}`, reason: "plan" }
   }
   if (section === "contas" || context.hasActiveMlAccount) {
     return { allowed: true }

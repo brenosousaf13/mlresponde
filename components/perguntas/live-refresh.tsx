@@ -6,7 +6,14 @@ import { useEffect, useRef } from "react"
 
 import { createClient } from "@/lib/supabase/client"
 
-export function LiveRefresh({ organizationId }: { organizationId: string }) {
+/** Atualiza a tela quando muda alguma linha da organização (perguntas ou conversas de pós-venda). */
+export function LiveRefresh({
+  organizationId,
+  table = "ml_questions",
+}: {
+  organizationId: string
+  table?: "ml_questions" | "ml_conversations"
+}) {
   const router = useRouter()
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
@@ -20,10 +27,10 @@ export function LiveRefresh({ organizationId }: { organizationId: string }) {
       if (cancelled || !data.session) return
       await supabase.realtime.setAuth(data.session.access_token)
       channel = supabase
-        .channel(`ml_questions:${organizationId}`)
+        .channel(`${table}:${organizationId}`)
         .on(
           "postgres_changes",
-          { event: "*", schema: "public", table: "ml_questions", filter: `organization_id=eq.${organizationId}` },
+          { event: "*", schema: "public", table, filter: `organization_id=eq.${organizationId}` },
           () => {
             if (timer.current) clearTimeout(timer.current)
             timer.current = setTimeout(() => router.refresh(), 800)
@@ -39,7 +46,7 @@ export function LiveRefresh({ organizationId }: { organizationId: string }) {
       if (timer.current) clearTimeout(timer.current)
       if (channel) void supabase.removeChannel(channel)
     }
-  }, [organizationId, router])
+  }, [organizationId, router, table])
 
   return null
 }

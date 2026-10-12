@@ -17,20 +17,36 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const hasActiveMlAccount = context.mlAccounts.active > 0
 
   const supabase = await createClient()
-  const { count: reviewCount } = await supabase
-    .from("ml_questions")
-    .select("id", { count: "exact", head: true })
-    .eq("organization_id", context.organization.id)
-    .in("status", ["needs_review", "failed"])
+  const [{ count: reviewCount }, { count: afterSaleCount }] = await Promise.all([
+    supabase
+      .from("ml_questions")
+      .select("id", { count: "exact", head: true })
+      .eq("organization_id", context.organization.id)
+      .in("status", ["needs_review", "failed"]),
+    context.features.pos_venda
+      ? supabase
+          .from("ml_conversations")
+          .select("id", { count: "exact", head: true })
+          .eq("organization_id", context.organization.id)
+          .in("status", ["needs_review", "failed"])
+      : Promise.resolve({ count: 0 }),
+  ])
+  const badges: Partial<Record<SidebarNavItem["section"], number>> = {
+    perguntas: reviewCount ?? 0,
+    pos_venda: afterSaleCount ?? 0,
+  }
 
-  const items: SidebarNavItem[] = NAV_ITEMS.map((item) => {
+  const items = NAV_ITEMS.flatMap((item): SidebarNavItem[] => {
     const decision = decideSectionAccess(item.section, {
       access: context.access.state,
       hasActiveMlAccount,
       isPlatformAdmin: context.profile.isPlatformAdmin,
+      features: context.features,
     })
-    if (!decision.allowed) return { ...item, lockedReason: LOCK_REASONS[decision.reason] }
-    return item.section === "perguntas" ? { ...item, badge: reviewCount ?? 0 } : item
+    // Itens exclusivos de um plano só aparecem para quem tem o plano.
+    if (!decision.allowed && decision.reason === "plan") return []
+    if (!decision.allowed) return [{ ...item, lockedReason: LOCK_REASONS[decision.reason] }]
+    return [{ ...item, badge: badges[item.section] }]
   })
 
   return (

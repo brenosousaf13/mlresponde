@@ -14,6 +14,7 @@ import Link from "next/link"
 import { AccessBadge } from "@/components/app/access-badge"
 import { PageHeader } from "@/components/app/page-header"
 import { AwaitingQuestionsCard, RecentQuestionsCard, TopItemsCard } from "@/components/painel/question-cards"
+import { AfterSaleSummaryCard } from "@/components/pos-venda/summary-card"
 import { buttonVariants } from "@/components/ui/button"
 import {
   Card,
@@ -25,6 +26,7 @@ import {
   CardTitle,
 } from "@/components/ui/card"
 import { requireSection } from "@/lib/dal/app-context"
+import { getAfterSaleSummary } from "@/lib/dal/after-sale"
 import { getDashboardData } from "@/lib/dal/dashboard"
 import { formatDate, formatDuration, formatNumber, pluralize } from "@/lib/format"
 import { cn } from "@/lib/utils"
@@ -36,7 +38,7 @@ const DAYS = 7
 export default async function DashboardPage() {
   const context = await requireSection("painel")
   const firstName = context.profile.fullName.split(" ")[0]
-  const { access, mlAccounts, organization } = context
+  const { access, mlAccounts, organization, features } = context
 
   const {
     total,
@@ -51,6 +53,7 @@ export default async function DashboardPage() {
     topItems,
     topItemsSampled,
   } = await getDashboardData(organization.id, DAYS)
+  const afterSale = features.pos_venda ? await getAfterSaleSummary(organization.id, DAYS) : null
   const aiRate = total ? Math.round((answeredAi / total) * 100) : 0
 
   const steps = [
@@ -168,6 +171,7 @@ export default async function DashboardPage() {
               </Link>
             </CardFooter>
           </Card>
+          {afterSale ? <AfterSaleSummaryCard summary={afterSale} days={DAYS} /> : null}
           <TopItemsCard items={topItems} sampled={topItemsSampled} days={DAYS} />
         </div>
       </div>

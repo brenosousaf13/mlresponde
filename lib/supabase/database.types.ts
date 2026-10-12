@@ -14,6 +14,61 @@ export type Database = {
   }
   public: {
     Tables: {
+      after_sale_examples: {
+        Row: {
+          answer_text: string
+          buyer_message: string
+          created_at: string
+          created_by: string | null
+          id: string
+          ml_account_id: string
+          organization_id: string
+          source_conversation_id: string | null
+        }
+        Insert: {
+          answer_text: string
+          buyer_message: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          ml_account_id: string
+          organization_id: string
+          source_conversation_id?: string | null
+        }
+        Update: {
+          answer_text?: string
+          buyer_message?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          ml_account_id?: string
+          organization_id?: string
+          source_conversation_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "after_sale_examples_ml_account_id_fkey"
+            columns: ["ml_account_id"]
+            isOneToOne: false
+            referencedRelation: "ml_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "after_sale_examples_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "after_sale_examples_source_conversation_id_fkey"
+            columns: ["source_conversation_id"]
+            isOneToOne: false
+            referencedRelation: "ml_conversations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ai_examples: {
         Row: {
           answer_text: string
@@ -246,6 +301,11 @@ export type Database = {
       }
       ml_accounts: {
         Row: {
+          after_sale_confidence_threshold: number
+          after_sale_enabled: boolean
+          after_sale_instructions: string
+          after_sale_sensitive_policy: string
+          after_sale_signature: string
           ai_confidence_threshold: number
           answer_greeting: string
           answer_mode: string
@@ -271,6 +331,11 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          after_sale_confidence_threshold?: number
+          after_sale_enabled?: boolean
+          after_sale_instructions?: string
+          after_sale_sensitive_policy?: string
+          after_sale_signature?: string
           ai_confidence_threshold?: number
           answer_greeting?: string
           answer_mode?: string
@@ -296,6 +361,11 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          after_sale_confidence_threshold?: number
+          after_sale_enabled?: boolean
+          after_sale_instructions?: string
+          after_sale_sensitive_policy?: string
+          after_sale_signature?: string
           ai_confidence_threshold?: number
           answer_greeting?: string
           answer_mode?: string
@@ -323,6 +393,246 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "ml_accounts_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ml_conversation_messages: {
+        Row: {
+          attachments: Json
+          conversation_id: string
+          created_at: string
+          id: string
+          ml_message_id: string
+          ml_status: string | null
+          moderation_reason: string | null
+          moderation_status: string | null
+          organization_id: string
+          sender: string
+          sent_at: string
+          sent_by: string | null
+          source: string
+          text: string
+        }
+        Insert: {
+          attachments?: Json
+          conversation_id: string
+          created_at?: string
+          id?: string
+          ml_message_id: string
+          ml_status?: string | null
+          moderation_reason?: string | null
+          moderation_status?: string | null
+          organization_id: string
+          sender: string
+          sent_at: string
+          sent_by?: string | null
+          source: string
+          text?: string
+        }
+        Update: {
+          attachments?: Json
+          conversation_id?: string
+          created_at?: string
+          id?: string
+          ml_message_id?: string
+          ml_status?: string | null
+          moderation_reason?: string | null
+          moderation_status?: string | null
+          organization_id?: string
+          sender?: string
+          sent_at?: string
+          sent_by?: string | null
+          source?: string
+          text?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ml_conversation_messages_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "ml_conversations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ml_conversation_messages_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ml_conversations: {
+        Row: {
+          ai_confidence: number | null
+          ai_draft: string | null
+          ai_model: string | null
+          ai_reason: string | null
+          ai_tokens: number | null
+          ai_topic: string | null
+          answered_at: string | null
+          attempts: number
+          awaiting_since: string | null
+          buyer_id: number | null
+          buyer_nickname: string | null
+          claim_open: boolean
+          created_at: string
+          currency_id: string | null
+          estimated_delivery_at: string | null
+          id: string
+          item_id: string | null
+          item_permalink: string | null
+          item_thumbnail: string | null
+          item_title: string | null
+          items_count: number
+          last_answer_source: string | null
+          last_error: string | null
+          last_message_at: string | null
+          last_message_from: string | null
+          last_message_text: string | null
+          locked_until: string | null
+          logistic_type: string | null
+          max_message_length: number
+          ml_account_id: string
+          ml_status: string
+          ml_substatus: string | null
+          next_attempt_at: string
+          order_ids: string[]
+          order_status: string | null
+          order_summary: Json
+          order_total: number | null
+          ordered_at: string | null
+          organization_id: string
+          pack_id: string
+          pending_count: number
+          resync_requested: boolean
+          review_reason: string | null
+          shipment_id: number | null
+          shipping_status: string | null
+          shipping_substatus: string | null
+          status: string
+          synced_at: string | null
+          tracking_number: string | null
+          updated_at: string
+        }
+        Insert: {
+          ai_confidence?: number | null
+          ai_draft?: string | null
+          ai_model?: string | null
+          ai_reason?: string | null
+          ai_tokens?: number | null
+          ai_topic?: string | null
+          answered_at?: string | null
+          attempts?: number
+          awaiting_since?: string | null
+          buyer_id?: number | null
+          buyer_nickname?: string | null
+          claim_open?: boolean
+          created_at?: string
+          currency_id?: string | null
+          estimated_delivery_at?: string | null
+          id?: string
+          item_id?: string | null
+          item_permalink?: string | null
+          item_thumbnail?: string | null
+          item_title?: string | null
+          items_count?: number
+          last_answer_source?: string | null
+          last_error?: string | null
+          last_message_at?: string | null
+          last_message_from?: string | null
+          last_message_text?: string | null
+          locked_until?: string | null
+          logistic_type?: string | null
+          max_message_length?: number
+          ml_account_id: string
+          ml_status?: string
+          ml_substatus?: string | null
+          next_attempt_at?: string
+          order_ids?: string[]
+          order_status?: string | null
+          order_summary?: Json
+          order_total?: number | null
+          ordered_at?: string | null
+          organization_id: string
+          pack_id: string
+          pending_count?: number
+          resync_requested?: boolean
+          review_reason?: string | null
+          shipment_id?: number | null
+          shipping_status?: string | null
+          shipping_substatus?: string | null
+          status?: string
+          synced_at?: string | null
+          tracking_number?: string | null
+          updated_at?: string
+        }
+        Update: {
+          ai_confidence?: number | null
+          ai_draft?: string | null
+          ai_model?: string | null
+          ai_reason?: string | null
+          ai_tokens?: number | null
+          ai_topic?: string | null
+          answered_at?: string | null
+          attempts?: number
+          awaiting_since?: string | null
+          buyer_id?: number | null
+          buyer_nickname?: string | null
+          claim_open?: boolean
+          created_at?: string
+          currency_id?: string | null
+          estimated_delivery_at?: string | null
+          id?: string
+          item_id?: string | null
+          item_permalink?: string | null
+          item_thumbnail?: string | null
+          item_title?: string | null
+          items_count?: number
+          last_answer_source?: string | null
+          last_error?: string | null
+          last_message_at?: string | null
+          last_message_from?: string | null
+          last_message_text?: string | null
+          locked_until?: string | null
+          logistic_type?: string | null
+          max_message_length?: number
+          ml_account_id?: string
+          ml_status?: string
+          ml_substatus?: string | null
+          next_attempt_at?: string
+          order_ids?: string[]
+          order_status?: string | null
+          order_summary?: Json
+          order_total?: number | null
+          ordered_at?: string | null
+          organization_id?: string
+          pack_id?: string
+          pending_count?: number
+          resync_requested?: boolean
+          review_reason?: string | null
+          shipment_id?: number | null
+          shipping_status?: string | null
+          shipping_substatus?: string | null
+          status?: string
+          synced_at?: string | null
+          tracking_number?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ml_conversations_ml_account_id_fkey"
+            columns: ["ml_account_id"]
+            isOneToOne: false
+            referencedRelation: "ml_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ml_conversations_organization_id_fkey"
             columns: ["organization_id"]
             isOneToOne: false
             referencedRelation: "organizations"
@@ -685,6 +995,67 @@ export type Database = {
         }
         Returns: Json
       }
+      claim_ml_conversation: {
+        Args: { p_id: string; p_lock_seconds?: number }
+        Returns: {
+          ai_confidence: number | null
+          ai_draft: string | null
+          ai_model: string | null
+          ai_reason: string | null
+          ai_tokens: number | null
+          ai_topic: string | null
+          answered_at: string | null
+          attempts: number
+          awaiting_since: string | null
+          buyer_id: number | null
+          buyer_nickname: string | null
+          claim_open: boolean
+          created_at: string
+          currency_id: string | null
+          estimated_delivery_at: string | null
+          id: string
+          item_id: string | null
+          item_permalink: string | null
+          item_thumbnail: string | null
+          item_title: string | null
+          items_count: number
+          last_answer_source: string | null
+          last_error: string | null
+          last_message_at: string | null
+          last_message_from: string | null
+          last_message_text: string | null
+          locked_until: string | null
+          logistic_type: string | null
+          max_message_length: number
+          ml_account_id: string
+          ml_status: string
+          ml_substatus: string | null
+          next_attempt_at: string
+          order_ids: string[]
+          order_status: string | null
+          order_summary: Json
+          order_total: number | null
+          ordered_at: string | null
+          organization_id: string
+          pack_id: string
+          pending_count: number
+          resync_requested: boolean
+          review_reason: string | null
+          shipment_id: number | null
+          shipping_status: string | null
+          shipping_substatus: string | null
+          status: string
+          synced_at: string | null
+          tracking_number: string | null
+          updated_at: string
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "ml_conversations"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
       claim_ml_question: {
         Args: { p_id: string; p_lock_seconds?: number }
         Returns: {
@@ -725,14 +1096,20 @@ export type Database = {
           isSetofReturn: true
         }
       }
+      current_user_after_sale_organization_ids: {
+        Args: never
+        Returns: string[]
+      }
       current_user_managed_organization_ids: { Args: never; Returns: string[] }
       current_user_organization_ids: { Args: never; Returns: string[] }
+      due_ml_conversations: { Args: { p_limit?: number }; Returns: string[] }
       due_ml_questions: { Args: { p_limit?: number }; Returns: string[] }
       is_org_member: { Args: { p_organization_id: string }; Returns: boolean }
       is_valid_tax_document: {
         Args: { p_document: string; p_type: string }
         Returns: boolean
       }
+      plan_includes_after_sale: { Args: { p_plan: string }; Returns: boolean }
       question_stats: {
         Args: {
           p_ml_account_id?: string
