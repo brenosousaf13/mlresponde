@@ -102,8 +102,9 @@ novas funcionalidades, segurança multi-tenant de verdade — **desenvolvido em 
   importação e os arquivos com os dados do cliente foram **apagados** (staging e pasta privada voltaram ao estado anterior).
   **Sessão 15 (2026-10-12): decisão da troca + reforço de segurança.** O Breno decidiu: a **v1 será descontinuada** e os
   clientes atuais **não serão migrados** (vão se recadastrar na v2, sem importar nada do banco da v1); o projeto Supabase da
-  v2 (`ookosqyfazobiwmopiix`, plano grátis) **vira o banco de produção**; o **mesmo app ML de produção** passa a usar as URLs
-  novas; domínio **`maanu.com.br`** (comprado, no Registro.br). Feito: migração `reforco_seguranca` (tabelas herdadas da v1
+  v2 (`ookosqyfazobiwmopiix`, plano grátis) **vira o banco de produção**; domínio **`maanu.com.br`** (comprado, no Registro.br).
+  Antes de desligar a v1, **1 semana de teste com 1 cliente real na v2** (o app ML **da v2** vira o definitivo; a `main`/v1
+  só muda depois do teste). Feito: migração `reforco_seguranca` (tabelas herdadas da v1
   trancadas, função `rls_auto_enable` fora da API, padrão "nada novo fica acessível sem GRANT"), SSL obrigatório no banco,
   senha do banco trocada por uma aleatória que ninguém guarda, senhas de usuário com letras e números. Detalhes em §8 e §12.
   Plano da troca em §13 (item 0a).
@@ -1058,7 +1059,8 @@ webhook do ML validado, fila/reprocessamento de jobs, observabilidade, controle 
 | 2026-10-12 | Sem "entrar como cliente" (impersonação) e sem excluir conta nesta versão | Impersonação dá acesso total a dados de cliente (risco LGPD) e exclusão é irreversível; ficam para quando houver necessidade real e regras claras. |
 | 2026-10-12 | **v1 descontinuada sem migração de dados**: os clientes atuais se recadastram na v2; nada é importado do banco da v1 | Decisão do Breno (6 clientes): quer ver a jornada desde o início e ter dados literalmente novos. Os scripts de `scripts/v1-para-v2/` ficam só como referência. |
 | 2026-10-12 | O projeto Supabase da v2 (`ookosqyfazobiwmopiix`, plano grátis) **vira o banco de produção**; nenhuma migração da v2 vai para o banco da v1 | Decisão do Breno. Consequência: depois da troca não existe mais staging com banco separado (testes locais/na staging passam a mexer no banco real); um banco de testes novo pode ser criado depois. Sem backups diários no plano grátis. |
-| 2026-10-12 | **Mesmo app ML de produção**, só trocando as URLs (redirect e notificações) para `maanu.com.br` | Decisão do Breno. Ao trocar as URLs a v1 para de receber perguntas na hora (aceito, a v1 será desligada). Os clientes autorizam o app de novo ao conectar a conta na v2. |
+| 2026-10-12 | ~~Mesmo app ML de produção, só trocando as URLs~~ → **superada no mesmo dia** pela semana de teste (linha abaixo) | Trocar as URLs do app da v1 derrubaria a v1 de todos na hora. |
+| 2026-10-12 | **Semana de teste com 1 cliente real na v2 antes de desligar a v1** (Breno). O **app ML da v2** (Client ID `8693830632560554`, hoje chamado "de teste") vira o **definitivo**: renomear para maanu e apontar as URLs para `maanu.com.br`. A v2 roda num **projeto Vercel novo "maanu"** com production branch `v2` e o domínio; a `main` (v1) não muda até o fim do teste | Cada app ML tem 1 URL de notificações: o app da v1 não serve as duas versões ao mesmo tempo, e trocar de app depois do teste obrigaria o cliente a reconectar. Crons da Vercel só rodam em deploy de produção (por isso projeto novo em vez de preview). O cliente do teste remove o app "Meli Fácil" dos aplicativos autorizados da conta ML dele (o "pausar" da v1 não funciona); volta = reconectar na v1 e pausar na v2. |
 | 2026-10-12 | Domínio **`maanu.com.br`** (Registro.br) para o app e para os e-mails (SMTP) | Comprado pelo Breno. |
 | 2026-10-12 | Reforço de segurança do banco da v2 (§8 "Segurança do Supabase da v2"): privilégios padrão negados, SSL obrigatório, senha do banco aleatória e não guardada, senha de usuário com letras + números | O banco vira produção e o cadastro é público. Falhar fechado (erro de permissão) é melhor que expor dados. |
 
@@ -1086,6 +1088,8 @@ webhook do ML validado, fila/reprocessamento de jobs, observabilidade, controle 
   `mlresponde.vercel.app` (produção) e `mlresponde-v2.vercel.app` (→ `v2`). O token da CLI tinha expirado; renovado com
   `npx vercel whoami`.
 - Verificação: typecheck, 298 testes, lint 0, build ok. Nada mudou na v1/produção.
+- Ajuste no mesmo dia: o Breno vai testar 1 semana com 1 cliente na v2 antes de desligar a v1 → app ML **da v2** vira o
+  definitivo, v2 num projeto Vercel novo "maanu" (production branch `v2`) e `main` só muda depois (§11, §13 0a).
 
 ### 2026-10-12 — Sessão 14 · Cliente real da v1 importado na staging (IA: Claude, via app Codex)
 - Pedido do Breno: trazer o perfil inteiro de UM usuário da v1 (com todas as perguntas e respostas) para a v2, para ver
@@ -1387,29 +1391,33 @@ webhook do ML validado, fila/reprocessamento de jobs, observabilidade, controle 
 
 ## 13. Próximos passos
 
-0a. **TROCA: v2 vira a `main`/produção (decidido na Sessão 15; executar quando o Breno der o "pode fazer").**
-   Sem migração de dados; a v1 é desligada. Ordem:
-   1. **E-mail (bloqueia o cadastro dos clientes):** Breno cria conta no Resend e adiciona o domínio `maanu.com.br`; a IA
-      passa os registros DNS (SPF/DKIM) para ele colocar no Registro.br; depois a IA configura o SMTP no Supabase (remetente
-      tipo `nao-responda@maanu.com.br`, nome "maanu") e sobe o limite de e-mails por hora.
-   2. **Domínio no app:** a IA adiciona `maanu.com.br` (+ `www`) ao projeto `mlresponde` na Vercel; Breno coloca no Registro.br
-      os registros que a Vercel mostrar (A/CNAME). Dá para testar o domínio apontado para a branch `v2` antes do merge.
-   3. **Chaves novas do Supabase** (§8): criar `sb_publishable_`/`sb_secret_` e chave de assinatura JWT assimétrica, trocar
-      nas variáveis (Preview `v2`, `.env.local` e Production), testar e só então revogar as legadas.
-   4. **Variáveis de Production** (a IA, com aprovação): `NEXT_PUBLIC_SUPABASE_URL`/chaves → projeto da v2;
-      `ML_TOKEN_ENCRYPTION_KEY` nova; `CRON_SECRET` novo; `NEXT_PUBLIC_SITE_URL` e `ML_REDIRECT_URI` com `https://maanu.com.br`.
-      `ML_CLIENT_ID`/`ML_CLIENT_SECRET` continuam (mesmo app). Tirar Preview/Development das variáveis antigas.
-   5. **Supabase Auth:** Site URL `https://maanu.com.br`, redirects `https://maanu.com.br/**` (tirar localhost).
-   6. **Limpar dados de demonstração** do banco (conta ML fictícia e as perguntas de exemplo da organização admin do Breno;
-      perguntar antes sobre a "Noord Shop"). Manter o login admin do Breno.
-   7. Merge `v2` → `main` (deploy automático) e teste ponta a ponta no domínio.
-   8. **Breno, no DevCenter do app ML de produção:** trocar redirect para `https://maanu.com.br/api/auth/callback/mercadolivre`
-      e notificações para `https://maanu.com.br/api/webhook/mercadolivre`; conferir permissões e tópicos iguais aos do app
-      de teste (§9: `questions`, `messages`, `orders_v2`... e Comunicações pré/pós-venda + Venda e envios L+E); trocar nome
-      e logo para maanu. **A partir daqui a v1 para de responder** → avisar os clientes para se recadastrarem.
-   9. Depois: atualizar `AGENTS.md` e §2 (o banco "de testes" passa a ser produção: nada destrutivo nele; CLI com cuidado),
-      decidir o destino da staging (sem banco separado agora) e desligar o projeto da v1 quando ninguém mais usar.
-0. **Breno: primeiro acesso ao painel do administrador na staging** (`https://mlresponde-v2.vercel.app/admin`): entrar com
+0a. **TROCA em 2 fases (Sessões 15; executar quando o Breno der o "pode fazer").** Sem migração de dados.
+   **Fase 1 — semana de teste com 1 cliente (a v1 continua no ar para os outros):**
+   1. Breno: no Registro.br, trocar os servidores DNS de `maanu.com.br` para `ns1.vercel-dns.com` / `ns2.vercel-dns.com`
+      (a IA passa a gerenciar os registros pela Vercel); criar conta no Resend; dizer se a "Noord Shop" pode ser apagada.
+   2. IA: limpar os dados de demonstração do banco (conta ML fictícia, perguntas de exemplo; manter o login admin do Breno).
+   3. IA: chaves novas do Supabase (`sb_publishable_`/`sb_secret_` + assinatura JWT assimétrica), trocar nas variáveis e no
+      `.env.local`, testar e revogar as legadas (§8).
+   4. IA: projeto Vercel novo **"maanu"** (mesmo repositório), production branch **`v2`**, domínio `maanu.com.br` (+ `www`),
+      variáveis de **Production**: Supabase da v2, `ML_CLIENT_ID`/`ML_CLIENT_SECRET` do **app da v2** (secret: o Breno cola no
+      painel), `ML_REDIRECT_URI` e `NEXT_PUBLIC_SITE_URL` com `https://maanu.com.br`, `ML_TOKEN_ENCRYPTION_KEY` (a mesma da
+      staging, para não invalidar contas já conectadas, ou nova se o banco estiver limpo), `CRON_SECRET` novo, `OPENAI_API_KEY`.
+      Evitar builds de outras branches nesse projeto (ignored build step). Crons passam a rodar ali.
+   5. IA: Supabase Auth com Site URL `https://maanu.com.br` e redirects `https://maanu.com.br/**` (sem localhost); SMTP do
+      Resend (remetente `@maanu.com.br`, nome "maanu") e limite de e-mails maior. Sem SMTP pronto: confirmar o e-mail do
+      cliente pelo painel admin.
+   6. Breno, no DevCenter do **app da v2**: nome/logo maanu; redirect `https://maanu.com.br/api/auth/callback/mercadolivre`;
+      notificações `https://maanu.com.br/api/webhook/mercadolivre`. (A staging `mlresponde-v2.vercel.app` deixa de receber.)
+   7. Cliente do teste: cadastro em `maanu.com.br`, conecta a conta ML, configura o Assistente, liga a IA e **remove o app
+      "Meli Fácil" dos aplicativos autorizados da conta ML** (senão a v1 continua respondendo por ele). Voltar atrás:
+      reconectar na v1 e pausar a IA na v2.
+   **Fase 2 — depois que o Breno aprovar o teste:**
+   8. Merge `v2` → `main` (com aprovação); projeto "maanu" passa a usar production branch `main`; projeto antigo
+      `mlresponde` desligado (ou sem Git) para não publicar a v2 com as variáveis da v1.
+   9. Breno avisa os outros clientes para se cadastrarem em `maanu.com.br`; desligar o app ML da v1 e pausar o Supabase da
+      v1 quando ninguém mais usar.
+   10. Atualizar `AGENTS.md` e §2 (o banco da v2 é produção: nada destrutivo; CLI com cuidado) e decidir um ambiente de
+       testes novo (hoje não existe banco separado).0. **Breno: primeiro acesso ao painel do administrador na staging** (`https://mlresponde-v2.vercel.app/admin`): entrar com
    `brenosousaf13@gmail.com` (já é admin), clicar em "Gerar QR code", escanear com um app autenticador no celular e digitar
    o código. **Guardar o código secreto** que aparece (permite cadastrar o mesmo autenticador em outro celular). Depois:
    (a) em Financeiro → "Ajustar números", colocar a cotação do dólar que o cartão cobra e os custos fixos (Vercel, Supabase,
