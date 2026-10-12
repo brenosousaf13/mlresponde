@@ -1003,6 +1003,10 @@ webhook do ML validado, fila/reprocessamento de jobs, observabilidade, controle 
   grafite, eixo em US$ cortado, tabela "Por função" estourando, preços com vírgula, "< 1%", histórico com nomes legíveis,
   links entre app e painel com subdomínio. A chave da OpenAI foi lida da Vercel só em memória (passada por stdin).
   Dados de QA (usuários, lojas, perguntas, eventos de uso) apagados no fim; o histórico de auditoria do QA fica (é imutável).
+- ⚠️ **Deploy da staging não saiu:** o push `cb33e96` chegou ao GitHub, mas a Vercel não criou o deploy automático e dois
+  deploys disparados pela API (mesmo commit, ref `v2`) falharam com `git_info_fail` (a Vercel não consegue ler o
+  repositório no GitHub). Os 2 deploys com erro ficaram na lista (inofensivos). **Não** foi feito deploy pela CLI local:
+  sem o vínculo da branch, ele usaria as variáveis gerais de Preview, que hoje são as de **produção** (§5).
 
 ### 2026-10-11 — Sessão 12 · Nova marca: maanu (IA: Claude, via app Codex)
 - Pedido do Breno: trocar toda a identidade visual e o nome da plataforma para **maanu**; mandou a apresentação da marca, a
@@ -1236,6 +1240,10 @@ webhook do ML validado, fila/reprocessamento de jobs, observabilidade, controle 
 
 ## 13. Próximos passos
 
+0a. **Breno: reconectar a Vercel ao GitHub** — a staging não está recebendo deploys (`git_info_fail`, Sessão 13). Conferir em
+   Vercel → projeto `mlresponde` → Settings → Git (repositório conectado) e no GitHub → Settings → Applications → Vercel
+   (acesso ao repositório `mlresponde`). Depois, "Redeploy" do último commit da `v2` (ou um push qualquer). A produção
+   (`main`) também depende dessa integração. A migração do painel já está aplicada no Supabase de testes.
 0. **Breno: primeiro acesso ao painel do administrador na staging** (`https://mlresponde-v2.vercel.app/admin`): entrar com
    `brenosousaf13@gmail.com` (já é admin), clicar em "Gerar QR code", escanear com um app autenticador no celular e digitar
    o código. **Guardar o código secreto** que aparece (permite cadastrar o mesmo autenticador em outro celular). Depois:
