@@ -4,7 +4,7 @@
 > inteiro antes de trabalhar e atualizá-lo ao terminar. Se algo aqui divergir do código, o código vence —
 > e este arquivo deve ser corrigido na mesma sessão.
 
-Última atualização: **2026-10-12** (Sessão 14 — **importação de um cliente real da v1 para a staging da v2**, branch `v2`)
+Última atualização: **2026-10-12** (Sessão 14 — **migração v1 → v2**: scripts + importação de teste de um cliente real, já apagada; branch `v2`)
 
 ---
 
@@ -98,7 +98,8 @@ novas funcionalidades, segurança multi-tenant de verdade — **desenvolvido em 
   inteiro de um cliente da produção (loja de moda feminina: 831 perguntas de mai–out/2026, base de conhecimento de ~25 mil
   caracteres, 113 exemplos) e importação na staging com login próprio, para o Breno ver os dados reais nas telas da v2.
   Scripts reutilizáveis em `scripts/v1-para-v2/` + regras do mapeamento em `lib/migration/v1.ts` (testadas) = base da
-  migração do cutover (§6.3). Corrigido também um loop de redirecionamento no login (§8).
+  migração do cutover (§6.3). Corrigido também um loop de redirecionamento no login (§8). Depois de o Breno testar, a
+  importação e os arquivos com os dados do cliente foram **apagados** (staging e pasta privada voltaram ao estado anterior).
 - **Marca:** **maanu** (decisão do Breno, 2026-10-11). Guia de uso, paleta e arquivos em `docs/brand/README.md`; nome,
   assinatura e slogan em `lib/config/site.ts`; logo só pelos componentes de `components/brand/logo.tsx`.
 - P0 de segurança/toggle (§8) **adiados** por decisão do Breno — revisitar antes de abrir para novos clientes.
@@ -510,8 +511,10 @@ exportação só faz GET e a importação recusa qualquer destino que não seja 
 - `question_created_at` = `created_at` da v1 (chegada do webhook ≈ hora da pergunta). A v1 não guarda foto do anúncio
   (`item_thumbnail` vazio → ícone padrão) nem `buyer_id`.
 - Nenhuma pergunta importada entra na fila (`due_ml_questions` só pega `pending|processing|failed`).
-- Dados de clientes (exportação, assistente convertido, anotações) **só** em `docs/v2/privado/v1-para-v2/` (fora do git).
-  Lá também está o `LEIA-ME.md` com qual cliente foi importado e o comando para refazer/apagar.
+- Dados de clientes (exportação, assistente convertido, anotações) **só** em `docs/v2/privado/v1-para-v2/` (fora do git) e
+  apagados quando o teste acaba. Formato do arquivo do assistente: ver as validações em `scripts/v1-para-v2/importar.mjs`
+  (`store_profile`, `store_briefing`, `answer_tone/greeting/signature/mode`, `fallback_answer`, `ai_confidence_threshold`,
+  `v1_fallback_markers`). Hoje **não há** nenhum cliente da v1 importado na staging.
 
 ---
 
@@ -1018,7 +1021,7 @@ webhook do ML validado, fila/reprocessamento de jobs, observabilidade, controle 
 - Acesso à produção **só leitura**: a service role da v1 foi lida da API da Vercel só em memória e usada apenas em GET
   (auth admin + REST), sem nenhuma escrita. Levantamento dos 7 usuários; escolhido o mais completo (loja de moda feminina,
   conta ML com 831 perguntas de 14/05 a 12/10/2026, base de conhecimento de 24.898 caracteres, 113 exemplos). A mesma loja
-  tem uma 2ª conta na v1 (1.631 perguntas, sem exemplos) — não importada. Identificação em `docs/v2/privado/v1-para-v2/LEIA-ME.md`.
+  tem uma 2ª conta na v1 (1.631 perguntas, sem exemplos) — não importada.
 - Novo: `lib/migration/v1.ts` (regras, §6.3) + `tests/unit/migration-v1.test.ts` (12 testes), `scripts/v1-para-v2/exportar.mjs`
   e `importar.mjs` (Node roda o TypeScript de `lib/` direto; avisa `MODULE_TYPELESS_PACKAGE_JSON`, inofensivo — usar
   `--disable-warning=MODULE_TYPELESS_PACKAGE_JSON`). A base de conhecimento foi convertida à mão para a configuração
@@ -1036,7 +1039,13 @@ webhook do ML validado, fila/reprocessamento de jobs, observabilidade, controle 
 - Bug achado e corrigido: loop de redirecionamento no /login com sessão de usuário apagado/bloqueado (§8, `proxy.ts`).
 - Achados da v1 (produção, não mexido): 3 perguntas presas em `processing` desde jul–set e erros "No ML credentials found
   for this seller" em set/2026 nas contas dessa loja (indício de reconexão/credencial perdida na v1).
-- Verificação: typecheck, testes (297 + 12 novos da migração), lint 0, build ok.
+- Verificação: typecheck, 297 testes (12 novos da migração), lint 0, build ok.
+- **Limpeza (mesmo dia, pedido do Breno depois de testar):** apagados do Supabase de testes a organização importada (em
+  cascata: conta ML, 831 perguntas, 113 ensinadas, dados de cobrança fictícios, nota interna), os 2 registros de uso de IA
+  dos testes dele e o login; conferido: 2 organizações, 2 usuários e 398 perguntas, como antes, sem perfis ou organizações
+  órfãos. Apagados também os arquivos da pasta privada (exportação, assistente convertido, LEIA-ME) e a chave da produção
+  que estava na memória da sessão. Fica só o código (scripts, regras testadas e a correção do login). O histórico de
+  auditoria do painel admin é imutável, mas não tinha registros dessa importação.
 
 ### 2026-10-12 — Sessão 13 · Painel do administrador (IA: Claude, via app Codex)
 - Pedido do Breno: painel para monitorar a plataforma inteira (tokens gastos, financeiro, cadastros, usuários ativos,
@@ -1343,11 +1352,9 @@ webhook do ML validado, fila/reprocessamento de jobs, observabilidade, controle 
    ML **segura** (sem compradores reais e que NÃO esteja no app de produção), concluir a configuração do Assistente de IA,
    ligar, e fazer uma pergunta num anúncio dessa conta a partir de outra conta ML. Conferir em Perguntas.
 5. Depois do 1º OAuth bem-sucedido: marcar PKCE como obrigatório no app ML de teste.
-5b. **Breno: conferir o cliente importado na staging** (`https://mlresponde-v2.vercel.app`, login e senha passados no chat;
-   trocar a senha em Configurações). Ver Painel, Perguntas (inclusive "Respondidas pela IA" → "Só mensagem padrão"),
-   Resultados (90 dias) e o Assistente (a base de conhecimento da v1 convertida — dizer se algo ficou faltando). **Não
-   reconectar essa conta ML na staging**: é loja real de cliente e a v1 ainda responde por ela (§9). Para importar outro
-   cliente ou a 2ª conta da mesma loja: `scripts/v1-para-v2/` + conversão do assistente por IA (§6.3, §14).
+5b. ✅ Teste de importação de um cliente real feito e apagado (Sessão 14). Para importar de novo (outro teste ou o cutover):
+   `scripts/v1-para-v2/` + conversão da base de conhecimento por IA (§6.3, §14). Numa importação de teste, **nunca
+   reconectar na staging a conta ML do cliente** (é loja real e a v1 ainda responde por ela, §9) e apagar tudo no fim.
 6. **Decidir com o Breno o próximo passo:** (a) migração de dados v1 → v2 e cutover (clientes atuais com cortesia,
    reconectar contas, importar base de conhecimento → "Outras informações" e exemplos → respostas ensinadas; o prompt do
    cliente atual da v1 pode virar as respostas da configuração guiada), ou (b) sub-projeto 4 (planos e cobrança), ou (c) WhatsApp.
@@ -1412,7 +1419,7 @@ Migração v1 → v2 (§6.3; saídas sempre em `docs/v2/privado/`):
 # 1) Exportar da v1 (só GET). Chaves da v1 só na memória do terminal, nunca em arquivo.
 $env:V1_SUPABASE_URL = "..."; $env:V1_SUPABASE_SERVICE_ROLE_KEY = "..."
 node scripts/v1-para-v2/exportar.mjs --usuario <uuid ou e-mail> --saida docs/v2/privado/v1-para-v2/<nome>.export.json
-# 2) (opcional) converter a base de conhecimento em <nome>.assistente.json (IA, à mão; ver o exemplo na pasta privada)
+# 2) (opcional) converter a base de conhecimento em <nome>.assistente.json (IA, à mão; formato no §6.3)
 # 3) Importar no Supabase de TESTES (usa o .env.local; recusa outro projeto). --substituir refaz a importação do mesmo login.
 node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/v1-para-v2/importar.mjs --projeto ookosqyfazobiwmopiix `
   --export <...>.export.json --assistente <...>.assistente.json --email brenosousaf13+<loja>@gmail.com --loja "<Nome>" --cobranca-ficticia
