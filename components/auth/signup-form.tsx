@@ -92,7 +92,7 @@ export function SignupForm() {
                 </div>
                 <FieldError errors={fieldErrors(state, "password")} />
                 <FieldError errors={fieldErrors(state, "confirmPassword")} />
-                <FieldDescription>Use pelo menos 8 caracteres.</FieldDescription>
+                <FieldDescription>Use pelo menos 8 caracteres, com letras e números.</FieldDescription>
               </Field>
               <Field
                 orientation="horizontal"

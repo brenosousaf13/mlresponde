@@ -4,7 +4,7 @@
 > inteiro antes de trabalhar e atualizá-lo ao terminar. Se algo aqui divergir do código, o código vence —
 > e este arquivo deve ser corrigido na mesma sessão.
 
-Última atualização: **2026-10-12** (Sessão 14 — **migração v1 → v2**: scripts + importação de teste de um cliente real, já apagada; branch `v2`)
+Última atualização: **2026-10-12** (Sessão 15 — **reforço de segurança do Supabase da v2**, que vira a produção; decidido o plano da troca: v1 descontinuada sem migrar dados, mesmo app ML de produção, domínio `maanu.com.br`)
 
 ---
 
@@ -100,6 +100,13 @@ novas funcionalidades, segurança multi-tenant de verdade — **desenvolvido em 
   Scripts reutilizáveis em `scripts/v1-para-v2/` + regras do mapeamento em `lib/migration/v1.ts` (testadas) = base da
   migração do cutover (§6.3). Corrigido também um loop de redirecionamento no login (§8). Depois de o Breno testar, a
   importação e os arquivos com os dados do cliente foram **apagados** (staging e pasta privada voltaram ao estado anterior).
+  **Sessão 15 (2026-10-12): decisão da troca + reforço de segurança.** O Breno decidiu: a **v1 será descontinuada** e os
+  clientes atuais **não serão migrados** (vão se recadastrar na v2, sem importar nada do banco da v1); o projeto Supabase da
+  v2 (`ookosqyfazobiwmopiix`, plano grátis) **vira o banco de produção**; o **mesmo app ML de produção** passa a usar as URLs
+  novas; domínio **`maanu.com.br`** (comprado, no Registro.br). Feito: migração `reforco_seguranca` (tabelas herdadas da v1
+  trancadas, função `rls_auto_enable` fora da API, padrão "nada novo fica acessível sem GRANT"), SSL obrigatório no banco,
+  senha do banco trocada por uma aleatória que ninguém guarda, senhas de usuário com letras e números. Detalhes em §8 e §12.
+  Plano da troca em §13 (item 0a).
 - **Marca:** **maanu** (decisão do Breno, 2026-10-11). Guia de uso, paleta e arquivos em `docs/brand/README.md`; nome,
   assinatura e slogan em `lib/config/site.ts`; logo só pelos componentes de `components/brand/logo.tsx`.
 - P0 de segurança/toggle (§8) **adiados** por decisão do Breno — revisitar antes de abrir para novos clientes.
@@ -450,6 +457,17 @@ localmente, definir no terminal).
 - Testado em `supabase/tests/admin_rls.sql` (anon, cliente com 2 etapas, admin sem 2 etapas e com código de 13 h atrás são
   barrados; funções internas e tabelas fechadas; alterações auditadas; histórico imutável).
 
+### 6.1f v2 — Reforço de segurança (migração `20261012231651_reforco_seguranca.sql`, Sessão 15)
+
+- Tabelas herdadas da v1 pela baseline (`question_jobs`, `ml_credentials`, `knowledge_base`, `training_examples`): vazias e
+  sem uso na v2; agora **sem nenhum acesso** para `anon`/`authenticated`, sem a policy "Autenticados podem ver tudo" e
+  `question_jobs` fora do Realtime. (Não foram apagadas; dá para remover depois numa migração própria.)
+- `rls_auto_enable()` sem EXECUTE para `public/anon/authenticated` (só o gatilho de evento a usa).
+- **Privilégios padrão:** tabela, sequência ou função criada por migração (`postgres`) no `public` **não** recebe mais acesso
+  automático de `anon`/`authenticated` (e função nova não fica executável por `public`). **Toda migração nova precisa de
+  `grant` explícito** (ex.: `grant select on table ... to authenticated;` / `grant execute on function ... to authenticated;`);
+  sem isso a função falha fechada com erro de permissão. `service_role` continua com acesso total.
+
 ### 6.2 v1 — produção (✅ CONFIRMADO em 2026-10-11)
 
 > Fonte: inventário só leitura de prod (`docs/db/inventario-schema.sql`, rodado pelo Breno no SQL Editor).
@@ -665,6 +683,33 @@ Legenda: 🔴 P0 crítico · 🟠 P1 importante · 🟡 P2 melhoria. Marcar ✅ 
 > fila com novas tentativas e locks (nada fica preso em "processing"), sem respostas inventadas (certeza + escalonamento),
 > bloqueio de contato externo. Produção continua com os problemas até o cutover.
 
+### 🔒 Segurança do Supabase da v2 (auditoria e reforço da Sessão 15, 2026-10-12)
+Projeto `ookosqyfazobiwmopiix` (vai virar a produção da v2). Conferido e corrigido:
+- ✅ RLS ligado em **todas** as tabelas; visitante (chave pública, sem login) recebe **401 em todas as tabelas e funções**
+  (testado tabela por tabela pela API). Usuário logado comum: negado nas tabelas sensíveis (tokens do ML, histórico e notas
+  do admin, uso de IA, configurações da plataforma, tabelas da v1) e no painel admin. Os 6 testes de RLS passam.
+- ✅ Tabelas herdadas da v1 trancadas, `rls_auto_enable` fora da API e privilégios padrão seguros (§6.1f).
+- ✅ **SSL obrigatório** nas conexões diretas ao Postgres.
+- ✅ **Senha do banco (`postgres`) trocada** por uma aleatória de 48 caracteres que **não foi guardada** em lugar nenhum. Nada
+  do app usa essa senha (o app fala pela API e a CLI usa "login role" temporário). Se um dia precisar dela: Supabase →
+  Project Settings → Database → Reset database password.
+- ✅ **Senhas de usuário:** mínimo 8 e **letras + números** (no Supabase Auth e na validação dos formulários, com aviso na tela).
+- ✅ Sem buckets de Storage, Vault vazio, sem extensões extras, cadastro anônimo/telefone desligados, confirmação de e-mail
+  ligada, troca de e-mail com confirmação dupla, rotação de refresh token ligada, 2ª etapa (TOTP) disponível.
+- ✅ Nenhum segredo no histórico do git (busca por chaves JWT/`sb_secret`/`sk-`/tokens ML em todos os commits) e nenhum
+  dado de cliente versionado (`docs/v2/privado/` fora do git).
+- Aceito (avisos do Supabase que são de propósito): 18 funções `security definer` executáveis por usuário logado — as
+  `admin_*` todas chamam `admin_assert()` (admin + 2ª etapa recente) e as `current_user_*`/`is_org_member` só devolvem dados
+  do próprio usuário (são usadas pelo RLS). Tabelas com RLS e **sem** policy = ninguém de fora acessa (intencional).
+- ⏳ **Pendente (só no plano Pro):** bloqueio de senhas vazadas (HaveIBeenPwned), tempo máximo de sessão, backups diários.
+- ⏳ **Pendente antes de abrir para clientes:** (1) **trocar as chaves do Supabase** para as novas (`sb_publishable_`/
+  `sb_secret_` + chave de assinatura JWT assimétrica) e **revogar as legadas** — na Sessão 15 a leitura da configuração do
+  PostgREST pela Management API exibiu o JWT secret legado no terminal da sessão (não foi salvo em arquivo nem no git, mas
+  é melhor aposentá-lo); fazer junto com as variáveis de Production (§13, 0a). (2) **SMTP próprio** (Resend + `maanu.com.br`)
+  e subir o limite de e-mails. (3) **CAPTCHA no cadastro** (Cloudflare Turnstile; precisa de chave e de código) — o cadastro
+  é público e sem ele um robô pode criar contas em massa. (4) Tirar `http://localhost:3000/**` dos redirects do Auth quando
+  o banco virar produção.
+
 ### 🔴 P0
 > ⏸️ **Adiados por decisão do Breno (2026-10-11):** hoje são poucos usuários. **Lembrar o Breno** e resolver antes de
 > abrir o app para novos clientes (no máximo junto com o cutover da v2).
@@ -834,7 +879,8 @@ Legenda: 🔴 P0 crítico · 🟠 P1 importante · 🟡 P2 melhoria. Marcar ✅ 
 - Migrações da v2 aditivas e compatíveis com a v1, para poderem ser aplicadas em prod **antes** do merge.
 - Migração de dados (se houver) testada contra uma cópia do prod.
 
-**Cutover (troca sem perda)**
+**Cutover (troca sem perda)** — ⚠️ **SUPERADO na Sessão 15:** a v1 será descontinuada e o projeto Supabase da v2 vira a
+produção (sem migrar dados nem aplicar migrações no banco da v1). O plano atual está em §13 (item 0a). Histórico abaixo:
 1. Backup completo do Supabase de prod.
 2. Aplicar migrações da v2 em prod (v1 continua funcionando).
 3. Merge `v2` → `main` → deploy automático.
@@ -1010,10 +1056,36 @@ webhook do ML validado, fila/reprocessamento de jobs, observabilidade, controle 
 | 2026-10-12 | Base de conhecimento da v1 convertida **por IA, à mão, por cliente** para a configuração guiada | É um prompt inteiro (Regra 0, exemplos, fichas); metade já é o prompt da v2. Conversão automática perderia as fichas por modelo ou estouraria o limite de 5.000 de "Outras informações". São poucos clientes (7). |
 | 2026-10-12 | Respostas da v1 com o texto padrão de "não tenho a informação" viram **mensagem padrão** na v2 | Mesma semântica do modo "Responder sempre": aparecem em violeta e no filtro próprio, e a loja vê onde ensinar a IA. |
 | 2026-10-12 | Sem "entrar como cliente" (impersonação) e sem excluir conta nesta versão | Impersonação dá acesso total a dados de cliente (risco LGPD) e exclusão é irreversível; ficam para quando houver necessidade real e regras claras. |
+| 2026-10-12 | **v1 descontinuada sem migração de dados**: os clientes atuais se recadastram na v2; nada é importado do banco da v1 | Decisão do Breno (6 clientes): quer ver a jornada desde o início e ter dados literalmente novos. Os scripts de `scripts/v1-para-v2/` ficam só como referência. |
+| 2026-10-12 | O projeto Supabase da v2 (`ookosqyfazobiwmopiix`, plano grátis) **vira o banco de produção**; nenhuma migração da v2 vai para o banco da v1 | Decisão do Breno. Consequência: depois da troca não existe mais staging com banco separado (testes locais/na staging passam a mexer no banco real); um banco de testes novo pode ser criado depois. Sem backups diários no plano grátis. |
+| 2026-10-12 | **Mesmo app ML de produção**, só trocando as URLs (redirect e notificações) para `maanu.com.br` | Decisão do Breno. Ao trocar as URLs a v1 para de receber perguntas na hora (aceito, a v1 será desligada). Os clientes autorizam o app de novo ao conectar a conta na v2. |
+| 2026-10-12 | Domínio **`maanu.com.br`** (Registro.br) para o app e para os e-mails (SMTP) | Comprado pelo Breno. |
+| 2026-10-12 | Reforço de segurança do banco da v2 (§8 "Segurança do Supabase da v2"): privilégios padrão negados, SSL obrigatório, senha do banco aleatória e não guardada, senha de usuário com letras + números | O banco vira produção e o cadastro é público. Falhar fechado (erro de permissão) é melhor que expor dados. |
 
 ---
 
 ## 12. Diário de sessões (mais recente no topo)
+
+### 2026-10-12 — Sessão 15 · Plano da troca e reforço de segurança do Supabase da v2 (IA: Claude, via app Codex)
+- Pergunta do Breno: dá para tornar a v2 a `main` sem derrubar os clientes, sem migrar ninguém (6 clientes vão se
+  recadastrar) e sem importar nada do banco da v1? Resposta: sim (a `main` não tem commits que a `v2` não tenha). A IA
+  sugeriu banco e app ML novos para manter a v1 viva em paralelo; o Breno decidiu: **v1 será descontinuada** (não precisa
+  protegê-la), **manter o projeto Supabase atual da v2 (plano grátis)** como produção, **mesmo app ML** trocando as URLs e
+  domínio **`maanu.com.br`** (comprado; DNS ainda no padrão do Registro.br). Pediu garantir a segurança do banco.
+- Auditoria só leitura (Management API, SQL de catálogo, consultas com a chave pública, histórico do git) e correções no
+  projeto `ookosqyfazobiwmopiix`: migração `20261012231651_reforco_seguranca.sql` aplicada (§6.1f); SSL obrigatório;
+  senha do banco trocada por uma aleatória não guardada; senha de usuário com letras + números no Auth e em
+  `lib/validation/forms.ts` (+ aviso nas telas de cadastro, nova senha e Configurações; teste novo). Bloqueio de senhas
+  vazadas recusado pelo Supabase (só no Pro). Resultado completo em §8.
+- Conferido depois: visitante recebe 401 em todas as 20 tabelas e nas funções; usuário logado comum negado nas tabelas
+  sensíveis e no painel admin; 6 testes de RLS ok; avisos de segurança restantes são intencionais (§8).
+- ⚠️ Transparência: a leitura da configuração do PostgREST pela Management API mostrou o **JWT secret legado** do projeto no
+  terminal desta sessão (não foi salvo nem commitado). Fica como pendência trocar para as chaves novas e revogar as legadas
+  antes de abrir para clientes (§13, 0a).
+- Vercel (só leitura): time no plano **Pro** (crons de 1 minuto permitidos), production branch `main`, domínios
+  `mlresponde.vercel.app` (produção) e `mlresponde-v2.vercel.app` (→ `v2`). O token da CLI tinha expirado; renovado com
+  `npx vercel whoami`.
+- Verificação: typecheck, 298 testes, lint 0, build ok. Nada mudou na v1/produção.
 
 ### 2026-10-12 — Sessão 14 · Cliente real da v1 importado na staging (IA: Claude, via app Codex)
 - Pedido do Breno: trazer o perfil inteiro de UM usuário da v1 (com todas as perguntas e respostas) para a v2, para ver
@@ -1315,6 +1387,28 @@ webhook do ML validado, fila/reprocessamento de jobs, observabilidade, controle 
 
 ## 13. Próximos passos
 
+0a. **TROCA: v2 vira a `main`/produção (decidido na Sessão 15; executar quando o Breno der o "pode fazer").**
+   Sem migração de dados; a v1 é desligada. Ordem:
+   1. **E-mail (bloqueia o cadastro dos clientes):** Breno cria conta no Resend e adiciona o domínio `maanu.com.br`; a IA
+      passa os registros DNS (SPF/DKIM) para ele colocar no Registro.br; depois a IA configura o SMTP no Supabase (remetente
+      tipo `nao-responda@maanu.com.br`, nome "maanu") e sobe o limite de e-mails por hora.
+   2. **Domínio no app:** a IA adiciona `maanu.com.br` (+ `www`) ao projeto `mlresponde` na Vercel; Breno coloca no Registro.br
+      os registros que a Vercel mostrar (A/CNAME). Dá para testar o domínio apontado para a branch `v2` antes do merge.
+   3. **Chaves novas do Supabase** (§8): criar `sb_publishable_`/`sb_secret_` e chave de assinatura JWT assimétrica, trocar
+      nas variáveis (Preview `v2`, `.env.local` e Production), testar e só então revogar as legadas.
+   4. **Variáveis de Production** (a IA, com aprovação): `NEXT_PUBLIC_SUPABASE_URL`/chaves → projeto da v2;
+      `ML_TOKEN_ENCRYPTION_KEY` nova; `CRON_SECRET` novo; `NEXT_PUBLIC_SITE_URL` e `ML_REDIRECT_URI` com `https://maanu.com.br`.
+      `ML_CLIENT_ID`/`ML_CLIENT_SECRET` continuam (mesmo app). Tirar Preview/Development das variáveis antigas.
+   5. **Supabase Auth:** Site URL `https://maanu.com.br`, redirects `https://maanu.com.br/**` (tirar localhost).
+   6. **Limpar dados de demonstração** do banco (conta ML fictícia e as perguntas de exemplo da organização admin do Breno;
+      perguntar antes sobre a "Noord Shop"). Manter o login admin do Breno.
+   7. Merge `v2` → `main` (deploy automático) e teste ponta a ponta no domínio.
+   8. **Breno, no DevCenter do app ML de produção:** trocar redirect para `https://maanu.com.br/api/auth/callback/mercadolivre`
+      e notificações para `https://maanu.com.br/api/webhook/mercadolivre`; conferir permissões e tópicos iguais aos do app
+      de teste (§9: `questions`, `messages`, `orders_v2`... e Comunicações pré/pós-venda + Venda e envios L+E); trocar nome
+      e logo para maanu. **A partir daqui a v1 para de responder** → avisar os clientes para se recadastrarem.
+   9. Depois: atualizar `AGENTS.md` e §2 (o banco "de testes" passa a ser produção: nada destrutivo nele; CLI com cuidado),
+      decidir o destino da staging (sem banco separado agora) e desligar o projeto da v1 quando ninguém mais usar.
 0. **Breno: primeiro acesso ao painel do administrador na staging** (`https://mlresponde-v2.vercel.app/admin`): entrar com
    `brenosousaf13@gmail.com` (já é admin), clicar em "Gerar QR code", escanear com um app autenticador no celular e digitar
    o código. **Guardar o código secreto** que aparece (permite cadastrar o mesmo autenticador em outro celular). Depois:
@@ -1366,7 +1460,7 @@ webhook do ML validado, fila/reprocessamento de jobs, observabilidade, controle 
    ML e Site URL do Supabase; (d) nome do remetente dos e-mails de cadastro/senha só muda com SMTP próprio; (e) opcional:
    renomear projeto/repositório na Vercel/GitHub (muda a URL `mlresponde-v2.vercel.app` — refazer as URLs do app ML de
    teste); (f) a v1 em produção continua "Meli Fácil" até o cutover.
-8. **Cutover (checklist parcial):** `CRON_SECRET`, `ML_TOKEN_ENCRYPTION_KEY` (nova), `NEXT_PUBLIC_SITE_URL` em Production;
+8. ~~**Cutover (checklist parcial)**~~ (**superado pelo item 0a**; mantido como histórico): `CRON_SECRET`, `ML_TOKEN_ENCRYPTION_KEY` (nova), `NEXT_PUBLIC_SITE_URL` em Production;
    `supabase migration repair --status applied 20261011150000` em prod e `db push`; URLs do app ML de produção (redirect
    `/api/auth/callback/mercadolivre`, notificações `/api/webhook/mercadolivre`) e permissões novas; clientes reconectam.
    No 1º acesso pós-cutover, cada cliente da v1 completa CPF/CNPJ + endereço (etapa única do cadastro).

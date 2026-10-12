@@ -56,6 +56,9 @@ const newPassword = z
   .string({ required_error: "Informe uma senha." })
   .min(8, "A senha precisa ter pelo menos 8 caracteres.")
   .max(72, "A senha pode ter no máximo 72 caracteres.")
+  // Mesma regra do Supabase Auth (letras e números): o aviso aparece antes de chegar ao servidor.
+  .regex(/[A-Za-z]/, "Use pelo menos uma letra.")
+  .regex(/[0-9]/, "Use pelo menos um número.")
 
 const fullName = z
   .string({ required_error: "Informe seu nome." })

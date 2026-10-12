@@ -11,7 +11,7 @@ import {
   hasFieldError,
 } from "@/components/forms/form-feedback"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field"
+import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
 
 export function ResetPasswordForm() {
@@ -42,6 +42,7 @@ export function ResetPasswordForm() {
                 aria-invalid={hasFieldError(state, "password") || undefined}
                 required
               />
+              <FieldDescription>Use pelo menos 8 caracteres, com letras e números.</FieldDescription>
               <FieldError errors={fieldErrors(state, "password")} />
             </Field>
             <Field data-invalid={hasFieldError(state, "confirmPassword") || undefined}>

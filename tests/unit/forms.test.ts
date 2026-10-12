@@ -65,11 +65,32 @@ describe("schemas", () => {
     const result = parseWithPasswordConfirmation(signupSchema, {
       fullName: " Maria Souza ",
       email: " MARIA@LOJA.COM ",
-      password: "12345678",
-      confirmPassword: "12345678",
+      password: "loja2026ok",
+      confirmPassword: "loja2026ok",
       acceptTerms: "on",
     })
     expect(result.success && result.data.email).toBe("maria@loja.com")
+  })
+
+  it("senha nova exige letras e números (mesma regra do Supabase Auth)", () => {
+    const base = { fullName: "Maria", email: "maria@loja.com", acceptTerms: "on" }
+    const onlyNumbers = parseWithPasswordConfirmation(signupSchema, {
+      ...base,
+      password: "12345678",
+      confirmPassword: "12345678",
+    })
+    expect(onlyNumbers.success).toBe(false)
+    expect(onlyNumbers.success ? undefined : onlyNumbers.fieldErrors.password).toEqual(["Use pelo menos uma letra."])
+
+    const onlyLetters = parseWithPasswordConfirmation(signupSchema, {
+      ...base,
+      password: "senhasemnumero",
+      confirmPassword: "senhasemnumero",
+    })
+    expect(onlyLetters.success ? undefined : onlyLetters.fieldErrors.password).toEqual(["Use pelo menos um número."])
+
+    const ok = parseWithPasswordConfirmation(signupSchema, { ...base, password: "Loja2026", confirmPassword: "Loja2026" })
+    expect(ok.success).toBe(true)
   })
 
   it("onboarding normaliza o WhatsApp", () => {

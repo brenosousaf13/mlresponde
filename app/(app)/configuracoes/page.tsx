@@ -53,7 +53,7 @@ export default async function SettingsPage() {
           <Card>
             <CardHeader>
               <CardTitle>Senha</CardTitle>
-              <CardDescription>Use pelo menos 8 caracteres.</CardDescription>
+              <CardDescription>Use pelo menos 8 caracteres, com letras e números.</CardDescription>
             </CardHeader>
             <CardContent>
               <PasswordForm />
