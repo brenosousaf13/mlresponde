@@ -4,7 +4,7 @@
 > inteiro antes de trabalhar e atualizá-lo ao terminar. Se algo aqui divergir do código, o código vence —
 > e este arquivo deve ser corrigido na mesma sessão.
 
-Última atualização: **2026-10-12** (Sessão 13 — **painel do administrador** em `/admin` com verificação em 2 etapas, branch `v2`)
+Última atualização: **2026-10-12** (Sessão 14 — **importação de um cliente real da v1 para a staging da v2**, branch `v2`)
 
 ---
 
@@ -94,6 +94,11 @@ novas funcionalidades, segurança multi-tenant de verdade — **desenvolvido em 
   (tokens e custo por chamada, função, modelo e cliente), Financeiro (MRR, custo de IA projetado, margem, quem dá
   prejuízo), Operação (filas, erros, contas com problema e **pausa geral da IA**) e Auditoria (histórico imutável).
   Toda chamada à OpenAI agora grava tokens e custo em `ai_usage_events`. Spec: `docs/superpowers/specs/2026-10-12-painel-admin-design.md`.
+  **Sessão 14 (2026-10-12): primeiro cliente real da v1 na v2 (só no Supabase de TESTES)** — exportação só leitura do perfil
+  inteiro de um cliente da produção (loja de moda feminina: 831 perguntas de mai–out/2026, base de conhecimento de ~25 mil
+  caracteres, 113 exemplos) e importação na staging com login próprio, para o Breno ver os dados reais nas telas da v2.
+  Scripts reutilizáveis em `scripts/v1-para-v2/` + regras do mapeamento em `lib/migration/v1.ts` (testadas) = base da
+  migração do cutover (§6.3). Corrigido também um loop de redirecionamento no login (§8).
 - **Marca:** **maanu** (decisão do Breno, 2026-10-11). Guia de uso, paleta e arquivos em `docs/brand/README.md`; nome,
   assinatura e slogan em `lib/config/site.ts`; logo só pelos componentes de `components/brand/logo.tsx`.
 - P0 de segurança/toggle (§8) **adiados** por decisão do Breno — revisitar antes de abrir para novos clientes.
@@ -262,6 +267,8 @@ lib/
                                   #   engine (fila, sync com o ML, envio, manual, sugestão, teste, não lidas, conferência)
   mercadolivre/messages.ts        # mensagens pós-venda (páginas, detalhe, não lidas, enviar, anexos), packs/vendas, envio
   dal/after-sale.ts               # números do cartão Pós-venda do Painel
+  migration/v1.ts                 # MIGRAÇÃO v1 → v2 (puro, testado em tests/unit/migration-v1.test.ts): question_jobs →
+                                  #   ml_questions, training_examples → ai_examples, CNPJ fictício para testes (§6.3)
   supabase/server.ts              # createClient (sessão) + createAdminClient (legado v1, sem tipos)
   supabase/admin.ts               # createServiceClient (service role, tipado) + createStatelessAuthClient
   supabase/database.types.ts      # gerado: npx supabase gen types typescript --linked --schema public
@@ -272,6 +279,8 @@ supabase/
                                   # painel_admin
   tests/fundacao_rls.sql, respostas_rls.sql, resultados_rls.sql, cobranca_rls.sql, pos_venda_rls.sql, admin_rls.sql
                                   # sucesso = erro "TESTES_..._OK"
+scripts/v1-para-v2/                # exportar.mjs (v1 → JSON, só GET, sem tokens) e importar.mjs (JSON → Supabase de TESTES; trava
+                                  #   pelo project ref do .env.local). Saídas com dados de clientes só em docs/v2/privado/ (§6.3)
 tests/unit/                       # vitest: crypto, pkce, access, forms, answers, assistant, inbox, results, billing, after-sale...
 tests/integration/ai-live.test.ts # 22 cenários com a IA real; só roda com RUN_LIVE_AI=1 + OPENAI_API_KEY
 tests/integration/after-sale-live.test.ts # 12 cenários do agente de pós-venda com a IA real (mesmas variáveis)
@@ -481,6 +490,29 @@ Extensões: pgcrypto, uuid-ossp, pg_stat_statements, pg_graphql, supabase_vault 
 
 (O servidor usa service role e ignora RLS; o browser só usa a chave anon no Realtime da dashboard.)
 
+### 6.3 Migração de dados v1 → v2 (Sessão 14; regras em `lib/migration/v1.ts`)
+
+Usada na importação de teste (`scripts/v1-para-v2/`) e base da migração do cutover. Nada é escrito na produção: a
+exportação só faz GET e a importação recusa qualquer destino que não seja o project ref informado (testes).
+
+| v1 | v2 |
+|---|---|
+| `auth.users` (e-mail/senha) | **login novo** (a senha da v1 não é copiada; no teste o e-mail é `brenosousaf13+<loja>@gmail.com`) + organização com cortesia (`billing_exempt`), `created_at` = cadastro na v1, onboarding/tour concluídos |
+| `ml_credentials` | `ml_accounts` **sem tokens** (`token_status = invalid`, "Reconexão necessária", IA pausada). Tokens nunca são copiados: outro app ML, outra chave de criptografia, e usar o refresh token derrubaria a conexão da v1 (o ML troca o refresh a cada uso). No cutover o cliente reconecta. |
+| `knowledge_base` (texto livre, até ~25 mil caracteres) | configuração guiada (`store_profile`) + "Outras informações" (`store_briefing`, limite 5.000) + tom/saudação/assinatura/modo. **Conversão feita por IA, à mão, por cliente** (o texto da v1 é um prompt inteiro; as travas genéricas já estão no prompt da v2 e não são repetidas). Sem o arquivo convertido, o script só leva o texto se couber em 5.000. |
+| `training_examples` | `ai_examples` do **anúncio** de origem (título vindo das perguntas), sem repetidos e sem textos > 2.000 |
+| `question_jobs` `done` + resposta | `answered`, fonte `ai`, modelo `gpt-4o-mini`, respondida em = `updated_at` da v1. Se a resposta tem um trecho do texto padrão de "não tenho a informação" da loja (`v1_fallback_markers` no arquivo do assistente) → `fallback_reason = ai_escalated` (violeta, "Só mensagem padrão") |
+| `done` com "Respondida manualmente…" ou erro "is not unanswered" | `answered_outside`, fonte `external`, **sem texto e sem data** (a v1 não sabe; data falsa entraria no tempo de resposta de Resultados) |
+| `error` / `processing` / `pending` | `needs_review` (`processing_error`, `attempts = 5`) com o motivo da v1 em `last_error` — fica em "Para responder", fora da fila |
+| `manual` (rota antiga, robô pausado) | `needs_review` (`auto_reply_off`) |
+| placeholder ("Buscando do Mercado Livre…", `item_id = buscando_item`) | `ignored` (arquivada), sem texto nem anúncio |
+
+- `question_created_at` = `created_at` da v1 (chegada do webhook ≈ hora da pergunta). A v1 não guarda foto do anúncio
+  (`item_thumbnail` vazio → ícone padrão) nem `buyer_id`.
+- Nenhuma pergunta importada entra na fila (`due_ml_questions` só pega `pending|processing|failed`).
+- Dados de clientes (exportação, assistente convertido, anotações) **só** em `docs/v2/privado/v1-para-v2/` (fora do git).
+  Lá também está o `LEIA-ME.md` com qual cliente foi importado e o comando para refazer/apagar.
+
 ---
 
 ## 7. Fluxos principais
@@ -652,6 +684,10 @@ Legenda: 🔴 P0 crítico · 🟠 P1 importante · 🟡 P2 melhoria. Marcar ✅ 
   vinculada a outro usuário ao conectá-la; também há risco de CSRF no fluxo de conexão.
 
 ### 🟠 P1
+- ✅ (v2, 2026-10-12, Sessão 14) **Loop de redirecionamento no login** (`ERR_TOO_MANY_REDIRECTS`): usuário apagado ou
+  **bloqueado pelo painel do administrador** com sessão ainda no navegador. O `proxy.ts` só confere a assinatura do JWT
+  (`getClaims`) e mandava /login → /painel, enquanto a página (`getUser`) mandava de volta para /login. Agora, nas telas
+  de visitante, o proxy confirma no Auth (`getUser`) e limpa a sessão inválida. Reproduzido e conferido localmente.
 - Tabela `connection_logs` não existe em prod → logs de erro do OAuth nunca são gravados.
 - Usuário consegue ler os próprios tokens do ML pelo browser (policy de `ml_credentials` permite SELECT/UPDATE) →
   na v2, tokens só no servidor (sem acesso pela chave anon) e criptografados.
@@ -966,11 +1002,41 @@ webhook do ML validado, fila/reprocessamento de jobs, observabilidade, controle 
 | 2026-10-12 | MRR vem de `organizations.monthly_price` (mensalidade digitada no painel) até existir gateway | Ainda não há cobrança automática; o financeiro já funciona e o sub-projeto 4 passa a preencher o valor. |
 | 2026-10-12 | **Pausa geral da IA** (botão de emergência) em `platform_settings`, conferida antes de cada chamada | Para IA errando, OpenAI fora ou custo disparando. Perguntas vão para o vendedor (nada se perde) e o cliente vê um aviso. |
 | 2026-10-12 | Admin pode **pausar** a IA de uma conta, mas não ligar | Ligar a IA fala em nome da loja do cliente: decisão do cliente. |
+| 2026-10-12 | Migração v1 → v2 por **exportar (JSON local) → importar**, com regras puras e testadas em `lib/migration/v1.ts`; primeiro só para o Supabase de testes, com login novo | Pedido do Breno: ver um cliente real na v2. O mesmo código serve ao cutover. Produção só lida (GET); a importação trava pelo project ref; dados de clientes nunca no git (repo público). |
+| 2026-10-12 | Tokens do ML **não** são migrados; cliente reconecta | App ML e chave de criptografia diferentes; copiar o refresh token derrubaria a v1. A conta importada fica "Reconexão necessária" e não responde nada. |
+| 2026-10-12 | Base de conhecimento da v1 convertida **por IA, à mão, por cliente** para a configuração guiada | É um prompt inteiro (Regra 0, exemplos, fichas); metade já é o prompt da v2. Conversão automática perderia as fichas por modelo ou estouraria o limite de 5.000 de "Outras informações". São poucos clientes (7). |
+| 2026-10-12 | Respostas da v1 com o texto padrão de "não tenho a informação" viram **mensagem padrão** na v2 | Mesma semântica do modo "Responder sempre": aparecem em violeta e no filtro próprio, e a loja vê onde ensinar a IA. |
 | 2026-10-12 | Sem "entrar como cliente" (impersonação) e sem excluir conta nesta versão | Impersonação dá acesso total a dados de cliente (risco LGPD) e exclusão é irreversível; ficam para quando houver necessidade real e regras claras. |
 
 ---
 
 ## 12. Diário de sessões (mais recente no topo)
+
+### 2026-10-12 — Sessão 14 · Cliente real da v1 importado na staging (IA: Claude, via app Codex)
+- Pedido do Breno: trazer o perfil inteiro de UM usuário da v1 (com todas as perguntas e respostas) para a v2, para ver
+  como os dados se comportam e popular a staging.
+- Acesso à produção **só leitura**: a service role da v1 foi lida da API da Vercel só em memória e usada apenas em GET
+  (auth admin + REST), sem nenhuma escrita. Levantamento dos 7 usuários; escolhido o mais completo (loja de moda feminina,
+  conta ML com 831 perguntas de 14/05 a 12/10/2026, base de conhecimento de 24.898 caracteres, 113 exemplos). A mesma loja
+  tem uma 2ª conta na v1 (1.631 perguntas, sem exemplos) — não importada. Identificação em `docs/v2/privado/v1-para-v2/LEIA-ME.md`.
+- Novo: `lib/migration/v1.ts` (regras, §6.3) + `tests/unit/migration-v1.test.ts` (12 testes), `scripts/v1-para-v2/exportar.mjs`
+  e `importar.mjs` (Node roda o TypeScript de `lib/` direto; avisa `MODULE_TYPELESS_PACKAGE_JSON`, inofensivo — usar
+  `--disable-warning=MODULE_TYPELESS_PACKAGE_JSON`). A base de conhecimento foi convertida à mão para a configuração
+  guiada (11 de 16 respostas, fichas dos 6 modelos em "Detalhes confirmados", tabela de tamanho/altura/peso, trocas,
+  garantia, regras especiais; exemplos de respostas em "Outras informações"; modo "Responder sempre" com o texto da
+  Regra 0.4 da loja como mensagem padrão). Links da v1 viraram "Minhas compras"/Ajuda (a v2 bloqueia links).
+- Supabase de **testes**: organização da loja com cortesia, dados de cobrança **fictícios** (CNPJ válido gerado), conta ML
+  sem tokens, 820 respondidas pela IA (46 com a mensagem padrão), 3 respondidas fora, 4 para responder (erros/travadas da
+  v1), 4 arquivadas (a v1 nem leu), 113 respostas ensinadas, nota interna no painel do admin. Login
+  `brenosousaf13+<loja>@gmail.com` (senha passada ao Breno no chat).
+- QA na staging e local (1440 px): Painel, Perguntas (abas, filtro "Só mensagem padrão", conversa), Resultados (90 dias:
+  R$ 438 de economia, mediana 4 s, mapa de horários, anúncios e assuntos), Assistente (configuração concluída, 113
+  ensinadas), Contas ("Reconexão necessária"). Ajustes durante o QA: data de "respondida fora" vazia (antes aparecia
+  "Você leva 5 s" falso em Resultados) e respostas com o texto padrão marcadas como mensagem padrão.
+- Bug achado e corrigido: loop de redirecionamento no /login com sessão de usuário apagado/bloqueado (§8, `proxy.ts`).
+- Achados da v1 (produção, não mexido): 3 perguntas presas em `processing` desde jul–set e erros "No ML credentials found
+  for this seller" em set/2026 nas contas dessa loja (indício de reconexão/credencial perdida na v1).
+- Verificação: typecheck, testes (297 + 12 novos da migração), lint 0, build ok.
 
 ### 2026-10-12 — Sessão 13 · Painel do administrador (IA: Claude, via app Codex)
 - Pedido do Breno: painel para monitorar a plataforma inteira (tokens gastos, financeiro, cadastros, usuários ativos,
@@ -1277,6 +1343,11 @@ webhook do ML validado, fila/reprocessamento de jobs, observabilidade, controle 
    ML **segura** (sem compradores reais e que NÃO esteja no app de produção), concluir a configuração do Assistente de IA,
    ligar, e fazer uma pergunta num anúncio dessa conta a partir de outra conta ML. Conferir em Perguntas.
 5. Depois do 1º OAuth bem-sucedido: marcar PKCE como obrigatório no app ML de teste.
+5b. **Breno: conferir o cliente importado na staging** (`https://mlresponde-v2.vercel.app`, login e senha passados no chat;
+   trocar a senha em Configurações). Ver Painel, Perguntas (inclusive "Respondidas pela IA" → "Só mensagem padrão"),
+   Resultados (90 dias) e o Assistente (a base de conhecimento da v1 convertida — dizer se algo ficou faltando). **Não
+   reconectar essa conta ML na staging**: é loja real de cliente e a v1 ainda responde por ela (§9). Para importar outro
+   cliente ou a 2ª conta da mesma loja: `scripts/v1-para-v2/` + conversão do assistente por IA (§6.3, §14).
 6. **Decidir com o Breno o próximo passo:** (a) migração de dados v1 → v2 e cutover (clientes atuais com cortesia,
    reconectar contas, importar base de conhecimento → "Outras informações" e exemplos → respostas ensinadas; o prompt do
    cliente atual da v1 pode virar as respostas da configuração guiada), ou (b) sub-projeto 4 (planos e cobrança), ou (c) WhatsApp.
@@ -1333,6 +1404,18 @@ npx supabase migration list             # compara migrações locais x remotas
 npx supabase db push                    # aplica migrações pendentes no projeto linkado (NUNCA em prod fora do cutover)
 npx supabase db query --linked --project-ref ookosqyfazobiwmopiix -f <arquivo.sql>   # roda SQL no banco de TESTES
 npx supabase db push --linked --dry-run  # mostra o que seria aplicado (sempre antes do push de verdade)
+```
+
+Migração v1 → v2 (§6.3; saídas sempre em `docs/v2/privado/`):
+
+```powershell
+# 1) Exportar da v1 (só GET). Chaves da v1 só na memória do terminal, nunca em arquivo.
+$env:V1_SUPABASE_URL = "..."; $env:V1_SUPABASE_SERVICE_ROLE_KEY = "..."
+node scripts/v1-para-v2/exportar.mjs --usuario <uuid ou e-mail> --saida docs/v2/privado/v1-para-v2/<nome>.export.json
+# 2) (opcional) converter a base de conhecimento em <nome>.assistente.json (IA, à mão; ver o exemplo na pasta privada)
+# 3) Importar no Supabase de TESTES (usa o .env.local; recusa outro projeto). --substituir refaz a importação do mesmo login.
+node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/v1-para-v2/importar.mjs --projeto ookosqyfazobiwmopiix `
+  --export <...>.export.json --assistente <...>.assistente.json --email brenosousaf13+<loja>@gmail.com --loja "<Nome>" --cobranca-ficticia
 ```
 
 Webhook local exige túnel público (ex.: ngrok) e um app ML de teste apontando para ele.

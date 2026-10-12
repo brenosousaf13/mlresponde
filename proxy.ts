@@ -56,8 +56,19 @@ export async function proxy(request: NextRequest) {
   )
 
   const { data } = await supabase.auth.getClaims()
-  const isAuthenticated = Boolean(data?.claims?.sub)
+  let isAuthenticated = Boolean(data?.claims?.sub)
   const { pathname, search } = request.nextUrl
+
+  // getClaims só confere a assinatura do JWT. Usuário apagado ou bloqueado (ou sessão encerrada) ainda tem um JWT
+  // válido até expirar: as páginas recusam (getUser) e mandam para /login, e aqui /login mandaria de volta para o
+  // app — loop de redirecionamento. Nas telas de visitante, confirma no Auth e limpa a sessão inválida.
+  if (isAuthenticated && matches(pathname, GUEST_ONLY_PREFIXES)) {
+    const { data: userData, error } = await supabase.auth.getUser()
+    if (error || !userData.user) {
+      await supabase.auth.signOut({ scope: "local" })
+      isAuthenticated = false
+    }
+  }
 
   if (!isAuthenticated && !matches(pathname, PUBLIC_PREFIXES)) {
     const url = request.nextUrl.clone()
@@ -84,3 +95,4 @@ export const config = {
     "/((?!_next/static|_next/image|favicon.ico|icon.png|brand/|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|txt)$).*)",
   ],
 }
+
