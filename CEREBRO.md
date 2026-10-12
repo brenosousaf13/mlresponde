@@ -4,7 +4,7 @@
 > inteiro antes de trabalhar e atualizá-lo ao terminar. Se algo aqui divergir do código, o código vence —
 > e este arquivo deve ser corrigido na mesma sessão.
 
-Última atualização: **2026-10-12** (Sessão 15 — **reforço de segurança do Supabase da v2**, que vira a produção; decidido o plano da troca: v1 descontinuada sem migrar dados, mesmo app ML de produção, domínio `maanu.com.br`)
+Última atualização: **2026-10-12** (Sessão 15b — Fase 1 da troca preparada: projeto Vercel `maanu`, chaves novas, banco limpo; Sessão 15 — **reforço de segurança do Supabase da v2**, que vira a produção; decidido o plano da troca: v1 descontinuada sem migrar dados, mesmo app ML de produção, domínio `maanu.com.br`)
 
 ---
 
@@ -108,6 +108,11 @@ novas funcionalidades, segurança multi-tenant de verdade — **desenvolvido em 
   trancadas, função `rls_auto_enable` fora da API, padrão "nada novo fica acessível sem GRANT"), SSL obrigatório no banco,
   senha do banco trocada por uma aleatória que ninguém guarda, senhas de usuário com letras e números. Detalhes em §8 e §12.
   Plano da troca em §13 (item 0a).
+  **Sessão 15b (2026-10-12): Fase 1 da troca preparada.** Banco limpo (só o login admin do Breno), chaves novas do
+  Supabase (as antigas desligadas e o segredo JWT antigo revogado), **projeto Vercel `maanu`** criado (production branch
+  `v2`, crons rodando, variáveis de produção, domínio `maanu.com.br` + `www` adicionados — falta o DNS no Cloudflare),
+  login do Supabase apontando para `maanu.com.br` e e-mails do login em português prontos (entram quando o SMTP do Resend
+  for ligado). **A partir daqui todo push na `v2` publica em produção.**
 - **Marca:** **maanu** (decisão do Breno, 2026-10-11). Guia de uso, paleta e arquivos em `docs/brand/README.md`; nome,
   assinatura e slogan em `lib/config/site.ts`; logo só pelos componentes de `components/brand/logo.tsx`.
 - P0 de segurança/toggle (§8) **adiados** por decisão do Breno — revisitar antes de abrir para novos clientes.
@@ -116,6 +121,10 @@ novas funcionalidades, segurança multi-tenant de verdade — **desenvolvido em 
 
 ## 2. Regras de ouro (produção está no ar!)
 
+0. **Desde a Sessão 15 há duas produções:** `main` = v1 (projeto Vercel `mlresponde`, clientes antigos) e **`v2` = produção
+   da v2** (projeto Vercel `maanu`, `maanu.com.br`, cliente real em teste). Push na `v2` só com typecheck/test/lint/build
+   passando; mudança grande ou arriscada vai antes para uma branch `codex/...` (nenhum projeto publica outras branches).
+   O Supabase `ookosqyfazobiwmopiix` é **produção** (as regras abaixo sobre "banco de produção" valem para ele).
 1. **`main` = produção.** Qualquer push/merge na `main` faz deploy automático para os clientes.
    Não fazer push/merge na `main` sem aprovação explícita do Breno.
    **Na branch `v2` a IA tem autonomia (decisão do Breno, 2026-10-11):** não precisa apresentar plano de
@@ -338,6 +347,22 @@ tirar Preview/Development das variáveis de produção. `OPENAI_API_KEY` pode se
 
 Projetos Supabase novos podem fornecer chaves no formato novo: `sb_publishable_...` (substitui a anon) e
 `sb_secret_...` (substitui a service_role). Entram nas mesmas variáveis acima, sem mudança de código.
+
+**Projeto Vercel `maanu` (Sessão 15, id `prj_soCke40253xAKpkOu3tNWT1hkmAa`)** = produção da v2: production branch
+**`v2`** (definida pela API `PATCH /v9/projects/{id}/branch`), ignored build step que **só publica a `v2`**, Node 24,
+região `iad1`, Standard Protection (só os domínios próprios são públicos), crons `/api/cron/questions` e
+`/api/cron/pos-venda` a cada minuto. Variáveis de **Production**: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+(= chave **publishable**), `SUPABASE_SERVICE_ROLE_KEY` (= chave **secret** `maanu_servidor`), `ML_CLIENT_ID`
+(`8693830632560554`), `ML_REDIRECT_URI` e `NEXT_PUBLIC_SITE_URL` (`https://maanu.com.br`), `ML_TOKEN_ENCRYPTION_KEY` (a
+mesma da staging/`.env.local`, para as duas lerem os tokens do mesmo banco), `CRON_SECRET` (novo, só na Vercel) e
+`OPENAI_API_KEY`. **Falta `ML_CLIENT_SECRET`** (sensível: o Breno cola no painel). Domínios: `maanu.com.br` e
+`www.maanu.com.br` (redireciona 308 para o sem www). No projeto antigo `mlresponde` foi colocado um ignored build step que
+só publica `main` e `v2` (outras branches pegariam as variáveis da v1).
+
+**Chaves do Supabase da v2 (Sessão 15):** só as novas funcionam — publishable `default` e secret `maanu_servidor`; as
+legadas (JWT anon/service_role) estão **desligadas** e o segredo JWT HS256 antigo **revogado** (logins assinados com ES256).
+Os nomes das variáveis continuaram os mesmos (`NEXT_PUBLIC_SUPABASE_ANON_KEY`/`SUPABASE_SERVICE_ROLE_KEY`), sem mudança de
+código (supabase-js 2.103). Para criar/girar: Management API `/v1/projects/{ref}/api-keys`.
 
 Variáveis da v2 na Vercel (Preview + branch `v2`): `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`,
 `SUPABASE_SERVICE_ROLE_KEY`, `ML_CLIENT_ID`, `ML_CLIENT_SECRET`, `ML_REDIRECT_URI`, `ML_TOKEN_ENCRYPTION_KEY`,
@@ -703,14 +728,16 @@ Projeto `ookosqyfazobiwmopiix` (vai virar a produção da v2). Conferido e corri
   `admin_*` todas chamam `admin_assert()` (admin + 2ª etapa recente) e as `current_user_*`/`is_org_member` só devolvem dados
   do próprio usuário (são usadas pelo RLS). Tabelas com RLS e **sem** policy = ninguém de fora acessa (intencional).
 - ⏳ **Pendente (só no plano Pro):** bloqueio de senhas vazadas (HaveIBeenPwned), tempo máximo de sessão, backups diários.
-- ⏳ **Pendente antes de abrir para clientes:** (1) **trocar as chaves do Supabase** para as novas (`sb_publishable_`/
-  `sb_secret_` + chave de assinatura JWT assimétrica) e **revogar as legadas** — na Sessão 15 a leitura da configuração do
-  PostgREST pela Management API exibiu o JWT secret legado no terminal da sessão (não foi salvo em arquivo nem no git, mas
-  é melhor aposentá-lo); fazer junto com as variáveis de Production (§13, 0a). (2) **SMTP próprio** (Resend + `maanu.com.br`)
-  e subir o limite de e-mails. (3) **CAPTCHA no cadastro** (Cloudflare Turnstile; precisa de chave e de código) — o cadastro
-  é público e sem ele um robô pode criar contas em massa. (4) Tirar `http://localhost:3000/**` dos redirects do Auth quando
-  o banco virar produção.
-
+- ✅ (Sessão 15b) **Chaves trocadas:** publishable + secret `maanu_servidor`; chaves legadas desligadas (testado: a anon
+  antiga recebe 401) e segredo JWT HS256 antigo revogado (o que apareceu no terminal não vale mais nada).
+- ✅ (Sessão 15b) Banco limpo: sem dados de demonstração, sem a Noord Shop; só o login admin do Breno (org "Loja Maanu",
+  `plan='admin'`, com o CPF dele em dados de cobrança). Histórico do admin (`admin_audit_log`) mantido (é imutável).
+- ✅ (Sessão 15b) Auth: Site URL `https://maanu.com.br`; redirects `https://maanu.com.br/**` e (só durante a semana de teste)
+  `https://mlresponde-v2.vercel.app/**`; localhost removido.
+- ⏳ **Pendente antes de abrir para todos os clientes:** (1) **SMTP próprio** (Resend + `maanu.com.br`) — com ele, aplicar
+  os e-mails em português (`node scripts/emails-auth/gerar.mjs` → PATCH `config/auth`; o Supabase recusa modelos sem SMTP
+  no plano grátis) e subir `rate_limit_email_sent` (hoje 2/h). (2) **CAPTCHA no cadastro** (Cloudflare Turnstile; chave +
+  código). (3) Tirar a staging dos redirects do Auth quando ela for desligada.
 ### 🔴 P0
 > ⏸️ **Adiados por decisão do Breno (2026-10-11):** hoje são poucos usuários. **Lembrar o Breno** e resolver antes de
 > abrir o app para novos clientes (no máximo junto com o cutover da v2).
@@ -825,6 +852,8 @@ Projeto `ookosqyfazobiwmopiix` (vai virar a produção da v2). Conferido e corri
   senha mínima 8; confirmação de e-mail ligada; cadastro aberto (é o fluxo do produto).
 - ⚠️ Plano free + SMTP padrão: **não** dá para editar templates de e-mail, o envio é limitado (~2/hora) e **só entrega para
   e-mails de membros da organização Supabase**. Para testes com outros e-mails ou para lançar: SMTP próprio (ex.: Resend).
+- ⚠️ **Sessão 15b:** este projeto virou **produção**; a demonstração abaixo e a "Noord Shop" foram **apagadas** (sobrou só o
+  login admin do Breno, org "Loja Maanu"). Texto mantido como histórico.
 - **Admin de testes (2026-10-11):** login do Breno `brenosousaf13@gmail.com` (senha só com o Breno — nunca registrar aqui)
   com `is_platform_admin`, organização **"Loja Demonstração"** (`billing_exempt`, `plan='admin'`, até 10 contas ML) e
   conta ML **fictícia** `LOJA_DEMONSTRACAO` (`ml_user_id 999000000001`, sem tokens) + 12 perguntas, 2 respostas ensinadas
@@ -1063,10 +1092,33 @@ webhook do ML validado, fila/reprocessamento de jobs, observabilidade, controle 
 | 2026-10-12 | **Semana de teste com 1 cliente real na v2 antes de desligar a v1** (Breno). O **app ML da v2** (Client ID `8693830632560554`, hoje chamado "de teste") vira o **definitivo**: renomear para maanu e apontar as URLs para `maanu.com.br`. A v2 roda num **projeto Vercel novo "maanu"** com production branch `v2` e o domínio; a `main` (v1) não muda até o fim do teste | Cada app ML tem 1 URL de notificações: o app da v1 não serve as duas versões ao mesmo tempo, e trocar de app depois do teste obrigaria o cliente a reconectar. Crons da Vercel só rodam em deploy de produção (por isso projeto novo em vez de preview). O cliente do teste remove o app "Meli Fácil" dos aplicativos autorizados da conta ML dele (o "pausar" da v1 não funciona); volta = reconectar na v1 e pausar na v2. |
 | 2026-10-12 | Domínio **`maanu.com.br`** (Registro.br) para o app e para os e-mails (SMTP) | Comprado pelo Breno. |
 | 2026-10-12 | Reforço de segurança do banco da v2 (§8 "Segurança do Supabase da v2"): privilégios padrão negados, SSL obrigatório, senha do banco aleatória e não guardada, senha de usuário com letras + números | O banco vira produção e o cadastro é público. Falhar fechado (erro de permissão) é melhor que expor dados. |
+| 2026-10-12 | Produção da v2 num **projeto Vercel novo `maanu`** com production branch `v2` (não preview do projeto antigo) | Crons só rodam em deploy de produção; a `main` (v1) não pode mudar até o fim do teste. Na Fase 2 o production branch vira `main`. |
+| 2026-10-12 | **Chaves novas do Supabase** (publishable/secret) e legadas desligadas + segredo HS256 revogado | O segredo JWT antigo apareceu no terminal da Sessão 15; com ele dava para forjar um login de serviço. Chaves novas podem ser giradas uma a uma sem derrubar sessões. |
+| 2026-10-12 | `ML_TOKEN_ENCRYPTION_KEY` de produção = a mesma da staging | Staging e produção usam o mesmo banco durante a semana de teste; chaves diferentes fariam um lado não conseguir ler os tokens do outro. Girar quando a staging for desligada (exige reconectar as contas). |
+| 2026-10-12 | E-mails do login em português com link `token_hash` → `/auth/confirm` (`scripts/emails-auth/gerar.mjs`, `supabase/templates/`) + avisos de senha e e-mail alterados | Funciona em qualquer navegador (o cliente costuma abrir o e-mail no celular). Só aplicáveis com SMTP próprio no plano grátis. |
+| 2026-10-12 | Noord Shop e dados de demonstração apagados do banco da v2 | Pedido do Breno (dados literalmente novos). |
 
 ---
 
 ## 12. Diário de sessões (mais recente no topo)
+
+### 2026-10-12 — Sessão 15b · Fase 1 da troca: banco limpo, chaves novas, projeto Vercel `maanu` (IA: Claude, via app Codex)
+- Breno: "pode fazer"; vai pôr o domínio no **Cloudflare** e cuidar do DNS; já tem conta no **Resend**; pode apagar a Noord.
+- Banco (`ookosqyfazobiwmopiix`): apagadas a conta ML fictícia `LOJA_DEMONSTRACAO` (398 perguntas, 2 ensinadas, 1 bloqueio
+  em cascata), a organização "Noord Shop" e o login dela (`brenosousaf132@…`), e `ai_usage_events`. Ficou só o admin do Breno.
+- Chaves: criada a secret `maanu_servidor`; `.env.local` e variáveis Preview `v2` trocadas para publishable/secret; teste
+  com usuário temporário (cadastro pelo servidor, login, JWT ES256, `getClaims`, RLS, tokens negados; apagado no fim) e
+  staging (páginas e os 2 crons = 200); depois **chaves legadas desligadas**, **HS256 revogado** e a secret `default` apagada.
+  Conferido: a anon antiga recebe 401.
+- Vercel: projeto **`maanu`** criado pela API (repo `brenosousaf13/mlresponde`, production branch `v2`, só publica a `v2`),
+  9 variáveis de Production (falta `ML_CLIENT_SECRET`, que só o Breno tem), domínios `maanu.com.br` + `www` (308). 1º deploy
+  de produção ok; logs mostram os crons de 1 min respondendo 200. Projeto antigo `mlresponde`: ignored build step para só
+  publicar `main` e `v2`.
+- Supabase Auth: Site URL e redirects para `maanu.com.br` (staging mantida na lista durante o teste; localhost removido).
+- E-mails do login em português (`scripts/emails-auth/gerar.mjs` → `supabase/templates/*.html`): confirmação, nova senha,
+  troca de e-mail, link de acesso, convite, código e avisos de senha/e-mail alterados. O Supabase **recusou aplicar** sem SMTP
+  próprio (plano grátis) → aplicar quando o Resend estiver ligado.
+- `AGENTS.md` e §2: `v2` agora é produção (push só com as 4 verificações) e o banco da v2 é produção.
 
 ### 2026-10-12 — Sessão 15 · Plano da troca e reforço de segurança do Supabase da v2 (IA: Claude, via app Codex)
 - Pergunta do Breno: dá para tornar a v2 a `main` sem derrubar os clientes, sem migrar ninguém (6 clientes vão se
@@ -1393,25 +1445,26 @@ webhook do ML validado, fila/reprocessamento de jobs, observabilidade, controle 
 
 0a. **TROCA em 2 fases (Sessões 15; executar quando o Breno der o "pode fazer").** Sem migração de dados.
    **Fase 1 — semana de teste com 1 cliente (a v1 continua no ar para os outros):**
-   1. Breno: no Registro.br, trocar os servidores DNS de `maanu.com.br` para `ns1.vercel-dns.com` / `ns2.vercel-dns.com`
-      (a IA passa a gerenciar os registros pela Vercel); criar conta no Resend; dizer se a "Noord Shop" pode ser apagada.
-   2. IA: limpar os dados de demonstração do banco (conta ML fictícia, perguntas de exemplo; manter o login admin do Breno).
-   3. IA: chaves novas do Supabase (`sb_publishable_`/`sb_secret_` + assinatura JWT assimétrica), trocar nas variáveis e no
-      `.env.local`, testar e revogar as legadas (§8).
-   4. IA: projeto Vercel novo **"maanu"** (mesmo repositório), production branch **`v2`**, domínio `maanu.com.br` (+ `www`),
-      variáveis de **Production**: Supabase da v2, `ML_CLIENT_ID`/`ML_CLIENT_SECRET` do **app da v2** (secret: o Breno cola no
-      painel), `ML_REDIRECT_URI` e `NEXT_PUBLIC_SITE_URL` com `https://maanu.com.br`, `ML_TOKEN_ENCRYPTION_KEY` (a mesma da
-      staging, para não invalidar contas já conectadas, ou nova se o banco estiver limpo), `CRON_SECRET` novo, `OPENAI_API_KEY`.
-      Evitar builds de outras branches nesse projeto (ignored build step). Crons passam a rodar ali.
-   5. IA: Supabase Auth com Site URL `https://maanu.com.br` e redirects `https://maanu.com.br/**` (sem localhost); SMTP do
-      Resend (remetente `@maanu.com.br`, nome "maanu") e limite de e-mails maior. Sem SMTP pronto: confirmar o e-mail do
-      cliente pelo painel admin.
-   6. Breno, no DevCenter do **app da v2**: nome/logo maanu; redirect `https://maanu.com.br/api/auth/callback/mercadolivre`;
+   1. ✅ IA (15b): banco limpo; chaves novas (legadas desligadas, HS256 revogado); projeto Vercel `maanu` com production
+      branch `v2`, variáveis de Production e domínios; Auth com Site URL/redirects `maanu.com.br`; e-mails prontos.
+   2. ⏳ **Breno — DNS no Cloudflare** (proxy **desligado**, nuvem cinza, "DNS only"): `A  @  216.150.1.1`,
+      `A  @  216.150.16.1` e `CNAME  www  5205331b18becd29.vercel-dns-016.com`. A Vercel emite o certificado sozinha.
+   3. ⏳ **Breno — Vercel → projeto `maanu` → Settings → Environment Variables:** criar `ML_CLIENT_SECRET` (Production,
+      sensível) com o secret do app ML da v2 (DevCenter) e mandar a IA republicar.
+   4. ⏳ **Breno — Resend:** adicionar o domínio `maanu.com.br` (o Resend mostra os registros MX/TXT de envio e DKIM; tem
+      botão para configurar direto no Cloudflare) e, quando verificar, ligar o SMTP no Supabase pela integração do Resend
+      (Resend → Integrations → Supabase → projeto "Mercado Livre Responde v2"; remetente `nao-responda@maanu.com.br`, nome
+      `maanu`) ou à mão (Supabase → Authentication → Emails → SMTP: host `smtp.resend.com`, porta 465, usuário `resend`,
+      senha = API key do Resend). Recomendado também um TXT `_dmarc` = `v=DMARC1; p=none;`.
+   5. ⏳ IA, depois do SMTP: aplicar os e-mails em português (`node scripts/emails-auth/gerar.mjs`) e subir o limite de
+      e-mails; testar cadastro e "esqueci minha senha" ponta a ponta em `maanu.com.br`.
+   6. ⏳ Breno, no DevCenter do **app da v2**: nome/logo maanu; redirect `https://maanu.com.br/api/auth/callback/mercadolivre`;
       notificações `https://maanu.com.br/api/webhook/mercadolivre`. (A staging `mlresponde-v2.vercel.app` deixa de receber.)
+      Depois do 1º OAuth ok: marcar PKCE como obrigatório.
    7. Cliente do teste: cadastro em `maanu.com.br`, conecta a conta ML, configura o Assistente, liga a IA e **remove o app
       "Meli Fácil" dos aplicativos autorizados da conta ML** (senão a v1 continua respondendo por ele). Voltar atrás:
-      reconectar na v1 e pausar a IA na v2.
-   **Fase 2 — depois que o Breno aprovar o teste:**
+      reconectar na v1 e pausar a IA na v2. Admin acompanha em `maanu.com.br/admin` (o Breno precisa refazer o QR da 2ª
+      etapa só se perder o autenticador; o fator TOTP continua no banco).   **Fase 2 — depois que o Breno aprovar o teste:**
    8. Merge `v2` → `main` (com aprovação); projeto "maanu" passa a usar production branch `main`; projeto antigo
       `mlresponde` desligado (ou sem Git) para não publicar a v2 com as variáveis da v1.
    9. Breno avisa os outros clientes para se cadastrarem em `maanu.com.br`; desligar o app ML da v1 e pausar o Supabase da

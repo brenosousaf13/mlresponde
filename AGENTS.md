@@ -8,16 +8,20 @@
    Sessão que não atualiza o cérebro está incompleta.
 
 ## Regras inegociáveis (detalhes no `CEREBRO.md` §2)
-- O app **está em produção**: a branch `main` faz deploy automático na Vercel para clientes reais.
-  Não fazer push/merge na `main` sem aprovação explícita do Breno.
-- A v2 é desenvolvida na branch **`v2`** (staging `mlresponde-v2.vercel.app`, Supabase e app ML de **testes**).
-  Nela a IA tem autonomia: decide, implementa, testa, faz commit e push sem pedir aprovação de plano.
+- **Desde a Sessão 15 (2026-10-12) existem DUAS produções** (a troca está em andamento, ver `CEREBRO.md` §13 item 0a):
+  - `main` = **v1** (projeto Vercel `mlresponde`, clientes antigos, será desligada). Não fazer push/merge na `main`
+    sem aprovação explícita do Breno.
+  - **`v2` = PRODUÇÃO da v2**: todo push na `v2` publica em **`maanu.com.br`** (projeto Vercel `maanu`) para cliente real.
+    A IA continua com autonomia na `v2` (decide, implementa, commit e push), mas **só faz push com as 4 verificações
+    passando**; mudança grande ou arriscada vai antes para uma branch `codex/...` (não publica em lugar nenhum).
 - **UI sempre com shadcn/ui** (https://ui.shadcn.com/docs/components) — componentes e blocks; preset `base-nova` (Base UI).
 - **Marca: maanu** (sempre minúsculo). Siga `docs/brand/README.md`: logo só por `components/brand/logo.tsx`, nome em
   `lib/config/site.ts`, cores pelos tokens do tema (`primary`, `brand-*`) — não use cores soltas para a marca.
 - Antes de entregar: `npm run typecheck`, `npm test`, `npm run lint` e `npm run build`.
-- O banco Supabase de produção é compartilhado com a v1: nada destrutivo (DROP, RENAME, troca de tipo, apagar dados).
-  Mudanças de schema só por migração versionada, aditiva e retrocompatível.
+- **O Supabase da v2 (`ookosqyfazobiwmopiix`) é o banco de PRODUÇÃO** (dados de clientes reais; o `.env.local` aponta
+  para ele): nada destrutivo (DROP, RENAME, troca de tipo, apagar dados) sem aprovação do Breno; schema só por migração
+  versionada. **Toda tabela, view ou função nova precisa de `GRANT` explícito** para `authenticated` (os privilégios
+  padrão são negados de propósito, `CEREBRO.md` §6.1f). O banco da v1 é só leitura e não recebe migrações da v2.
 - Nunca commitar ou registrar segredos (`.env*`, tokens, chaves).
 - Fale com o Breno em português (BR), de forma direta.
 
