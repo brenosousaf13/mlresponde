@@ -1,10 +1,10 @@
-# 🧠 CÉREBRO DO PROJETO — Meli Fácil (Mercado Livre Responde)
+# 🧠 CÉREBRO DO PROJETO — maanu (antes Meli Fácil / Mercado Livre Responde)
 
 > **Fonte única de verdade do projeto.** Qualquer IA (Claude, ChatGPT/Codex ou outra) deve ler este arquivo
 > inteiro antes de trabalhar e atualizá-lo ao terminar. Se algo aqui divergir do código, o código vence —
 > e este arquivo deve ser corrigido na mesma sessão.
 
-Última atualização: **2026-10-11** (Sessão 11 — pós-venda com IA, exclusivo do plano Essencial, branch `v2`)
+Última atualização: **2026-10-11** (Sessão 12 — nova marca **maanu**: logo, favicon, cores e textos, branch `v2`)
 
 ---
 
@@ -28,8 +28,9 @@ Mercado Livre. Recebe o webhook da pergunta, busca dados do anúncio (atributos,
 regras da loja (base de conhecimento) e o histórico de respostas do vendedor (few-shot), gera a resposta e posta
 no ML. Tudo aparece em tempo real na dashboard.
 
-**Nomes:** marca comercial **Meli Fácil** · repositório `brenosousaf13/mlresponde` · pacote npm `ml-automatizado` ·
-pasta local `C:\Users\Breno\Desktop\Mercado Livre Responde`.
+**Nomes:** marca comercial **maanu** (desde 2026-10-11, Sessão 12; antes "Meli Fácil" na v1 e "MeLi Responde" na v2) ·
+repositório `brenosousaf13/mlresponde` · pacote npm `maanu` (era `ml-automatizado`) · pasta local
+`C:\Users\Breno\Desktop\Mercado Livre Responde`. A v1 em produção (`main`) continua com "Meli Fácil" até o cutover.
 
 **História:** construído em abr–jun/2026 para **um cliente**, 100% via IA (o Breno descrevia, a IA codava).
 Deu certo e outros clientes querem usar.
@@ -82,8 +83,11 @@ novas funcionalidades, segurança multi-tenant de verdade — **desenvolvido em 
   configuração em `/pos-venda/agente` (instruções, assuntos delicados, certeza, assinatura, respostas ensinadas, Testar).
   Primeira regra de plano do produto (`lib/plans/plans.ts` + RLS). Spec: `docs/superpowers/specs/2026-10-11-pos-venda-design.md`.
   Falta testar com conta ML real (depende do Breno).
-- **Marca da v2:** logo `MeliLogo.png` = **"MeLi Responde"** (assumido pela IA; confirmar com o Breno). Nome centralizado em
-  `lib/config/site.ts`. A v1 em produção usa "Meli Fácil".
+  **Sessão 12 (2026-10-11): nova identidade visual "maanu"** — logo "maanu." e símbolo "m." vetorizados a partir dos
+  arquivos do Breno (SVG no próprio HTML), favicon/ícones/imagem de compartilhamento novos, tema teal + grafite (neutros
+  slate) em todas as telas, nome e assinatura ("Respostas automáticas com IA para marketplaces") nos textos.
+- **Marca:** **maanu** (decisão do Breno, 2026-10-11). Guia de uso, paleta e arquivos em `docs/brand/README.md`; nome,
+  assinatura e slogan em `lib/config/site.ts`; logo só pelos componentes de `components/brand/logo.tsx`.
 - P0 de segurança/toggle (§8) **adiados** por decisão do Breno — revisitar antes de abrir para novos clientes.
 
 ---
@@ -123,7 +127,7 @@ novas funcionalidades, segurança multi-tenant de verdade — **desenvolvido em 
 | Camada | v2 (branch `v2`) | v1 (produção, `main`) |
 |---|---|---|
 | Framework | **Next.js 16.2.3** (App Router, Turbopack). `middleware` virou **`proxy.ts`**; `after()` nativo; `params`/`searchParams`/`cookies()` são assíncronos; tipos `PageProps<"/rota">` via `next typegen`. Docs locais em `node_modules/next/dist/docs/` (ler antes de codar). | igual |
-| UI | React 19.2 + Tailwind v4 + **shadcn/ui** (preset `base-nova`, primitivos **Base UI** `@base-ui/react`, `cn` do pacote `cn`, ícones `lucide-react`, toasts `sonner`). Componentes em `components/ui/`. Componentes Base UI usam a prop **`render`** (não `asChild`); para links com cara de botão usar `buttonVariants`. | HTML + Tailwind puro |
+| UI | React 19.2 + Tailwind v4 + **shadcn/ui** (preset `base-nova`, primitivos **Base UI** `@base-ui/react`, `cn` do pacote `cn`, ícones `lucide-react`, toasts `sonner`). Componentes em `components/ui/`. Componentes Base UI usam a prop **`render`** (não `asChild`); para links com cara de botão usar `buttonVariants`. Tema da marca maanu em `app/globals.css` (`primary` teal, neutros slate, tokens `brand-*`; guia em `docs/brand/README.md`). | HTML + Tailwind puro |
 | Formulários | Server Actions + `useActionState` + **zod 3** (validação no servidor) + componentes `Field` do shadcn | server actions simples |
 | Auth | Supabase Auth: cadastro com confirmação de e-mail, login, recuperação de senha, onboarding | usuários criados à mão |
 | Banco | Supabase Postgres, migrações em `supabase/migrations/`, tipos gerados em `lib/supabase/database.types.ts` | painel, sem migrações |
@@ -148,7 +152,8 @@ proxy.ts                          # renova a sessão (getClaims) e redireciona: 
 app/
   layout.tsx                      # pt-BR, Geist, TooltipProvider, Toaster (sonner), metadata da marca
   page.tsx                        # / → /painel
-  icon.png                        # favicon (balão da logo)
+  icon.svg, favicon.ico           # favicon "m." (gerados por docs/brand/scripts/gerar.mjs)
+  apple-icon.png, opengraph-image.png (+ .alt.txt)   # ícone do iPhone e imagem de links compartilhados
   (auth)/                         # telas públicas no estilo shadcn login-03 (fundo muted + card)
     actions.ts                    # signIn, signUp, resendConfirmation, requestPasswordReset, updatePassword, signOut
     login/ cadastro/ verificar-email/ recuperar-senha/ redefinir-senha/
@@ -195,7 +200,8 @@ components/
                                   # blacklist-manager, test-panel, assistant-status, how-it-works
   app/account-select.tsx          # seletor de conta (?conta=), com "Todas as contas" opcional
   billing/billing-profile-form.tsx # dados de cobrança (cadastro e Configurações): CPF/CNPJ com confirmação, CEP automático
-  auth/ onboarding/ contas/ configuracoes/ legal/ forms/ brand/
+  brand/logo.tsx (+ logo-paths.ts) # LogoWordmark ("maanu.") e LogoMark ("m.") em SVG; letras = cor do texto, ponto teal
+  auth/ onboarding/ contas/ configuracoes/ legal/ forms/
 lib/
   config/site.ts                  # nome da marca, dias de teste, versão dos termos
   env.ts                          # leitura de env obrigatória (server-only)
@@ -253,8 +259,9 @@ tests/unit/                       # vitest: crypto, pkce, access, forms, answers
 tests/integration/ai-live.test.ts # 22 cenários com a IA real; só roda com RUN_LIVE_AI=1 + OPENAI_API_KEY
 tests/integration/after-sale-live.test.ts # 12 cenários do agente de pós-venda com a IA real (mesmas variáveis)
 vercel.json                       # crons /api/cron/questions e /api/cron/pos-venda a cada minuto (efeito só em produção)
-docs/                             # specs (superpowers/specs), db (inventário/snapshot de prod), v2 (referências)
-public/brand/                     # logo-wordmark.png e logo-icon.png (recortados de MeliLogo.png)
+docs/                             # specs (superpowers/specs), db (inventário/snapshot de prod), v2 (referências),
+                                  # brand (apresentação e originais da marca, guia README.md, scripts/ para regerar)
+public/brand/                     # maanu-logo(.svg/.png, -branco), maanu-m(.svg, -branco), maanu-icone(.svg, -512.png)
 ```
 
 ---
@@ -771,7 +778,7 @@ Decisões de **produto** (preços, planos, textos legais, marca, WhatsApp) conti
 4. **Comercial** — planos, cobrança recorrente, painel admin do Breno, controle de custo de IA.
 
 ### Jornada do cliente — ✅ DEFINIDA pelo Breno (2026-10-11), adaptada do AgilizaPRO
-1. Conhece o Meli Fácil pela **página de vendas** e pelo **Instagram**.
+1. Conhece a maanu pela **página de vendas** e pelo **Instagram**.
 2. CTA da página leva ao **cadastro** (não ao pagamento).
 3. Confirma o e-mail → aceita os termos → onboarding.
 4. Entra em **teste grátis de 7 dias, sem cartão**.
@@ -803,7 +810,7 @@ Decisões de **produto** (preços, planos, textos legais, marca, WhatsApp) conti
 
 ### Pontos em aberto (decidir no design)
 - Gateway de pagamento (Stripe, como o AgilizaPRO, ou Mercado Pago/Asaas) e nota fiscal → sub-projeto 4.
-- Planos do Meli Fácil (limites por perguntas, contas ML, módulos de IA) → sub-projeto 4.
+- Planos da maanu (limites por perguntas, contas ML, módulos de IA) → sub-projeto 4.
 - WhatsApp: obrigatório no onboarding? provedor? → sub-projetos 1/2.
 - Login com Google no cadastro? → sub-projeto 1.
 - Clientes atuais da v1 (7 usuários): como entram nos planos no cutover (ex.: período de cortesia) → sub-projeto 1.
@@ -884,10 +891,39 @@ webhook do ML validado, fila/reprocessamento de jobs, observabilidade, controle 
 | 2026-10-11 | Conversa por venda (pack) com fila no Postgres, igual às perguntas, e o ML como fonte da verdade (relê a conversa antes de responder) | Evita resposta dupla e responde todas as mensagens pendentes de uma vez; sem serviço extra. |
 | 2026-10-11 | No Brasil a mensagem vai para o **agente de mensageria do ML** (`to` = 3037675074) e, se o ML recusar o destinatário, para o comprador | Exigência da "nova arquitetura de mensageria" (02/02/2026), com implantação gradual; as duas tentativas cobrem conversas antigas e novas. |
 | 2026-10-11 | Dados de envio/pedido guardados sem endereço nem dados pessoais do comprador | LGPD: o agente e a tela só precisam de situação, rastreio e previsão. |
+| 2026-10-11 | Marca **maanu** (Breno), no lugar de "MeLi Responde"/"Meli Fácil"; sempre minúsculo, tratada no feminino ("a maanu") | Nova identidade enviada pelo Breno; o gênero foi escolha da IA ("a plataforma") — trocar em Termos/Privacidade se ele preferir "o maanu". |
+| 2026-10-11 | Logo vetorizada dos PNGs originais e desenhada como SVG no próprio HTML (`currentColor` nas letras) | Nítida em qualquer tamanho, funciona em fundo claro e escuro e não faz requisição extra. Scripts em `docs/brand/scripts/` para regerar. |
+| 2026-10-11 | `primary` = teal um pouco mais fechado (`#009682`) que o da logo (`#1FAF9A`); o teal exato fica no ponto da logo, gráficos e destaques sobre grafite | Texto branco sobre `#1FAF9A` tem contraste 2,7:1 (ruim em botões e links pequenos); `#009682` mantém a cor da marca com 3,7:1. |
+| 2026-10-11 | Cores de significado: teal = IA, grafite/slate = você, âmbar = esperando você, violeta = mensagem padrão, vermelho = problema | O verde-esmeralda usado para "você" se confundiria com o teal da IA. |
+| 2026-10-11 | Favicon "m." branco em quadrado grafite; ícone de app (iPhone/materiais) em quadrado branco | O favicon precisa aparecer em abas claras e escuras; o ícone de app segue a apresentação da marca. |
 
 ---
 
 ## 12. Diário de sessões (mais recente no topo)
+
+### 2026-10-11 — Sessão 12 · Nova marca: maanu (IA: Claude, via app Codex)
+- Pedido do Breno: trocar toda a identidade visual e o nome da plataforma para **maanu**; mandou a apresentação da marca, a
+  logo e o "m." (para favicon e menu recolhido) e pediu para ajustar as cores em tudo.
+- Logo e "m." vetorizados dos PNGs (`potracer`; o ponto virou círculo perfeito) → `components/brand/logo.tsx`
+  (`LogoWordmark`, `LogoMark`: SVG no HTML, letras com `currentColor`, ponto teal) e `public/brand/*` (SVG/PNG, versões
+  brancas, ícone 512). Originais e apresentação movidos da raiz para `docs/brand/` (nomes sem acento); guia em
+  `docs/brand/README.md`; scripts `docs/brand/scripts/vetorizar.py` + `gerar.mjs` regeram tudo.
+- Ícones: `app/icon.svg` + `app/favicon.ico` (16/32/48, "m." branco em quadrado grafite), `app/apple-icon.png`,
+  `app/opengraph-image.png` (+ alt) para links compartilhados; `metadataBase` (de `NEXT_PUBLIC_SITE_URL`), Open Graph e
+  Twitter no `app/layout.tsx`. Removidos `app/icon.png`, `public/brand/logo-*.png`, `public/logo.png` e `MeliLogo.png`.
+- Tema (`app/globals.css`): tokens `brand-graphite|teal|teal-ink|sage|slate|offwhite`; `primary` teal `#009682`, neutros
+  slate (texto = grafite), foco teal, gráficos teal (IA) / slate (você), raio 0,75rem; `.dark` coerente (não usado hoje).
+  Trocadas todas as cores fixas da marca antiga (amarelo/marinho/azul) e os verdes que brigariam com o teal: "você" virou
+  grafite/slate, "IA analisando" teal pulsando, caixas de sucesso em sage, cartão de economia de Resultados grafite com
+  valor teal, aviso de teste grafite, aviso "conecte o ML" em sage, contador do menu teal.
+- Menu: aberto mostra "maanu." + nome da loja; recolhido mostra só o "m." (clicar abre). Ajuste no QA: logo alinhada à
+  esquerda (o SVG esticava na coluna) e `!important` no tamanho (o botão do menu força `size-4` em SVGs).
+- Textos: `siteConfig` (nome, assinatura e slogan da apresentação), títulos ("Painel · maanu"), Termos/Privacidade
+  ("a maanu"), README novo, pacote npm `maanu`. O nome continua só em `lib/config/site.ts`.
+- QA no navegador (servidor local → Supabase de **testes**, 1440 e 390 px) com loja temporária e perguntas em todos os
+  estados: login, Painel, Perguntas (lista e conversas IA/você), Resultados, menu aberto/recolhido, gaveta do celular,
+  Termos; tags de ícone/compartilhamento conferidas (servidas sem login); sem erros no console. Usuário/loja de QA apagados.
+- Verificação: typecheck, 262 testes, lint 0, build ok.
 
 ### 2026-10-11 — Sessão 11 · Pós-venda com IA, exclusivo do plano Essencial (IA: Claude, via app Codex)
 - Pedido do Breno: feature exclusiva do plano Essencial — agente que responde as mensagens de pós-venda (compras feitas),
@@ -1128,7 +1164,14 @@ webhook do ML validado, fila/reprocessamento de jobs, observabilidade, controle 
 6. **Decidir com o Breno o próximo passo:** (a) migração de dados v1 → v2 e cutover (clientes atuais com cortesia,
    reconectar contas, importar base de conhecimento → "Outras informações" e exemplos → respostas ensinadas; o prompt do
    cliente atual da v1 pode virar as respostas da configuração guiada), ou (b) sub-projeto 4 (planos e cobrança), ou (c) WhatsApp.
-7. **Breno decide:** marca ("MeLi Responde"?), SMTP próprio (Resend), textos legais, provedor de WhatsApp.
+7. **Breno decide:** SMTP próprio (Resend), textos legais, provedor de WhatsApp. (Marca decidida: **maanu**.)
+7b. **Breno: pendências da marca maanu fora do código** — (a) conferir na staging (login, menu aberto/recolhido, favicon,
+   Resultados) e dizer se o teal dos botões está bom (pode ficar idêntico ao da logo, só que menos legível); (b) trocar o
+   nome/logo do app no DevCenter do ML (aparece para o vendedor na tela de autorização) — teste agora, produção no
+   cutover; (c) domínio próprio (ex.: maanu.com.br) → depois ajustar `NEXT_PUBLIC_SITE_URL`, `ML_REDIRECT_URI`, URLs do app
+   ML e Site URL do Supabase; (d) nome do remetente dos e-mails de cadastro/senha só muda com SMTP próprio; (e) opcional:
+   renomear projeto/repositório na Vercel/GitHub (muda a URL `mlresponde-v2.vercel.app` — refazer as URLs do app ML de
+   teste); (f) a v1 em produção continua "Meli Fácil" até o cutover.
 8. **Cutover (checklist parcial):** `CRON_SECRET`, `ML_TOKEN_ENCRYPTION_KEY` (nova), `NEXT_PUBLIC_SITE_URL` em Production;
    `supabase migration repair --status applied 20261011150000` em prod e `db push`; URLs do app ML de produção (redirect
    `/api/auth/callback/mercadolivre`, notificações `/api/webhook/mercadolivre`) e permissões novas; clientes reconectam.

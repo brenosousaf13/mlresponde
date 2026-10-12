@@ -56,7 +56,7 @@ export function TopicsCard({ topics, total, sampled }: { topics: TopicSummary[];
       {top ? (
         <CardFooter className="flex-col items-start gap-1 text-sm">
           <p className="flex items-center gap-1.5 font-medium">
-            <LightbulbIcon className="size-4 text-brand-yellow" />
+            <LightbulbIcon className="size-4 text-primary" />
             Dica: {top.tip}
           </p>
           <p className="text-xs text-muted-foreground">

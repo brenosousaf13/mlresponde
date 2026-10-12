@@ -37,7 +37,7 @@ export function AwaitingQuestionsCard({ questions, total }: { questions: Dashboa
         <CardTitle className="flex items-center gap-2">
           Esperando você
           {total ? (
-            <span className="rounded-md bg-brand-yellow px-1.5 text-xs font-semibold text-brand-navy tabular-nums">{formatNumber(total)}</span>
+            <span className="rounded-md bg-primary px-1.5 text-xs font-semibold text-primary-foreground tabular-nums">{formatNumber(total)}</span>
           ) : null}
         </CardTitle>
         <CardDescription>Perguntas que a IA deixou para você, já com rascunho</CardDescription>
@@ -77,7 +77,7 @@ export function AwaitingQuestionsCard({ questions, total }: { questions: Dashboa
         ) : (
           <Empty className="gap-3 p-6">
             <EmptyHeader>
-              <EmptyMedia variant="icon" className="bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400">
+              <EmptyMedia variant="icon" className="bg-brand-sage text-brand-teal-ink dark:bg-brand-teal/15">
                 <CheckCircle2Icon />
               </EmptyMedia>
               <EmptyTitle>Nada esperando você</EmptyTitle>

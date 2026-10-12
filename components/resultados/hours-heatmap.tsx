@@ -52,7 +52,7 @@ export function HoursHeatmap({ matrix, aiMatrix, max }: { matrix: number[][]; ai
                   )}
                   style={{
                     backgroundColor: intensity
-                      ? `color-mix(in oklch, var(--primary) ${intensity}%, var(--muted))`
+                      ? `color-mix(in oklch, var(--chart-1) ${intensity}%, var(--muted))`
                       : "var(--muted)",
                   }}
                 />
@@ -64,7 +64,7 @@ export function HoursHeatmap({ matrix, aiMatrix, max }: { matrix: number[][]; ai
         {Array.from({ length: 24 }, (_, hour) => (
           <span key={hour} className="relative h-4">
             {hour >= BUSINESS_HOURS.open && hour < BUSINESS_HOURS.close ? (
-              <span className="absolute inset-x-[-1.5px] top-0.5 h-1 bg-brand-yellow" />
+              <span className="absolute inset-x-[-1.5px] top-0.5 h-1 bg-brand-slate" />
             ) : null}
             {HOUR_LABELS.includes(hour) ? (
               <span className="absolute top-1.5 left-0 text-[10px] text-muted-foreground tabular-nums">{hour}h</span>
@@ -77,13 +77,13 @@ export function HoursHeatmap({ matrix, aiMatrix, max }: { matrix: number[][]; ai
           {caption}
         </p>
         <p className="flex shrink-0 items-center gap-1.5">
-          <span className="inline-block h-1 w-4 rounded-full bg-brand-yellow" />
+          <span className="inline-block h-1 w-4 rounded-full bg-brand-slate" />
           horário comercial
           <span className="ml-2 inline-flex items-center gap-0.5">
             menos
             <span className="inline-block size-2.5 rounded-[3px] bg-muted" />
-            <span className="inline-block size-2.5 rounded-[3px] bg-primary/50" />
-            <span className="inline-block size-2.5 rounded-[3px] bg-primary" />
+            <span className="inline-block size-2.5 rounded-[3px] bg-chart-1/50" />
+            <span className="inline-block size-2.5 rounded-[3px] bg-chart-1" />
             mais
           </span>
         </p>

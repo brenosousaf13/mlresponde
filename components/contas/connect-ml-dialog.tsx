@@ -52,7 +52,7 @@ export function ConnectMlDialog({
         <ul className="flex flex-col gap-2 text-sm">
           {PERMISSIONS.map((permission) => (
             <li key={permission} className="flex items-start gap-2">
-              <CheckIcon className="mt-0.5 size-4 shrink-0 text-emerald-600" />
+              <CheckIcon className="mt-0.5 size-4 shrink-0 text-primary" />
               {permission}
             </li>
           ))}

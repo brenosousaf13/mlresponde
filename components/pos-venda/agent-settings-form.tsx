@@ -95,7 +95,7 @@ export function AgentSettingsForm({ accountId, initial, disabled }: { accountId:
               ))}
             </RadioGroup>
             <p className="flex items-start gap-2 text-xs text-muted-foreground">
-              <ShieldCheckIcon className="mt-0.5 size-3.5 shrink-0 text-emerald-600" />
+              <ShieldCheckIcon className="mt-0.5 size-3.5 shrink-0 text-primary" />
               Mudanças no pedido (endereço, cor, tamanho) e conversas com reclamação aberta sempre ficam com você.
             </p>
             <FieldError errors={fieldErrors(state, "policy")} />

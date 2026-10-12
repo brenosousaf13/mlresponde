@@ -14,7 +14,7 @@ import type { DailyPoint } from "@/lib/results/metrics"
 
 const config = {
   ai: { label: "Pela IA", color: "var(--chart-1)" },
-  human: { label: "Por você", color: "oklch(0.696 0.17 162.48)" },
+  human: { label: "Por você", color: "var(--chart-2)" },
   open: { label: "Aguardando", color: "oklch(0.769 0.188 70.08)" },
 } satisfies ChartConfig
 

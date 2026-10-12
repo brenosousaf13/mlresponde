@@ -65,7 +65,7 @@ export default async function SubscriptionPage({ searchParams }: PageProps<"/ass
           <ul className="flex flex-col divide-y rounded-xl border text-sm">
             <li className="flex items-center justify-between gap-3 p-3.5">
               <span className="flex items-center gap-2.5">
-                <CheckCircle2Icon className="size-4 text-emerald-600" />
+                <CheckCircle2Icon className="size-4 text-primary" />
                 Respostas automáticas às perguntas dos anúncios
               </span>
               <Badge variant="secondary">Incluído</Badge>
@@ -73,7 +73,7 @@ export default async function SubscriptionPage({ searchParams }: PageProps<"/ass
             <li className="flex items-center justify-between gap-3 p-3.5">
               <span className="flex items-center gap-2.5">
                 {features.pos_venda ? (
-                  <CheckCircle2Icon className="size-4 text-emerald-600" />
+                  <CheckCircle2Icon className="size-4 text-primary" />
                 ) : (
                   <LockIcon className="size-4 text-muted-foreground" />
                 )}

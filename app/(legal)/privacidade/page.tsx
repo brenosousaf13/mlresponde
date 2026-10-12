@@ -62,7 +62,7 @@ export default function PrivacyPage() {
   return (
     <LegalPage
       title="Política de Privacidade"
-      intro={`Como o ${name} trata os seus dados.`}
+      intro={`Como a ${name} trata os seus dados.`}
       sections={sections}
     />
   )

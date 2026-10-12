@@ -115,7 +115,7 @@ export function AgentTestPanel({ accountId }: { accountId: string }) {
                 className={cn(
                   "flex items-start gap-3 rounded-xl border p-4 text-sm",
                   result.outcome === "send"
-                    ? "border-emerald-200 bg-emerald-50 text-emerald-900 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-200"
+                    ? "border-brand-teal/30 bg-brand-sage/50 text-brand-graphite dark:border-brand-teal/30 dark:bg-brand-teal/10 dark:text-brand-offwhite"
                     : "border-amber-200 bg-amber-50 text-amber-900 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-200"
                 )}
               >

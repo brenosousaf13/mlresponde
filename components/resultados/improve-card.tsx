@@ -59,7 +59,7 @@ export function ImproveCard({ causes, aiAnswers, total }: { causes: Causes; aiAn
         </div>
         {handled === 0 ? (
           <p className="flex items-center gap-2 text-sm text-muted-foreground">
-            <CircleCheckIcon className="size-4 text-emerald-600" />
+            <CircleCheckIcon className="size-4 text-primary" />
             {total > 0 ? "Nenhuma pergunta precisou de você no período." : "Ainda não há perguntas no período."}
           </p>
         ) : (

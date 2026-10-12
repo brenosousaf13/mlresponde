@@ -128,7 +128,7 @@ export default async function DashboardPage() {
                   {steps.map((step) => (
                     <li key={step.label} className="flex items-start gap-2">
                       {step.done ? (
-                        <CheckCircle2Icon className="mt-0.5 size-4 shrink-0 text-emerald-600" />
+                        <CheckCircle2Icon className="mt-0.5 size-4 shrink-0 text-primary" />
                       ) : (
                         <CircleIcon className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
                       )}

@@ -147,7 +147,7 @@ export default async function ResultsPage({ searchParams }: PageProps<"/resultad
             </CardDescription>
             {factor ? (
               <CardAction>
-                <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-700 ring-1 ring-emerald-600/20 dark:bg-emerald-950/40 dark:text-emerald-300">
+                <span className="inline-flex items-center gap-1 rounded-full bg-brand-sage/60 px-2.5 py-1 text-xs font-medium text-brand-teal-ink ring-1 ring-brand-teal/25 dark:bg-brand-teal/10">
                   <ZapIcon className="size-3.5" />
                   {formatFactor(factor)} mais rápida
                 </span>
@@ -158,14 +158,14 @@ export default async function ResultsPage({ searchParams }: PageProps<"/resultad
             <dl className="grid grid-cols-2 gap-3">
               <div className="rounded-lg bg-primary/5 px-3 py-2.5 ring-1 ring-primary/15">
                 <dt className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                  <span className="size-2 rounded-full bg-primary" />
+                  <span className="size-2 rounded-full bg-chart-1" />
                   IA (metade das respostas em até)
                 </dt>
                 <dd className="mt-1 text-2xl font-semibold tabular-nums">{formatDuration(current.aiMedianSeconds)}</dd>
               </div>
-              <div className="rounded-lg bg-emerald-500/5 px-3 py-2.5 ring-1 ring-emerald-600/15">
+              <div className="rounded-lg bg-slate-500/5 px-3 py-2.5 ring-1 ring-slate-500/15">
                 <dt className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                  <span className="size-2 rounded-full bg-emerald-500" />
+                  <span className="size-2 rounded-full bg-chart-2" />
                   Você (metade das respostas em até)
                 </dt>
                 <dd className="mt-1 text-2xl font-semibold tabular-nums">

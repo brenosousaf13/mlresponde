@@ -19,7 +19,7 @@ const OUTCOME = {
   answer: {
     title: "A IA responderia sozinha",
     icon: CircleCheckIcon,
-    box: "border-emerald-200 bg-emerald-50 text-emerald-900 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-200",
+    box: "border-brand-teal/30 bg-brand-sage/50 text-brand-graphite dark:border-brand-teal/30 dark:bg-brand-teal/10 dark:text-brand-offwhite",
     bubble: "bg-primary/10",
   },
   fallback: {

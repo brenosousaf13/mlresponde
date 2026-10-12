@@ -104,7 +104,7 @@ export function KpiCards({
         ? {
             text: `${formatFactor(factor)} mais rápida`,
             icon: ZapIcon,
-            className: "border-emerald-600/30 text-emerald-700 dark:text-emerald-400",
+            className: "border-primary/30 text-brand-teal-ink",
           }
         : null,
       headline:

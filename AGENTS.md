@@ -13,6 +13,8 @@
 - A v2 é desenvolvida na branch **`v2`** (staging `mlresponde-v2.vercel.app`, Supabase e app ML de **testes**).
   Nela a IA tem autonomia: decide, implementa, testa, faz commit e push sem pedir aprovação de plano.
 - **UI sempre com shadcn/ui** (https://ui.shadcn.com/docs/components) — componentes e blocks; preset `base-nova` (Base UI).
+- **Marca: maanu** (sempre minúsculo). Siga `docs/brand/README.md`: logo só por `components/brand/logo.tsx`, nome em
+  `lib/config/site.ts`, cores pelos tokens do tema (`primary`, `brand-*`) — não use cores soltas para a marca.
 - Antes de entregar: `npm run typecheck`, `npm test`, `npm run lint` e `npm run build`.
 - O banco Supabase de produção é compartilhado com a v1: nada destrutivo (DROP, RENAME, troca de tipo, apagar dados).
   Mudanças de schema só por migração versionada, aditiva e retrocompatível.

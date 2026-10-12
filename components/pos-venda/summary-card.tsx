@@ -23,8 +23,8 @@ export function AfterSaleSummaryCard({ summary, days }: { summary: AfterSaleSumm
           {waitingCount ? `${formatNumber(waitingCount)} esperando você` : "Nenhum comprador esperando"}
         </CardTitle>
         <CardAction>
-          <span className={cn("inline-flex items-center gap-1.5 text-xs font-medium", agentOn ? "text-emerald-700 dark:text-emerald-400" : "text-muted-foreground")}>
-            <span className={cn("size-2 rounded-full", agentOn ? "bg-emerald-500" : "bg-muted-foreground/40")} />
+          <span className={cn("inline-flex items-center gap-1.5 text-xs font-medium", agentOn ? "text-brand-teal-ink" : "text-muted-foreground")}>
+            <span className={cn("size-2 rounded-full", agentOn ? "bg-brand-teal" : "bg-muted-foreground/40")} />
             {agentOn ? "Agente ligado" : "Agente pausado"}
           </span>
         </CardAction>

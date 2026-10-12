@@ -50,8 +50,8 @@ export type AccountInfo = { nickname: string; greeting: string; signature: strin
 
 const SOURCE = {
   ai: { label: "IA", icon: BotIcon, avatar: "bg-primary text-primary-foreground" },
-  manual: { label: "Você", icon: UserCheckIcon, avatar: "bg-emerald-600 text-white" },
-  external: { label: "Você, direto no Mercado Livre", icon: StoreIcon, avatar: "bg-teal-600 text-white" },
+  manual: { label: "Você", icon: UserCheckIcon, avatar: "bg-brand-graphite text-white dark:bg-slate-600" },
+  external: { label: "Você, direto no Mercado Livre", icon: StoreIcon, avatar: "bg-slate-500 text-white" },
 } as const
 
 const THUMB = {

@@ -116,8 +116,8 @@ export function SetupWizard({
                     <span
                       className={cn(
                         "flex size-6 shrink-0 items-center justify-center rounded-full border text-xs tabular-nums",
-                        state === "done" && "border-emerald-600 bg-emerald-600 text-white",
-                        state === "current" && "border-primary bg-primary text-primary-foreground"
+                        state === "done" && "border-primary bg-primary text-primary-foreground",
+                        state === "current" && "border-brand-graphite bg-brand-graphite text-white dark:border-white dark:bg-white dark:text-brand-graphite"
                       )}
                     >
                       {state === "done" ? <CheckIcon className="size-3.5" /> : sectionIndex + 1}

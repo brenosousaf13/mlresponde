@@ -232,7 +232,7 @@ export function ModeFields({
               </p>
             </div>
             <div className="flex items-start gap-2.5 rounded-xl border p-3.5 text-sm text-muted-foreground">
-              <ShieldCheckIcon className="mt-0.5 size-4 shrink-0 text-emerald-600" />
+              <ShieldCheckIcon className="mt-0.5 size-4 shrink-0 text-primary" />
               <p>
                 A IA continua sem inventar nada. Pedido de desconto recebe &ldquo;as condições são as do anúncio&rdquo;,
                 reclamação recebe um pedido de desculpas com o caminho de &ldquo;Minhas compras&rdquo;. Anúncios bloqueados

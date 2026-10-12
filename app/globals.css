@@ -5,9 +5,12 @@
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
-  --color-brand-blue: var(--brand-blue);
-  --color-brand-navy: var(--brand-navy);
-  --color-brand-yellow: var(--brand-yellow);
+  --color-brand-graphite: var(--brand-graphite);
+  --color-brand-teal: var(--brand-teal);
+  --color-brand-teal-ink: var(--brand-teal-ink);
+  --color-brand-sage: var(--brand-sage);
+  --color-brand-slate: var(--brand-slate);
+  --color-brand-offwhite: var(--brand-offwhite);
   --color-canvas: var(--canvas);
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -52,81 +55,92 @@
   --radius-4xl: calc(var(--radius) * 2.6);
 }
 
+/*
+ * Identidade visual maanu (docs/brand/README.md).
+ * Paleta oficial: Graphite #0F172A · Teal Green #1FAF9A · Off White #F8FAFC · Soft Sage #DDEEE8 · Slate #A0AEC0.
+ * Os neutros seguem a escala "slate" (o Graphite da marca é o slate-900).
+ */
 :root {
-  --brand-blue: oklch(0.506 0.206 262.1);
-  --brand-navy: oklch(0.235 0.082 265.5);
-  --brand-yellow: oklch(0.848 0.165 86.4);
-  /* Fundo da área logada: cinza levemente azulado para as superfícies brancas (cards) se destacarem. */
-  --canvas: oklch(0.962 0.009 265);
+  --brand-graphite: oklch(0.208 0.042 265.755);
+  --brand-teal: oklch(0.678 0.118 179.7);
+  /* Teal escuro para texto sobre fundos claros/sage (contraste AA). */
+  --brand-teal-ink: oklch(0.44 0.08 180);
+  --brand-sage: oklch(0.935 0.02 172.8);
+  --brand-slate: oklch(0.746 0.03 254.7);
+  --brand-offwhite: oklch(0.984 0.003 247.858);
+  /* Fundo da área logada: off-white levemente mais fechado para os cards brancos se destacarem. */
+  --canvas: oklch(0.968 0.007 247.896);
   --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
+  --foreground: var(--brand-graphite);
   --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
+  --card-foreground: var(--brand-graphite);
   --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: var(--brand-blue);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
+  --popover-foreground: var(--brand-graphite);
+  /* Teal um pouco mais fechado que o da logo nos botões e links, para o texto branco/teal ficar legível. */
+  --primary: oklch(0.6 0.118 179.7);
+  --primary-foreground: oklch(1 0 0);
+  --secondary: oklch(0.968 0.007 247.896);
+  --secondary-foreground: var(--brand-graphite);
+  --muted: oklch(0.968 0.007 247.896);
+  --muted-foreground: oklch(0.554 0.046 257.417);
+  --accent: oklch(0.968 0.007 247.896);
+  --accent-foreground: var(--brand-graphite);
   --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.635 0.17 262.1);
-  --chart-1: var(--brand-blue);
-  --chart-2: var(--brand-yellow);
-  --chart-3: var(--brand-navy);
-  --chart-4: oklch(0.635 0.17 262.1);
-  --chart-5: oklch(0.708 0 0);
-  --radius: 0.625rem;
+  --border: oklch(0.929 0.013 255.508);
+  --input: oklch(0.929 0.013 255.508);
+  --ring: var(--brand-teal);
+  /* Gráficos: IA = teal, você = slate, depois grafite, sage e slate claro. */
+  --chart-1: var(--brand-teal);
+  --chart-2: oklch(0.446 0.043 257.281);
+  --chart-3: var(--brand-graphite);
+  --chart-4: oklch(0.82 0.06 176);
+  --chart-5: var(--brand-slate);
+  --radius: 0.75rem;
   --sidebar: oklch(1 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: var(--brand-blue);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.955 0.022 262);
-  --sidebar-accent-foreground: oklch(0.4 0.16 262);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
+  --sidebar-foreground: var(--brand-graphite);
+  --sidebar-primary: var(--primary);
+  --sidebar-primary-foreground: oklch(1 0 0);
+  --sidebar-accent: oklch(0.962 0.018 175);
+  --sidebar-accent-foreground: var(--brand-teal-ink);
+  --sidebar-border: oklch(0.929 0.013 255.508);
+  --sidebar-ring: var(--brand-teal);
 }
 
 .dark {
-  --canvas: oklch(0.115 0 0);
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.635 0.17 262.1);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
+  --brand-teal-ink: oklch(0.82 0.1 178);
+  --canvas: oklch(0.129 0.042 264.695);
+  --background: var(--brand-graphite);
+  --foreground: oklch(0.984 0.003 247.858);
+  --card: oklch(0.249 0.042 263);
+  --card-foreground: oklch(0.984 0.003 247.858);
+  --popover: oklch(0.249 0.042 263);
+  --popover-foreground: oklch(0.984 0.003 247.858);
+  --primary: var(--brand-teal);
+  --primary-foreground: var(--brand-graphite);
+  --secondary: oklch(0.279 0.041 260.031);
+  --secondary-foreground: oklch(0.984 0.003 247.858);
+  --muted: oklch(0.279 0.041 260.031);
+  --muted-foreground: oklch(0.704 0.04 256.788);
+  --accent: oklch(0.279 0.041 260.031);
+  --accent-foreground: oklch(0.984 0.003 247.858);
   --destructive: oklch(0.704 0.191 22.216);
   --border: oklch(1 0 0 / 10%);
   --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
+  --ring: var(--brand-teal);
+  --chart-1: var(--brand-teal);
+  --chart-2: oklch(0.704 0.04 256.788);
+  --chart-3: oklch(0.984 0.003 247.858);
+  --chart-4: oklch(0.55 0.08 178);
+  --chart-5: oklch(0.446 0.043 257.281);
+  --sidebar: oklch(0.249 0.042 263);
+  --sidebar-foreground: oklch(0.984 0.003 247.858);
+  --sidebar-primary: var(--brand-teal);
+  --sidebar-primary-foreground: var(--brand-graphite);
+  --sidebar-accent: oklch(0.32 0.05 200);
+  --sidebar-accent-foreground: oklch(0.984 0.003 247.858);
   --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
+  --sidebar-ring: var(--brand-teal);
 }
-
 @layer base {
   * {
     @apply border-border outline-ring/50;

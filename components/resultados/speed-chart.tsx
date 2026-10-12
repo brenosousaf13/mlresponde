@@ -14,7 +14,7 @@ import type { SpeedPoint } from "@/lib/results/metrics"
 
 const config = {
   ai: { label: "IA", color: "var(--chart-1)" },
-  human: { label: "Você", color: "oklch(0.696 0.17 162.48)" },
+  human: { label: "Você", color: "var(--chart-2)" },
 } satisfies ChartConfig
 
 const percent = (value: unknown) => (typeof value === "number" && value > 0 ? `${value}%` : "")

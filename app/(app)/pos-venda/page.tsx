@@ -169,7 +169,7 @@ export default async function AfterSalePage({ searchParams }: PageProps<"/pos-ve
             <Link href="/pos-venda/agente" className={cn(buttonVariants({ variant: "outline" }), "bg-card")}>
               <Settings2Icon data-icon="inline-start" />
               Agente
-              <Badge variant={agentsOn ? "default" : "secondary"} className={cn("ml-0.5", agentsOn && "bg-emerald-600")}>
+              <Badge variant={agentsOn ? "default" : "secondary"} className="ml-0.5">
                 {agentsOn ? "ligado" : "pausado"}
               </Badge>
             </Link>

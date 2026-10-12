@@ -42,7 +42,7 @@ export type ListConversation = {
 const TAB_STYLE: Record<ConversationTab, { icon: LucideIcon; iconBg: string; ring: string }> = {
   responder: { icon: InboxIcon, iconBg: "bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-400", ring: "ring-amber-500" },
   agente: { icon: BotIcon, iconBg: "bg-primary/10 text-primary", ring: "ring-primary" },
-  voce: { icon: UserCheckIcon, iconBg: "bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400", ring: "ring-emerald-500" },
+  voce: { icon: UserCheckIcon, iconBg: "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300", ring: "ring-slate-500" },
   todas: { icon: LayersIcon, iconBg: "bg-muted text-muted-foreground", ring: "ring-foreground/40" },
 }
 

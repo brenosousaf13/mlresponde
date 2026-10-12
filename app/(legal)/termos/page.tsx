@@ -11,13 +11,13 @@ const sections: LegalSection[] = [
   {
     title: "Aceitação",
     paragraphs: [
-      `Ao criar uma conta no ${name}, você declara que leu e concorda com estes Termos de Uso e com a Política de Privacidade. Se não concordar, não utilize a plataforma.`,
+      `Ao criar uma conta na ${name}, você declara que leu e concorda com estes Termos de Uso e com a Política de Privacidade. Se não concordar, não utilize a plataforma.`,
     ],
   },
   {
     title: "O serviço",
     paragraphs: [
-      `O ${name} é uma plataforma que ajuda vendedores do Mercado Livre a atender compradores usando inteligência artificial, incluindo a geração e o envio automático de respostas às perguntas feitas nos anúncios.`,
+      `A ${name} é uma plataforma que ajuda vendedores do Mercado Livre a atender compradores usando inteligência artificial, incluindo a geração e o envio automático de respostas às perguntas feitas nos anúncios.`,
       "As respostas são geradas a partir das informações dos anúncios e das orientações que você cadastra. Você é responsável por manter essas informações corretas e por acompanhar as respostas enviadas em nome da sua loja.",
     ],
   },
@@ -73,7 +73,7 @@ export default function TermsPage() {
   return (
     <LegalPage
       title="Termos de Uso"
-      intro={`Estas são as regras para usar o ${name}.`}
+      intro={`Estas são as regras para usar a ${name}.`}
       sections={sections}
     />
   )

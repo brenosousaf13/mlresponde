@@ -33,7 +33,7 @@ export function AssistantStatus({
         disabled ? "cursor-not-allowed opacity-70" : "cursor-pointer"
       )}
     >
-      <span className={cn("size-2 rounded-full", optimistic ? "bg-emerald-500" : "bg-muted-foreground/40")} aria-hidden />
+      <span className={cn("size-2 rounded-full", optimistic ? "bg-brand-teal" : "bg-muted-foreground/40")} aria-hidden />
       <span className="font-medium">{optimistic ? "IA respondendo" : "IA pausada"}</span>
       {optimistic && alwaysMode ? (
         <span className="rounded-full bg-violet-500/10 px-1.5 py-0.5 text-[11px] font-medium text-violet-700 dark:text-violet-300">

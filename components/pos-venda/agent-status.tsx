@@ -30,7 +30,7 @@ export function AgentStatus({
         disabled ? "cursor-not-allowed opacity-70" : "cursor-pointer"
       )}
     >
-      <span className={cn("size-2 rounded-full", optimistic ? "bg-emerald-500" : "bg-muted-foreground/40")} aria-hidden />
+      <span className={cn("size-2 rounded-full", optimistic ? "bg-brand-teal" : "bg-muted-foreground/40")} aria-hidden />
       <span className="font-medium">{optimistic ? "Agente respondendo" : "Agente pausado"}</span>
       <Switch
         size="sm"

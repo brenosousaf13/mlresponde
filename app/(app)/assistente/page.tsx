@@ -152,10 +152,10 @@ export default async function AssistantPage({ searchParams }: PageProps<"/assist
       {header}
 
       {params.concluido === "1" ? (
-        <Alert className="border-emerald-200 bg-emerald-50 text-emerald-950 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-100">
+        <Alert className="border-brand-teal/30 bg-brand-sage/50 text-brand-graphite dark:border-brand-teal/30 dark:bg-brand-teal/10 dark:text-brand-offwhite">
           <PartyPopperIcon />
           <AlertTitle>Pronto! O assistente já conhece a sua loja.</AlertTitle>
-          <AlertDescription className="text-emerald-900/80 dark:text-emerald-100/80">
+          <AlertDescription className="text-brand-graphite/80 dark:text-brand-offwhite/80">
             Faça algumas perguntas na aba Testar para ver como ele responde. Quando estiver do seu jeito, ligue a IA no
             botão &ldquo;IA pausada&rdquo; acima.
           </AlertDescription>

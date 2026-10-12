@@ -81,8 +81,8 @@ export type DetailMessage = {
 
 const SOURCE = {
   ai: { label: "Agente", icon: BotIcon, avatar: "bg-primary text-primary-foreground", bubble: "bg-primary/10" },
-  manual: { label: "Você", icon: UserCheckIcon, avatar: "bg-emerald-600 text-white", bubble: "bg-emerald-50 dark:bg-emerald-950/40" },
-  external: { label: "Você, no Mercado Livre", icon: StoreIcon, avatar: "bg-teal-600 text-white", bubble: "bg-teal-50 dark:bg-teal-950/40" },
+  manual: { label: "Você", icon: UserCheckIcon, avatar: "bg-brand-graphite text-white dark:bg-slate-600", bubble: "bg-slate-100 dark:bg-slate-800/60" },
+  external: { label: "Você, no Mercado Livre", icon: StoreIcon, avatar: "bg-slate-500 text-white", bubble: "bg-slate-50 ring-1 ring-slate-200 dark:bg-slate-900/40 dark:ring-slate-800" },
 } as const
 
 const MODERATION_LABELS: Record<string, string> = {

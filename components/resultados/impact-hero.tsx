@@ -46,14 +46,14 @@ export function ImpactHero({
   ]
 
   return (
-    <Card className="relative bg-brand-navy text-white ring-0">
+    <Card className="relative bg-brand-graphite text-white ring-0">
       <div
         aria-hidden
-        className="pointer-events-none absolute -top-32 -right-24 size-96 rounded-full bg-brand-blue/50 blur-3xl"
+        className="pointer-events-none absolute -top-32 -right-24 size-96 rounded-full bg-brand-teal/35 blur-3xl"
       />
       <div
         aria-hidden
-        className="pointer-events-none absolute -bottom-40 left-1/4 size-80 rounded-full bg-brand-yellow/10 blur-3xl"
+        className="pointer-events-none absolute -bottom-40 left-1/4 size-80 rounded-full bg-brand-sage/10 blur-3xl"
       />
       <div
         aria-hidden
@@ -64,7 +64,7 @@ export function ImpactHero({
           <PiggyBankIcon className="size-4" />
           Economia estimada com a IA · últimos {days} dias
         </CardDescription>
-        <CardTitle className="text-4xl font-semibold tracking-tight text-brand-yellow tabular-nums sm:text-5xl">
+        <CardTitle className="text-4xl font-semibold tracking-tight text-brand-teal tabular-nums sm:text-5xl">
           {formatCurrency(savings.amount)}
         </CardTitle>
         <p className="col-span-2 max-w-2xl text-sm text-white/80 sm:text-base">

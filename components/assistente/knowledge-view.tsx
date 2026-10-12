@@ -85,7 +85,7 @@ export function KnowledgeView({
                   return (
                     <div key={question.id} className="flex items-start gap-3 py-3 first:pt-0 last:pb-0">
                       {has ? (
-                        <CheckCircle2Icon className="mt-0.5 size-4 shrink-0 text-emerald-600" />
+                        <CheckCircle2Icon className="mt-0.5 size-4 shrink-0 text-primary" />
                       ) : (
                         <CircleDashedIcon className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
                       )}

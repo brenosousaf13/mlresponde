@@ -22,7 +22,7 @@ const STEPS: { icon: LucideIcon; title: string; description: string; tone: strin
     title: "Responda rápido, venda mais",
     description:
       "No Mercado Livre, quem responde primeiro leva a venda. A IA responde seus compradores em segundos, a qualquer hora.",
-    tone: "bg-brand-yellow/20 text-brand-navy",
+    tone: "bg-brand-graphite text-brand-teal",
   },
   {
     icon: BotIcon,
@@ -36,7 +36,7 @@ const STEPS: { icon: LucideIcon; title: string; description: string; tone: strin
     title: "Você no controle",
     description:
       "Se a IA não tiver certeza, ela não inventa: deixa a pergunta para você responder. Você também pode pausar quando quiser.",
-    tone: "bg-emerald-500/10 text-emerald-600",
+    tone: "bg-brand-sage text-brand-teal-ink",
   },
   {
     icon: LayersIcon,
