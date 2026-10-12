@@ -4,7 +4,7 @@
 > inteiro antes de trabalhar e atualizá-lo ao terminar. Se algo aqui divergir do código, o código vence —
 > e este arquivo deve ser corrigido na mesma sessão.
 
-Última atualização: **2026-10-11** (Sessão 12 — nova marca **maanu**: logo, favicon, cores e textos, branch `v2`)
+Última atualização: **2026-10-12** (Sessão 13 — **painel do administrador** em `/admin` com verificação em 2 etapas, branch `v2`)
 
 ---
 
@@ -86,6 +86,14 @@ novas funcionalidades, segurança multi-tenant de verdade — **desenvolvido em 
   **Sessão 12 (2026-10-11): nova identidade visual "maanu"** — logo "maanu." e símbolo "m." vetorizados a partir dos
   arquivos do Breno (SVG no próprio HTML), favicon/ícones/imagem de compartilhamento novos, tema teal + grafite (neutros
   slate) em todas as telas, nome e assinatura ("Respostas automáticas com IA para marketplaces") nos textos.
+  **Sessão 13 (2026-10-12): painel do administrador** (`/admin`, só `is_platform_admin` + **verificação em 2 etapas
+  (TOTP) obrigatória**, código pedido de novo a cada 12 h; quem não é admin recebe 404). Telas: Visão geral (clientes por
+  situação, cadastros, usuários ativos, MRR, custo de IA, funil de ativação, testes acabando, alertas), Clientes (busca,
+  filtros, CSV) e ficha do cliente (editar assinatura/plano/mensalidade/cortesia/limite, estender teste, notas internas,
+  editar usuário e e-mail, confirmar e-mail, link de senha nova, bloquear acesso, pausar a IA de uma conta), Uso de IA
+  (tokens e custo por chamada, função, modelo e cliente), Financeiro (MRR, custo de IA projetado, margem, quem dá
+  prejuízo), Operação (filas, erros, contas com problema e **pausa geral da IA**) e Auditoria (histórico imutável).
+  Toda chamada à OpenAI agora grava tokens e custo em `ai_usage_events`. Spec: `docs/superpowers/specs/2026-10-12-painel-admin-design.md`.
 - **Marca:** **maanu** (decisão do Breno, 2026-10-11). Guia de uso, paleta e arquivos em `docs/brand/README.md`; nome,
   assinatura e slogan em `lib/config/site.ts`; logo só pelos componentes de `components/brand/logo.tsx`.
 - P0 de segurança/toggle (§8) **adiados** por decisão do Breno — revisitar antes de abrir para novos clientes.
@@ -148,7 +156,8 @@ Removidos na v2: `@anthropic-ai/sdk`, `jimp`, `dotenv` e os scripts soltos da ra
 
 ```
 proxy.ts                          # renova a sessão (getClaims) e redireciona: sem login → /login?next=; logado em
-                                  # /login|/cadastro|... → /painel. NÃO é a camada de segurança (cada página/ação revalida)
+                                  # /login|/cadastro|... → /painel. NÃO é a camada de segurança (cada página/ação revalida).
+                                  # Com ADMIN_HOST: /admin só abre no subdomínio do painel (lib/admin/host.ts)
 app/
   layout.tsx                      # pt-BR, Geist, TooltipProvider, Toaster (sonner), metadata da marca
   page.tsx                        # / → /painel
@@ -237,6 +246,12 @@ lib/
   results/metrics.ts            # Resultados (puro, testado): período, economia, fator de velocidade, horário comercial e
                                 # espera evitada, série diária, distribuição de velocidade, assuntos por palavra-chave
   results/format.ts             # R$, horas, dias de trabalho, variação
+  admin/                          # PAINEL DO ADMINISTRADOR (puro, testado em tests/unit/admin.test.ts): session (regra da
+                                  #   2ª etapa, espelho de admin_assert), host (subdomínio ADMIN_HOST e links), labels, format,
+                                  #   finance (MRR, projeção, margem), schemas (formulários), csv (sem injeção), types (JSON do banco)
+  ai/pricing.ts                   # preço por modelo (US$/1M tokens) + custo de cada chamada (puro, testado)
+  ai/usage.ts                     # trackedCompletion: pausa geral da IA + registro em ai_usage_events (toda chamada à OpenAI)
+  dal/admin.ts                    # requireAdmin (admin + 2 etapas recente), leituras via rpc admin_* com a sessão do admin
   plans/plans.ts                  # planos e o que liberam (essencial → pos_venda; admin → tudo). Espelho no banco:
                                   #   plan_includes_after_sale(). featureAccess (admin da plataforma vê tudo)
   after-sale/                     # PÓS-VENDA (puro e testado, salvo engine/ai): text (latin1, 350 caracteres, assinatura),
@@ -253,8 +268,10 @@ lib/
   http/site-url.ts                # NEXT_PUBLIC_SITE_URL → URLs de retorno dos e-mails
 supabase/
   config.toml, migrations/        # baseline_v1 (espelho de prod) + fundacao_v2 + respostas_v2 + assistente_ia +
-                                  # perguntas_escala + resultados + dados_cobranca + modo_responder_sempre + pos_venda
-  tests/fundacao_rls.sql, respostas_rls.sql, resultados_rls.sql, cobranca_rls.sql, pos_venda_rls.sql   # sucesso = erro "TESTES_..._OK"
+                                  # perguntas_escala + resultados + dados_cobranca + modo_responder_sempre + pos_venda +
+                                  # painel_admin
+  tests/fundacao_rls.sql, respostas_rls.sql, resultados_rls.sql, cobranca_rls.sql, pos_venda_rls.sql, admin_rls.sql
+                                  # sucesso = erro "TESTES_..._OK"
 tests/unit/                       # vitest: crypto, pkce, access, forms, answers, assistant, inbox, results, billing, after-sale...
 tests/integration/ai-live.test.ts # 22 cenários com a IA real; só roda com RUN_LIVE_AI=1 + OPENAI_API_KEY
 tests/integration/after-sale-live.test.ts # 12 cenários do agente de pós-venda com a IA real (mesmas variáveis)
@@ -287,6 +304,7 @@ Novas na v2:
 | `NEXT_PUBLIC_SITE_URL` | URL base para os links dos e-mails de auth (staging: `https://mlresponde-v2.vercel.app`; local: `http://localhost:3000`) |
 | `OPENAI_MODEL` | opcional; padrão `gpt-6-luna`. Não existe na Vercel (verificado na Sessão 8). Para voltar ao modelo antigo sem mexer no código: `OPENAI_MODEL=gpt-4o-mini` (modelos `gpt-4*`/`gpt-3.5*` não recebem `reasoning_effort`). |
 | `CRON_SECRET` | protege `/api/cron/questions`. **Precisa existir em Production no cutover** (o cron só roda em produção). |
+| `ADMIN_HOST` | opcional (Sessão 13). Endereço próprio do painel do administrador, ex.: `admin.maanu.com.br`. Com ele, `/admin` só abre nesse endereço (no domínio do app vira 404) e o endereço só serve o painel e o login. Sem ele, o painel fica em `/admin` do próprio app. Hoje **não** existe na Vercel (sem domínio próprio). |
 
 Obsoletas (citadas no `instructions.md`, não usadas): `ANTHROPIC_API_KEY`, `NEXT_PUBLIC_APP_URL`.
 
@@ -328,8 +346,9 @@ localmente, definir no terminal).
   via servidor. Testado em `supabase/tests/fundacao_rls.sql`.
 - ⚠️ Usuários antigos (sem perfil/organização) são completados na hora por `ensureAccountSetup` (DAL) — útil no cutover.
 - **Administrador da plataforma:** `profiles.is_platform_admin = true` → passa por todos os bloqueios de seção
-  (`decideSectionAccess`) e aparece o selo "Admin" no menu do usuário. Base para o futuro painel admin do Breno.
-  Só pode ser ligado direto no banco (service role); não existe tela para isso.
+  (`decideSectionAccess`), aparece o selo "Admin" e o item "Painel do administrador" no menu do usuário e abre o
+  **painel do administrador** (`/admin`, ver §6.1e). Só pode ser ligado direto no banco (service role); o painel não
+  cria nem remove administradores (de propósito).
 
 ### 6.1b v2 — Respostas (migração `20261011180000_respostas_v2.sql`)
 
@@ -391,6 +410,35 @@ localmente, definir no terminal).
   `sender` buyer/seller, `source` buyer/ai/manual/external, anexos jsonb, status/moderação do ML.
 - `after_sale_examples` (respostas ensinadas do pós-venda). Funções `claim_ml_conversation`/`due_ml_conversations` só service role.
 - Testado em `supabase/tests/pos_venda_rls.sql` (organização sem o plano não lê nem as próprias conversas).
+
+### 6.1e v2 — Painel do administrador (migração `20261012120000_painel_admin.sql`, aditiva)
+
+- `ai_usage_events` (1 linha por chamada à OpenAI: organização, conta ML, função `question_answer|question_suggestion|
+  assistant_test|after_sale_answer|after_sale_suggestion|after_sale_test`, modelo, tokens de entrada/cache/saída/raciocínio,
+  `cost_usd` calculado na hora por `lib/ai/pricing.ts`, sucesso/erro, latência, pergunta/conversa). Histórico começa na
+  Sessão 13 (sem backfill). Só o servidor grava (`trackedCompletion` em `lib/ai/usage.ts`, usado por `runAnswerModel` e
+  `runAfterSaleModel`, que agora recebem o contexto de uso; `null` só nos testes com a IA real).
+- `platform_settings` (linha única): `ai_paused` (+ motivo/quando/quem) = **pausa geral da IA** (nenhuma chamada à
+  OpenAI sai; perguntas/conversas vão para o vendedor com `auto_reply_off`; aviso âmbar no app do cliente),
+  `usd_brl_rate` (padrão 5,50) e `monthly_fixed_costs_brl`.
+- `admin_audit_log` (só inclusão: trigger recusa UPDATE/DELETE/TRUNCATE até para o service role) e
+  `admin_organization_notes` (notas internas; cliente não lê). `organizations.monthly_price` (mensalidade em R$, base do
+  MRR até existir gateway) e `profiles.last_seen_at` (último uso do app, gravado no máximo a cada 15 min com `after()` em
+  `getAppContext`; **usuário ativo** = `greatest(last_seen_at, last_sign_in_at)` no período). Índice BRIN em
+  `ml_questions(created_at)`.
+- Tabelas novas: RLS ligado e **nenhuma** policy/privilégio para anon/authenticated. O painel lê e altera **só** pelas
+  funções `admin_*` (security definer, `execute` para authenticated), e **toda** começa com `admin_assert()`: confere no
+  banco, pelo JWT verificado, `auth.uid()` + `is_platform_admin` + `aal = 'aal2'` + método `totp` há até 12 h (43.200 s).
+  Leitura: `admin_overview`, `admin_list_organizations` (busca/filtros/ordem/página, até 5.000 para o CSV),
+  `admin_organization_detail`, `admin_ai_usage(from, to)`, `admin_finance`, `admin_operations`, `admin_list_audit`.
+  Escrita (gravam o histórico na mesma transação, com antes/depois só do que mudou, IP e navegador):
+  `admin_update_organization` (só name, plan, subscription_status, trial_ends_at, current_period_end, billing_exempt,
+  ml_accounts_limit, monthly_price), `admin_set_organization_notes`, `admin_update_profile` (full_name, whatsapp),
+  `admin_pause_ml_account` (só **desliga**; religar é do cliente), `admin_update_platform_settings`, `admin_log_event`
+  (ações feitas na API do Supabase Auth: e-mail, confirmação, link de senha, bloqueio, exportação). Internas sem execute
+  externo: `admin_org_rows`, `admin_write_audit`, `admin_org_status`, `admin_org_stage`.
+- Testado em `supabase/tests/admin_rls.sql` (anon, cliente com 2 etapas, admin sem 2 etapas e com código de 13 h atrás são
+  barrados; funções internas e tabelas fechadas; alterações auditadas; histórico imutável).
 
 ### 6.2 v1 — produção (✅ CONFIRMADO em 2026-10-11)
 
@@ -514,6 +562,22 @@ Extensões: pgcrypto, uuid-ossp, pg_stat_statements, pg_graphql, supabase_vault 
 4. Envio manual reserva a conversa por 90 s (o agente não responde junto), relê o ML antes, aceita até 5 anexos (4 MB) e pode
    ensinar o agente (`after_sale_examples`).
 - Detalhes e limites: `docs/superpowers/specs/2026-10-11-pos-venda-design.md`.
+
+### 7.0d v2 — Painel do administrador (`/admin`)
+1. Entrar normalmente em `/login` com o usuário admin → menu do usuário → **Painel do administrador** (ou abrir `/admin`).
+   Quem não é `is_platform_admin` recebe **404** em qualquer `/admin/*` (inclusive a exportação CSV).
+2. `/admin/verificacao`: 1º acesso = "Gerar QR code" → escanear no app autenticador (Google Authenticator, 1Password,
+   Authy...) → digitar o código (o código secreto aparece para guardar). Depois, só o código de 6 números; pedido de novo a
+   cada 12 h (`lib/admin/session.ts` = `admin_assert()`). 5 códigos errados em 15 min bloqueiam por 15 min. Entradas,
+   cadastros e erros de código vão para a Auditoria.
+3. Layout `app/admin/(painel)` (menu grafite + faixa vermelha se a IA geral estiver pausada) chama `requireAdmin()`; cada
+   página, Server Action (`app/admin/actions.ts`) e a rota do CSV conferem de novo, e o banco confere a 3ª vez.
+4. Ações sobre usuários usam a API de administração do Supabase Auth no servidor (trocar e-mail já confirmado, confirmar
+   e-mail, `generateLink` de recuperação → link `/auth/confirm?token_hash=&type=recovery&next=/redefinir-senha` de uso único
+   e 1 h, `ban_duration` ~100 anos para bloquear). Administradores da plataforma não podem ser bloqueados/editados por e-mail
+   nem receber link de senha pelo painel (só pelo banco).
+5. **Perdeu o celular do autenticador:** no SQL Editor do Supabase do ambiente,
+   `delete from auth.mfa_factors where user_id = (select id from auth.users where email = '<email>');` e cadastrar de novo.
 
 ### 7.1 v1 (produção) — Login
 `/login` → server action `login` (`signInWithPassword`) → `/`. `proxy.ts` redireciona não-logados para `/login`
@@ -896,10 +960,49 @@ webhook do ML validado, fila/reprocessamento de jobs, observabilidade, controle 
 | 2026-10-11 | `primary` = teal um pouco mais fechado (`#009682`) que o da logo (`#1FAF9A`); o teal exato fica no ponto da logo, gráficos e destaques sobre grafite | Texto branco sobre `#1FAF9A` tem contraste 2,7:1 (ruim em botões e links pequenos); `#009682` mantém a cor da marca com 3,7:1. |
 | 2026-10-11 | Cores de significado: teal = IA, grafite/slate = você, âmbar = esperando você, violeta = mensagem padrão, vermelho = problema | O verde-esmeralda usado para "você" se confundiria com o teal da IA. |
 | 2026-10-11 | Favicon "m." branco em quadrado grafite; ícone de app (iPhone/materiais) em quadrado branco | O favicon precisa aparecer em abas claras e escuras; o ícone de app segue a apresentação da marca. |
+| 2026-10-12 | Painel do administrador em **`/admin` no mesmo app** (não subdomínio agora), com **verificação em 2 etapas (TOTP) obrigatória** a cada 12 h | Pedido do Breno ("o melhor e mais seguro"). A segurança vem dos controles, não do endereço: `is_platform_admin` só pelo banco, 2ª etapa, checagem em 3 camadas (proxy/DAL/banco), 404 para quem não é admin e histórico imutável. Subdomínio sem domínio próprio não traz ganho real; ficou pronto pela variável `ADMIN_HOST` (testado com `admin.localhost`). |
+| 2026-10-12 | O painel lê e altera dados **só** por funções `admin_*` com `admin_assert()` no banco, usando a sessão do próprio admin (sem service role para ler clientes) | Defesa em profundidade: um bug no servidor não expõe dados, porque o Postgres confere admin + aal2 + TOTP recente pelo JWT. As alterações gravam o histórico na mesma transação. |
+| 2026-10-12 | Registrar **toda** chamada à OpenAI (`ai_usage_events`) com tokens de entrada/cache/saída e custo calculado na hora | Antes só existia `ai_tokens` da última execução de cada pergunta (sem testes, sugestões e repetições). Custo gravado no momento não muda quando o preço muda. Sem backfill. |
+| 2026-10-12 | MRR vem de `organizations.monthly_price` (mensalidade digitada no painel) até existir gateway | Ainda não há cobrança automática; o financeiro já funciona e o sub-projeto 4 passa a preencher o valor. |
+| 2026-10-12 | **Pausa geral da IA** (botão de emergência) em `platform_settings`, conferida antes de cada chamada | Para IA errando, OpenAI fora ou custo disparando. Perguntas vão para o vendedor (nada se perde) e o cliente vê um aviso. |
+| 2026-10-12 | Admin pode **pausar** a IA de uma conta, mas não ligar | Ligar a IA fala em nome da loja do cliente: decisão do cliente. |
+| 2026-10-12 | Sem "entrar como cliente" (impersonação) e sem excluir conta nesta versão | Impersonação dá acesso total a dados de cliente (risco LGPD) e exclusão é irreversível; ficam para quando houver necessidade real e regras claras. |
 
 ---
 
 ## 12. Diário de sessões (mais recente no topo)
+
+### 2026-10-12 — Sessão 13 · Painel do administrador (IA: Claude, via app Codex)
+- Pedido do Breno: painel para monitorar a plataforma inteira (tokens gastos, financeiro, cadastros, usuários ativos,
+  editar usuários "etc."); decidir entre subdomínio e `/admin` pelo mais seguro e completar o que faltasse.
+  Spec: `docs/superpowers/specs/2026-10-12-painel-admin-design.md`.
+- Decisão: `/admin` no mesmo app + **verificação em 2 etapas (TOTP do Supabase Auth) obrigatória** a cada 12 h + checagem
+  em 3 camadas (proxy, `lib/dal/admin.ts`, `admin_assert()` no banco) + 404 para quem não é admin + auditoria imutável.
+  Subdomínio pronto por `ADMIN_HOST` (§5) para quando houver domínio próprio.
+- Migração `20261012120000_painel_admin.sql` aplicada no Supabase de **testes** (dry-run antes); tipos regenerados. Ver §6.1e.
+- Novo: `app/admin/*` (verificação, Visão geral, Clientes + ficha + CSV, Uso de IA, Financeiro, Operação, Auditoria,
+  `actions.ts`), `components/admin/*`, `lib/admin/*`, `lib/ai/{pricing,usage}.ts`, `lib/dal/admin.ts`, shadcn `input-otp`
+  (dependência `input-otp`). Alterados: `runAnswerModel`/`runAfterSaleModel` (recebem o contexto de uso; pausa geral; erro
+  `PlatformAiPausedError` vira "pausada" sem gastar tentativa), motores e ações que chamam a IA, `getAppContext` (último
+  acesso), layout do app (aviso de pausa geral), menu do usuário (link do painel para admins), `proxy.ts` (ADMIN_HOST),
+  `next.config.ts` (cabeçalhos noindex/DENY/no-referrer em `/admin`), tema do menu grafite em `app/globals.css`.
+- Testes: `supabase/tests/admin_rls.sql` (TESTES_ADMIN_OK) + os anteriores; 23 unitários novos em `tests/unit/admin.test.ts`
+  (total 285); typecheck, lint e build ok. A bateria com a IA real (`tests/integration`) **não** foi rodada de novo nesta
+  sessão (o ambiente bloqueou passar a chave por arquivo); a mudança no `runAnswerModel` é só o envelope de registro e uma
+  chamada real ponta a ponta pelo app foi conferida (abaixo). Rodar na próxima oportunidade.
+- QA no navegador (servidor local → Supabase de testes, 1440 e 390 px) com admin temporário e 3 lojas fictícias: cliente
+  comum recebe 404 em todo `/admin` e as funções do banco recusam (cliente, admin sem 2ª etapa); cadastro do autenticador
+  (QR + código gerado por TOTP), código errado recusado e registrado; Visão geral, Clientes (busca por e-mail/apelido ML/
+  nome, filtros pela interface, CSV com BOM e sem fórmulas), ficha (editar assinatura com validação, +7 dias de teste,
+  confirmar e-mail, notas, link de senha nova usado de verdade e recusado na 2ª vez, bloquear → login recusado "User is
+  banned" → desbloquear, trocar nome/WhatsApp/e-mail, pausar respostas de uma conta), Uso de IA (7/30 dias), Financeiro
+  (premissas com validação), Operação (pausa geral → faixa no painel e aviso no app do cliente, Testar do Assistente
+  bloqueado sem chamar a OpenAI → retomar), Auditoria (16 registros com antes/depois e IP, filtro). Subdomínio testado com
+  `ADMIN_HOST=admin.localhost` (`/admin` 404 no app; no subdomínio só login + painel). Chamada real à OpenAI pelo Testar
+  gravou 2.100 tokens de entrada/45 de saída e US$ 0,0002325 (conferido à mão). Ajustes do QA: logo clara no fundo
+  grafite, eixo em US$ cortado, tabela "Por função" estourando, preços com vírgula, "< 1%", histórico com nomes legíveis,
+  links entre app e painel com subdomínio. A chave da OpenAI foi lida da Vercel só em memória (passada por stdin).
+  Dados de QA (usuários, lojas, perguntas, eventos de uso) apagados no fim; o histórico de auditoria do QA fica (é imutável).
 
 ### 2026-10-11 — Sessão 12 · Nova marca: maanu (IA: Claude, via app Codex)
 - Pedido do Breno: trocar toda a identidade visual e o nome da plataforma para **maanu**; mandou a apresentação da marca, a
@@ -1133,6 +1236,15 @@ webhook do ML validado, fila/reprocessamento de jobs, observabilidade, controle 
 
 ## 13. Próximos passos
 
+0. **Breno: primeiro acesso ao painel do administrador na staging** (`https://mlresponde-v2.vercel.app/admin`): entrar com
+   `brenosousaf13@gmail.com` (já é admin), clicar em "Gerar QR code", escanear com um app autenticador no celular e digitar
+   o código. **Guardar o código secreto** que aparece (permite cadastrar o mesmo autenticador em outro celular). Depois:
+   (a) em Financeiro → "Ajustar números", colocar a cotação do dólar que o cartão cobra e os custos fixos (Vercel, Supabase,
+   domínio...); (b) nos clientes que pagam, preencher a mensalidade em "Editar assinatura" (é o que forma o MRR);
+   (c) no cutover, a produção ganha o painel junto (a migração é aditiva) e o Breno precisa ser marcado admin no banco de
+   **produção** (`update public.profiles set is_platform_admin = true where id = '<id do usuário>';`) e cadastrar a 2ª etapa
+   de novo lá. (d) Quando comprar o domínio, decidir se o painel vai para `admin.<domínio>` (variável `ADMIN_HOST`,
+   Preview + Production, e domínio apontado na Vercel).
 1. ✅ Infra de staging, inventário de prod, baseline, **Fundação** (sub-projeto 1) e **Respostas v2** (sub-projeto 2).
 1b. **Breno: Pós-venda (plano Essencial).** (a) No app ML de **teste** (DevCenter), conferir o tópico **`messages`** marcado
    e as permissões **Comunicações pré e pós-vendas** e **Venda e envios** (leitura e escrita) — sem isso o agente não recebe
@@ -1185,6 +1297,10 @@ webhook do ML validado, fila/reprocessamento de jobs, observabilidade, controle 
     Resultados: **vendas após a resposta** (tópico `orders_v2` + `buyer_id` já gravado: quem perguntou e comprou depois,
     em R$) — é o número financeiro mais forte que falta; relatório mensal por e-mail/WhatsApp; horário comercial vindo do
     Assistente; assuntos classificados pela IA.
+    Painel do administrador (Sessão 13, não feito): alertas por e-mail/WhatsApp (custo de IA de um cliente acima do
+    limite, fila parada, OpenAI falhando), limite de tokens/perguntas por plano, "entrar como cliente" com consentimento e
+    registro, excluir conta (LGPD, com carência), cohort de retenção por mês de cadastro, gráfico de MRR no tempo (precisa
+    guardar o histórico de assinaturas — sub-projeto 4), backfill dos tokens antigos de `ml_questions.ai_tokens`.
 
 ---
 

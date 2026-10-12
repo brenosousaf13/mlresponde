@@ -11,6 +11,7 @@ import {
   withAnswer,
 } from "@/lib/assistant/profile"
 import { SETUP_STEP_COUNT, findQuestion } from "@/lib/assistant/questions"
+import { PlatformAiPausedError } from "@/lib/ai/usage"
 import { runAnswerModel } from "@/lib/answers/ai"
 import { ML_ANSWER_LIMIT, composeAnswer, containsExternalContact, parseItemId } from "@/lib/answers/compose"
 import { assistantBase, loadTaughtExamples } from "@/lib/answers/context"
@@ -458,13 +459,10 @@ export async function testAssistant(accountId: string, rawQuestion: string, item
 
   try {
     const taught = await loadTaughtExamples(admin, account.id, itemId, question)
-    const run = await runAnswerModel({
-      ...assistantBase(account),
-      itemSummary,
-      taughtExamples: taught,
-      previousQnA,
-      question,
-    })
+    const run = await runAnswerModel(
+      { ...assistantBase(account), itemSummary, taughtExamples: taught, previousQnA, question },
+      { feature: "assistant_test", organizationId: account.organization_id, mlAccountId: account.id }
+    )
     const settings = {
       threshold: Number(account.ai_confidence_threshold),
       greeting: account.answer_greeting,
@@ -492,6 +490,7 @@ export async function testAssistant(accountId: string, rawQuestion: string, item
     }
     return { ...base, outcome: "answer", text: decision.text, outcomeLabel: null, draft: null }
   } catch (error) {
+    if (error instanceof PlatformAiPausedError) return { ok: false, message: error.message }
     console.error("[assistente] teste:", error instanceof Error ? error.message : error)
     return { ok: false, message: "A IA não respondeu agora. Tente de novo em instantes." }
   }

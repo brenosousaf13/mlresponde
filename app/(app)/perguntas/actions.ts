@@ -12,6 +12,7 @@ import {
   suggestAnswer,
 } from "@/lib/answers/engine"
 import { syncUnansweredQuestions } from "@/lib/answers/ingest"
+import { PlatformAiPausedError } from "@/lib/ai/usage"
 import { ML_ANSWER_LIMIT, containsExternalContact, stripAffixes } from "@/lib/answers/compose"
 import { requireSection } from "@/lib/dal/app-context"
 import { MlAccountUnavailableError } from "@/lib/mercadolivre/accounts"
@@ -41,6 +42,7 @@ async function loadQuestion(id: string) {
 
 function friendlyError(error: unknown): string {
   if (error instanceof QuestionClosedError) return "Essa pergunta já foi respondida ou removida no Mercado Livre."
+  if (error instanceof PlatformAiPausedError) return error.message
   if (error instanceof MlAccountUnavailableError) return error.message
   if (error instanceof MlApiError) return "O Mercado Livre recusou a operação. Tente de novo em instantes."
   return "Algo deu errado. Tente novamente."

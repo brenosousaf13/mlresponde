@@ -14,6 +14,80 @@ export type Database = {
   }
   public: {
     Tables: {
+      admin_audit_log: {
+        Row: {
+          action: string
+          actor_email: string | null
+          actor_id: string | null
+          created_at: string
+          details: Json
+          id: number
+          ip: string | null
+          organization_id: string | null
+          summary: string
+          target_id: string | null
+          target_type: string | null
+          user_agent: string | null
+        }
+        Insert: {
+          action: string
+          actor_email?: string | null
+          actor_id?: string | null
+          created_at?: string
+          details?: Json
+          id?: never
+          ip?: string | null
+          organization_id?: string | null
+          summary?: string
+          target_id?: string | null
+          target_type?: string | null
+          user_agent?: string | null
+        }
+        Update: {
+          action?: string
+          actor_email?: string | null
+          actor_id?: string | null
+          created_at?: string
+          details?: Json
+          id?: never
+          ip?: string | null
+          organization_id?: string | null
+          summary?: string
+          target_id?: string | null
+          target_type?: string | null
+          user_agent?: string | null
+        }
+        Relationships: []
+      }
+      admin_organization_notes: {
+        Row: {
+          notes: string
+          organization_id: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          notes?: string
+          organization_id: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          notes?: string
+          organization_id?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "admin_organization_notes_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: true
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       after_sale_examples: {
         Row: {
           answer_text: string
@@ -127,6 +201,95 @@ export type Database = {
           {
             foreignKeyName: "ai_examples_source_question_id_fkey"
             columns: ["source_question_id"]
+            isOneToOne: false
+            referencedRelation: "ml_questions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ai_usage_events: {
+        Row: {
+          cached_input_tokens: number
+          conversation_id: string | null
+          cost_usd: number
+          created_at: string
+          error: string | null
+          feature: string
+          id: number
+          input_tokens: number
+          latency_ms: number | null
+          ml_account_id: string | null
+          model: string
+          organization_id: string | null
+          output_tokens: number
+          question_id: string | null
+          reasoning_tokens: number
+          success: boolean
+          total_tokens: number
+        }
+        Insert: {
+          cached_input_tokens?: number
+          conversation_id?: string | null
+          cost_usd?: number
+          created_at?: string
+          error?: string | null
+          feature: string
+          id?: never
+          input_tokens?: number
+          latency_ms?: number | null
+          ml_account_id?: string | null
+          model: string
+          organization_id?: string | null
+          output_tokens?: number
+          question_id?: string | null
+          reasoning_tokens?: number
+          success?: boolean
+          total_tokens?: number
+        }
+        Update: {
+          cached_input_tokens?: number
+          conversation_id?: string | null
+          cost_usd?: number
+          created_at?: string
+          error?: string | null
+          feature?: string
+          id?: never
+          input_tokens?: number
+          latency_ms?: number | null
+          ml_account_id?: string | null
+          model?: string
+          organization_id?: string | null
+          output_tokens?: number
+          question_id?: string | null
+          reasoning_tokens?: number
+          success?: boolean
+          total_tokens?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_usage_events_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "ml_conversations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ai_usage_events_ml_account_id_fkey"
+            columns: ["ml_account_id"]
+            isOneToOne: false
+            referencedRelation: "ml_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ai_usage_events_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ai_usage_events_question_id_fkey"
+            columns: ["question_id"]
             isOneToOne: false
             referencedRelation: "ml_questions"
             referencedColumns: ["id"]
@@ -825,6 +988,7 @@ export type Database = {
           current_period_end: string | null
           id: string
           ml_accounts_limit: number
+          monthly_price: number | null
           name: string
           plan: string | null
           subscription_status: string
@@ -839,6 +1003,7 @@ export type Database = {
           current_period_end?: string | null
           id?: string
           ml_accounts_limit?: number
+          monthly_price?: number | null
           name?: string
           plan?: string | null
           subscription_status?: string
@@ -853,11 +1018,48 @@ export type Database = {
           current_period_end?: string | null
           id?: string
           ml_accounts_limit?: number
+          monthly_price?: number | null
           name?: string
           plan?: string | null
           subscription_status?: string
           trial_ends_at?: string
           updated_at?: string
+        }
+        Relationships: []
+      }
+      platform_settings: {
+        Row: {
+          ai_paused: boolean
+          ai_paused_at: string | null
+          ai_paused_by: string | null
+          ai_paused_reason: string
+          id: boolean
+          monthly_fixed_costs_brl: number
+          updated_at: string
+          updated_by: string | null
+          usd_brl_rate: number
+        }
+        Insert: {
+          ai_paused?: boolean
+          ai_paused_at?: string | null
+          ai_paused_by?: string | null
+          ai_paused_reason?: string
+          id?: boolean
+          monthly_fixed_costs_brl?: number
+          updated_at?: string
+          updated_by?: string | null
+          usd_brl_rate?: number
+        }
+        Update: {
+          ai_paused?: boolean
+          ai_paused_at?: string | null
+          ai_paused_by?: string | null
+          ai_paused_reason?: string
+          id?: boolean
+          monthly_fixed_costs_brl?: number
+          updated_at?: string
+          updated_by?: string | null
+          usd_brl_rate?: number
         }
         Relationships: []
       }
@@ -867,6 +1069,7 @@ export type Database = {
           full_name: string
           id: string
           is_platform_admin: boolean
+          last_seen_at: string | null
           onboarding_completed_at: string | null
           terms_accepted_at: string | null
           terms_version: string | null
@@ -879,6 +1082,7 @@ export type Database = {
           full_name?: string
           id: string
           is_platform_admin?: boolean
+          last_seen_at?: string | null
           onboarding_completed_at?: string | null
           terms_accepted_at?: string | null
           terms_version?: string | null
@@ -891,6 +1095,7 @@ export type Database = {
           full_name?: string
           id?: string
           is_platform_admin?: boolean
+          last_seen_at?: string | null
           onboarding_completed_at?: string | null
           terms_accepted_at?: string | null
           terms_version?: string | null
@@ -986,6 +1191,144 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      admin_ai_usage: { Args: { p_from: string; p_to: string }; Returns: Json }
+      admin_assert: { Args: never; Returns: undefined }
+      admin_finance: { Args: never; Returns: Json }
+      admin_list_audit: {
+        Args: {
+          p_action_prefix?: string
+          p_limit?: number
+          p_offset?: number
+          p_organization_id?: string
+        }
+        Returns: Json
+      }
+      admin_list_organizations: {
+        Args: {
+          p_limit?: number
+          p_offset?: number
+          p_plan?: string
+          p_search?: string
+          p_sort?: string
+          p_status?: string
+        }
+        Returns: Json
+      }
+      admin_log_event: {
+        Args: {
+          p_action: string
+          p_context?: Json
+          p_details?: Json
+          p_organization_id: string
+          p_summary: string
+          p_target_id: string
+          p_target_type: string
+        }
+        Returns: undefined
+      }
+      admin_operations: { Args: never; Returns: Json }
+      admin_org_rows: {
+        Args: never
+        Returns: {
+          after_sale_on: boolean
+          ai_answers_30d: number
+          ai_calls_30d: number
+          ai_cost_30d_usd: number
+          ai_cost_month_usd: number
+          ai_tokens_30d: number
+          auto_reply_on: boolean
+          billing_completed: boolean
+          billing_exempt: boolean
+          configured: boolean
+          created_at: string
+          current_period_end: string
+          document: string
+          document_type: string
+          last_seen_at: string
+          legal_name: string
+          members: number
+          ml_accounts_limit: number
+          ml_active: number
+          ml_ever: number
+          ml_invalid: number
+          ml_nicknames: string
+          ml_total: number
+          monthly_price: number
+          name: string
+          onboarded: boolean
+          open_now: number
+          organization_id: string
+          owner_banned: boolean
+          owner_email: string
+          owner_email_confirmed: boolean
+          owner_id: string
+          owner_name: string
+          owner_whatsapp: string
+          plan: string
+          questions_30d: number
+          stage: string
+          status: string
+          subscription_status: string
+          trial_ends_at: string
+        }[]
+      }
+      admin_org_stage: {
+        Args: {
+          p_auto_reply_on: boolean
+          p_billing_completed: boolean
+          p_configured: boolean
+          p_email_confirmed: boolean
+          p_ml_total: number
+          p_onboarded: boolean
+        }
+        Returns: string
+      }
+      admin_org_status: {
+        Args: {
+          p_billing_exempt: boolean
+          p_plan: string
+          p_subscription_status: string
+          p_trial_ends_at: string
+        }
+        Returns: string
+      }
+      admin_organization_detail: {
+        Args: { p_organization_id: string }
+        Returns: Json
+      }
+      admin_overview: { Args: never; Returns: Json }
+      admin_pause_ml_account: {
+        Args: { p_context?: Json; p_ml_account_id: string; p_scope: string }
+        Returns: undefined
+      }
+      admin_set_organization_notes: {
+        Args: { p_context?: Json; p_notes: string; p_organization_id: string }
+        Returns: undefined
+      }
+      admin_update_organization: {
+        Args: { p_changes: Json; p_context?: Json; p_organization_id: string }
+        Returns: Json
+      }
+      admin_update_platform_settings: {
+        Args: { p_changes: Json; p_context?: Json }
+        Returns: Json
+      }
+      admin_update_profile: {
+        Args: { p_changes: Json; p_context?: Json; p_user_id: string }
+        Returns: Json
+      }
+      admin_write_audit: {
+        Args: {
+          p_action: string
+          p_context: Json
+          p_details: Json
+          p_organization_id: string
+          p_summary: string
+          p_target_id: string
+          p_target_type: string
+        }
+        Returns: undefined
+      }
       analytics_overview: {
         Args: {
           p_from: string

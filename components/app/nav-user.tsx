@@ -1,6 +1,6 @@
 "use client"
 
-import { ChevronsUpDownIcon, CreditCardIcon, LogOutIcon, Settings2Icon } from "lucide-react"
+import { ChevronsUpDownIcon, CreditCardIcon, LogOutIcon, Settings2Icon, ShieldCheckIcon } from "lucide-react"
 import Link from "next/link"
 import { useTransition } from "react"
 
@@ -30,7 +30,14 @@ function initials(name: string, email: string) {
   return letters.toUpperCase()
 }
 
-export function NavUser({ user }: { user: { name: string; email: string; isPlatformAdmin?: boolean } }) {
+export function NavUser({
+  user,
+  adminHref = "/admin",
+}: {
+  user: { name: string; email: string; isPlatformAdmin?: boolean }
+  /** Endereço do painel do administrador ("/admin" ou o subdomínio próprio). */
+  adminHref?: string
+}) {
   const { isMobile } = useSidebar()
   const [, startTransition] = useTransition()
   const fallback = initials(user.name, user.email)
@@ -82,6 +89,15 @@ export function NavUser({ user }: { user: { name: string; email: string; isPlatf
                 Assinatura
               </DropdownMenuItem>
             </DropdownMenuGroup>
+            {user.isPlatformAdmin ? (
+              <>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem render={<a href={adminHref} />}>
+                  <ShieldCheckIcon />
+                  Painel do administrador
+                </DropdownMenuItem>
+              </>
+            ) : null}
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={() => startTransition(() => signOut())}>
               <LogOutIcon />

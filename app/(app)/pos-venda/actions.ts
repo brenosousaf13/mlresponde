@@ -20,6 +20,7 @@ import {
   testAgent,
 } from "@/lib/after-sale/engine"
 import { AFTER_SALE_INSTRUCTIONS_LIMIT, AFTER_SALE_SIGNATURE_LIMIT, toMlMessageText } from "@/lib/after-sale/text"
+import { PlatformAiPausedError } from "@/lib/ai/usage"
 import { containsExternalContact } from "@/lib/answers/compose"
 import { canManageOrganization, requireSection } from "@/lib/dal/app-context"
 import { MlAccountUnavailableError } from "@/lib/mercadolivre/accounts"
@@ -47,6 +48,7 @@ const MAX_ATTACHMENTS_BYTES = 4 * 1024 * 1024
 
 function friendlyError(error: unknown): string {
   if (error instanceof ConversationUnavailableError) return error.message
+  if (error instanceof PlatformAiPausedError) return error.message
   if (error instanceof MlAccountUnavailableError) return error.message
   if (error instanceof MlApiError) return "O Mercado Livre não respondeu como esperado. Tente de novo em instantes."
   return "Algo deu errado. Tente novamente."
@@ -404,7 +406,11 @@ export async function testAfterSaleAgent(accountId: string, rawMessage: string, 
     }
   } catch (error) {
     console.error("[pos-venda] teste:", error instanceof Error ? error.message : error)
-    if (error instanceof ConversationUnavailableError || error instanceof MlAccountUnavailableError) {
+    if (
+      error instanceof ConversationUnavailableError ||
+      error instanceof MlAccountUnavailableError ||
+      error instanceof PlatformAiPausedError
+    ) {
       return { ok: false, message: error.message }
     }
     return { ok: false, message: "O agente não respondeu agora. Tente de novo em instantes." }

@@ -1,6 +1,7 @@
 import "server-only"
 
 import { redirect } from "next/navigation"
+import { after } from "next/server"
 import { cache } from "react"
 
 import {
@@ -61,7 +62,7 @@ async function loadAccount(userId: string) {
   return Promise.all([
     supabase
       .from("profiles")
-      .select("full_name, whatsapp, onboarding_completed_at, tour_completed_at, is_platform_admin")
+      .select("full_name, whatsapp, onboarding_completed_at, tour_completed_at, is_platform_admin, last_seen_at")
       .eq("id", userId)
       .maybeSingle(),
     supabase
@@ -74,6 +75,20 @@ async function loadAccount(userId: string) {
       .limit(1)
       .maybeSingle(),
   ])
+}
+
+/** "Último acesso" (usuários ativos no painel do administrador): grava no máximo a cada 15 min, depois da resposta. */
+const LAST_SEEN_INTERVAL_MS = 15 * 60 * 1000
+
+function touchLastSeen(userId: string, lastSeenAt: string | null) {
+  if (lastSeenAt && Date.now() - new Date(lastSeenAt).getTime() < LAST_SEEN_INTERVAL_MS) return
+  after(async () => {
+    const { error } = await createServiceClient()
+      .from("profiles")
+      .update({ last_seen_at: new Date().toISOString() })
+      .eq("id", userId)
+    if (error) console.error("[app] último acesso:", error.message)
+  })
 }
 
 async function ensureAccountSetup(userId: string, fullName: string) {
@@ -129,6 +144,7 @@ export const getAppContext = cache(async (): Promise<AppContext> => {
   if (mlAccountsError) throw mlAccountsError
 
   const role = membership.role as MemberRole
+  touchLastSeen(user.id, profile.last_seen_at)
 
   return {
     user: { id: user.id, email: user.email ?? "" },

@@ -3,7 +3,8 @@ import "server-only"
 import { randomUUID } from "node:crypto"
 
 import { computeAccess } from "@/lib/access/access"
-import { runAfterSaleModel } from "@/lib/after-sale/ai"
+import { runAfterSaleModel, type AfterSaleRun } from "@/lib/after-sale/ai"
+import { PlatformAiPausedError } from "@/lib/ai/usage"
 import {
   extractPackId,
   isBlockedSendError,
@@ -487,6 +488,10 @@ async function handleFailure(admin: ServiceClient, conversation: ConversationRow
     await save(admin, conversation.id, review("account_inactive", { last_error: message }))
     return
   }
+  if (error instanceof PlatformAiPausedError) {
+    await save(admin, conversation.id, review("auto_reply_off"))
+    return
+  }
   if (conversation.attempts >= RETRY_LIMIT) {
     await save(admin, conversation.id, review("processing_error", { last_error: message }))
     return
@@ -534,7 +539,21 @@ async function processOnce(conversationId: string): Promise<boolean> {
     const decided = statusWithoutAi(account, synced)
     if (decided) return await finish(admin, conversation.id, { ...synced.columns, last_error: null, ...decided })
 
-    const run = await runAfterSaleModel(await buildPromptInput(admin, account, synced))
+    let run: AfterSaleRun
+    try {
+      run = await runAfterSaleModel(await buildPromptInput(admin, account, synced), {
+        feature: "after_sale_answer",
+        organizationId: conversation.organization_id,
+        mlAccountId: account.id,
+        conversationId: conversation.id,
+      })
+    } catch (error) {
+      // Pausa geral da IA (painel do administrador): a conversa fica com o vendedor, sem gastar tentativa.
+      if (error instanceof PlatformAiPausedError) {
+        return await finish(admin, conversation.id, { ...synced.columns, last_error: null, ...review("auto_reply_off") })
+      }
+      throw error
+    }
     const decision = decideAfterSale(run.result, {
       threshold: Number(account.after_sale_confidence_threshold),
       signature: account.after_sale_signature,
@@ -763,7 +782,12 @@ export async function suggestReply(conversationId: string): Promise<AfterSaleSug
   const conversation = await loadConversation(admin, conversationId)
   const account = await loadAccount(admin, conversation.ml_account_id)
   const synced = await syncConversation(admin, account, conversation)
-  const run = await runAfterSaleModel(await buildPromptInput(admin, account, synced))
+  const run = await runAfterSaleModel(await buildPromptInput(admin, account, synced), {
+    feature: "after_sale_suggestion",
+    organizationId: conversation.organization_id,
+    mlAccountId: account.id,
+    conversationId: conversation.id,
+  })
   await save(admin, conversation.id, { ...synced.columns, ...aiFields(run) })
   return {
     composed: run.result.answer ? composeAfterSaleMessage(run.result.answer, account.after_sale_signature) : "",
@@ -811,7 +835,11 @@ export async function testAgent(input: { accountId: string; buyerMessage: string
     promptInput.orderSummary = "Teste sem venda: o vendedor está testando o agente sem escolher uma venda. Não há dados de pedido."
     promptInput.shippingSummary = "Teste sem venda: não há dados de envio."
   }
-  const run = await runAfterSaleModel(promptInput)
+  const run = await runAfterSaleModel(promptInput, {
+    feature: "after_sale_test",
+    organizationId: account.organization_id,
+    mlAccountId: account.id,
+  })
   const decision = decideAfterSale(run.result, {
     threshold: Number(account.after_sale_confidence_threshold),
     signature: account.after_sale_signature,

@@ -1,6 +1,8 @@
 import { createServerClient } from "@supabase/ssr"
 import { NextResponse, type NextRequest } from "next/server"
 
+import { adminHostRouting, normalizeHost } from "@/lib/admin/host"
+
 const PUBLIC_PREFIXES = [
   "/login",
   "/cadastro",
@@ -20,6 +22,18 @@ function matches(pathname: string, prefixes: readonly string[]) {
 }
 
 export async function proxy(request: NextRequest) {
+  // Painel do administrador num subdomínio próprio (opcional, variável ADMIN_HOST): fora dele /admin não existe.
+  const adminHost = process.env.ADMIN_HOST
+  const adminRoute = adminHostRouting({ host: request.headers.get("host"), pathname: request.nextUrl.pathname, adminHost })
+  if (adminRoute.kind === "not_found") return new NextResponse("Not Found", { status: 404 })
+  if (adminRoute.kind === "redirect") {
+    const url = request.nextUrl.clone()
+    url.pathname = adminRoute.pathname
+    url.search = ""
+    return NextResponse.redirect(url)
+  }
+  const onAdminHost = Boolean(adminHost) && normalizeHost(request.headers.get("host")) === normalizeHost(adminHost)
+
   let response = NextResponse.next({ request })
 
   const supabase = createServerClient(
@@ -57,7 +71,7 @@ export async function proxy(request: NextRequest) {
 
   if (isAuthenticated && matches(pathname, GUEST_ONLY_PREFIXES)) {
     const url = request.nextUrl.clone()
-    url.pathname = "/painel"
+    url.pathname = onAdminHost ? "/admin" : "/painel"
     url.search = ""
     return NextResponse.redirect(url)
   }

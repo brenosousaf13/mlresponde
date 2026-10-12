@@ -54,11 +54,13 @@ export function AppSidebar({
   items,
   user,
   organizationName,
+  adminHref,
   ...props
 }: React.ComponentProps<typeof Sidebar> & {
   items: SidebarNavItem[]
   user: { name: string; email: string; isPlatformAdmin?: boolean }
   organizationName: string
+  adminHref?: string
 }) {
   const pathname = usePathname()
 
@@ -112,7 +114,7 @@ export function AppSidebar({
         </SidebarGroup>
       </SidebarContent>
       <SidebarFooter>
-        <NavUser user={user} />
+        <NavUser user={user} adminHref={adminHref} />
       </SidebarFooter>
       <SidebarRail aria-label="Recolher ou abrir o menu" title="Recolher ou abrir o menu" />
     </Sidebar>

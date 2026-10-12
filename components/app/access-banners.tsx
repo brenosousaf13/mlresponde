@@ -1,4 +1,4 @@
-import { ArrowRightIcon, CircleAlertIcon, ClockIcon, StoreIcon } from "lucide-react"
+import { ArrowRightIcon, CircleAlertIcon, ClockIcon, OctagonPauseIcon, StoreIcon } from "lucide-react"
 import Link from "next/link"
 
 import type { Access } from "@/lib/access/access"
@@ -10,13 +10,28 @@ function plural(days: number) {
 export function AccessBanners({
   access,
   mlAccounts,
+  platformAiPaused = false,
 }: {
   access: Access
   mlAccounts: { total: number; active: number }
+  /** Pausa geral da IA ligada pela equipe maanu (painel do administrador). */
+  platformAiPaused?: boolean
 }) {
   const hasActiveMlAccount = mlAccounts.active > 0
   return (
     <>
+      {platformAiPaused ? (
+        <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 bg-amber-500 px-4 py-2 text-center text-sm text-amber-950">
+          <OctagonPauseIcon className="size-4" />
+          <span>
+            As respostas automáticas estão pausadas temporariamente pela equipe maanu (manutenção). As perguntas novas
+            ficam para você responder.
+          </span>
+          <Link href="/perguntas" className="inline-flex items-center gap-1 font-semibold hover:underline">
+            Ver perguntas <ArrowRightIcon className="size-3.5" />
+          </Link>
+        </div>
+      ) : null}
       {access.state === "trial" ? (
         <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 bg-brand-graphite px-4 py-2 text-center text-sm text-white">
           <ClockIcon className="size-4 text-brand-teal" />

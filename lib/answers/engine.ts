@@ -1,7 +1,8 @@
 import "server-only"
 
 import { computeAccess } from "@/lib/access/access"
-import { runAnswerModel } from "@/lib/answers/ai"
+import { PlatformAiPausedError } from "@/lib/ai/usage"
+import { runAnswerModel, type AiRun } from "@/lib/answers/ai"
 import { composeAnswer } from "@/lib/answers/compose"
 import { assistantBase, loadTaughtExamples } from "@/lib/answers/context"
 import {
@@ -128,6 +129,10 @@ async function handleFailure(admin: ServiceClient, row: QuestionRow, error: unkn
     await save(admin, row.id, review("account_inactive", { last_error: message }))
     return
   }
+  if (error instanceof PlatformAiPausedError) {
+    await save(admin, row.id, review("auto_reply_off"))
+    return
+  }
   if (row.attempts >= RETRY_LIMIT) {
     await save(admin, row.id, review("processing_error", { last_error: message }))
     return
@@ -180,7 +185,22 @@ export async function processQuestion(questionId: string): Promise<void> {
       return
     }
 
-    const run = await runAnswerModel(promptInput)
+    let run: AiRun
+    try {
+      run = await runAnswerModel(promptInput, {
+        feature: "question_answer",
+        organizationId: row.organization_id,
+        mlAccountId: account.id,
+        questionId: row.id,
+      })
+    } catch (error) {
+      // Pausa geral da IA (painel do administrador): a pergunta vai para o vendedor, sem gastar tentativa.
+      if (error instanceof PlatformAiPausedError) {
+        await save(admin, row.id, { ...base, ...itemFields, ...review("auto_reply_off") })
+        return
+      }
+      throw error
+    }
     const aiFields: QuestionUpdate = {
       ai_draft: run.result.answer || null,
       ai_confidence: run.result.confidence,
@@ -267,7 +287,10 @@ export async function suggestAnswer(questionId: string): Promise<SuggestionResul
 
   const { itemFields, promptInput } = await buildPromptContext(admin, account, row, question)
   // Sugestão é revisada pelo vendedor: usa sempre as regras do modo cuidadoso (rascunho em vez de resposta neutra).
-  const run = await runAnswerModel({ ...promptInput, mode: "careful" })
+  const run = await runAnswerModel(
+    { ...promptInput, mode: "careful" },
+    { feature: "question_suggestion", organizationId: row.organization_id, mlAccountId: account.id, questionId: row.id }
+  )
   await save(admin, row.id, {
     ...questionFields(question),
     ...itemFields,

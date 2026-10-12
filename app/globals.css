@@ -141,6 +141,21 @@
   --sidebar-border: oklch(1 0 0 / 10%);
   --sidebar-ring: var(--brand-teal);
 }
+/*
+ * Painel do administrador: menu grafite (com destaques teal) para nunca confundir com o app do cliente.
+ * Fica no :root (e não no wrapper) para valer também na gaveta do celular, que abre num portal.
+ */
+:root:has([data-admin-shell]) {
+  --sidebar: var(--brand-graphite);
+  --sidebar-foreground: oklch(0.929 0.013 255.508);
+  --sidebar-primary: var(--brand-teal);
+  --sidebar-primary-foreground: var(--brand-graphite);
+  --sidebar-accent: oklch(0.279 0.041 260.031);
+  --sidebar-accent-foreground: oklch(0.984 0.003 247.858);
+  --sidebar-border: oklch(1 0 0 / 10%);
+  --sidebar-ring: var(--brand-teal);
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;

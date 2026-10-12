@@ -83,7 +83,7 @@ function input(history: HistoryMessage[], extra: Partial<AfterSalePromptInput> =
 }
 
 async function run(promptInput: AfterSalePromptInput, policy: SensitivePolicy = promptInput.sensitivePolicy) {
-  const { result } = await runAfterSaleModel(promptInput)
+  const { result } = await runAfterSaleModel(promptInput, null)
   const decision = decideAfterSale(result, { threshold: 0.85, signature: "", sensitivePolicy: policy, maxLength: 350 })
   console.log(`[${result.topic}] ${result.action} ${result.confidence} → ${decision.kind}${decision.kind === "review" ? `/${decision.reason}` : ""}: ${result.answer} || ${result.reason}`)
   expect(result.answer.length).toBeLessThanOrEqual(350)

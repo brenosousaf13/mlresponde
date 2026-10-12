@@ -1,0 +1,17 @@
+import type { Metadata } from "next"
+
+import { getAdminIdentity } from "@/lib/dal/admin"
+
+export const metadata: Metadata = {
+  title: { default: "Admin · maanu", template: "%s · Admin · maanu" },
+  robots: { index: false, follow: false, nocache: true },
+}
+
+/**
+ * Raiz do painel do administrador: quem não é administrador da plataforma recebe 404 (o painel "não existe").
+ * A verificação em 2 etapas é exigida pelo layout de (painel) e por cada página, ação e função do banco.
+ */
+export default async function AdminRootLayout({ children }: { children: React.ReactNode }) {
+  await getAdminIdentity()
+  return children
+}

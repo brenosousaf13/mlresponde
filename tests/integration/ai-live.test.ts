@@ -62,19 +62,19 @@ const settings = { threshold: 0.75, greeting: "Olá!", signature: "Equipe Casa d
 const alwaysSettings = { ...settings, mode: "always" as const, fallback: "" }
 
 async function ask(question: string) {
-  const run = await runAnswerModel({ ...base, question })
+  const run = await runAnswerModel({ ...base, question }, null)
   return { run, decision: decideAnswer(run.result, settings) }
 }
 
 /** Modo "responder sempre": mesmo anúncio e loja, prompt e decisão do modo always. */
 async function askAlways(question: string, extra: Partial<PromptInput> = {}) {
-  const run = await runAnswerModel({ ...base, ...extra, mode: "always", question })
+  const run = await runAnswerModel({ ...base, ...extra, mode: "always", question }, null)
   return { run, decision: decideAnswer(run.result, alwaysSettings) }
 }
 
 /** Outro anúncio (com o mesmo conhecimento da loja). */
 async function askAbout(itemSummary: string, question: string) {
-  const run = await runAnswerModel({ ...base, itemSummary, taughtExamples: [], question })
+  const run = await runAnswerModel({ ...base, itemSummary, taughtExamples: [], question }, null)
   return { run, decision: decideAnswer(run.result, settings) }
 }
 
@@ -197,7 +197,7 @@ describe.skipIf(!enabled)("IA ao vivo", () => {
       ...base,
       previousQnA: [{ question: "Vem montada?", answer: "Vem 90% montada, falta só o guidão e os pedais.", sameBuyer: true }],
       question: "Recebi hoje e veio toda desmontada, vocês mentiram pra mim.",
-    })
+    }, null)
     const decision = decideAnswer(run.result, settings)
     console.log("contestada:", run.result)
     expect(decision.kind).toBe("review")
