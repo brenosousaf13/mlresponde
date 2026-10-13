@@ -737,9 +737,9 @@ Projeto `ookosqyfazobiwmopiix` (vai virar a produção da v2). Conferido e corri
   `plan='admin'`, com o CPF dele em dados de cobrança). Histórico do admin (`admin_audit_log`) mantido (é imutável).
 - ✅ (Sessão 15b) Auth: Site URL `https://maanu.com.br`; redirects `https://maanu.com.br/**` e (só durante a semana de teste)
   `https://mlresponde-v2.vercel.app/**`; localhost removido.
-- ⏳ **Pendente antes de abrir para todos os clientes:** (1) **SMTP próprio** (Resend + `maanu.com.br`) — com ele, aplicar
-  os e-mails em português (`node scripts/emails-auth/gerar.mjs` → PATCH `config/auth`; o Supabase recusa modelos sem SMTP
-  no plano grátis) e subir `rate_limit_email_sent` (hoje 2/h). (2) **CAPTCHA no cadastro** (Cloudflare Turnstile; chave +
+- ✅ (Sessão 15b) **SMTP próprio** (Resend, `nao-responda@maanu.com.br`), e-mails em português aplicados
+  (`node scripts/emails-auth/gerar.mjs` → PATCH `config/auth`) e limite de 30 e-mails/hora.
+- ⏳ **Pendente antes de abrir para todos os clientes:** (2) **CAPTCHA no cadastro** (Cloudflare Turnstile; chave +
   código). (3) Tirar a staging dos redirects do Auth quando ela for desligada.
 ### 🔴 P0
 > ⏸️ **Adiados por decisão do Breno (2026-10-11):** hoje são poucos usuários. **Lembrar o Breno** e resolver antes de
@@ -1139,6 +1139,12 @@ webhook do ML validado, fila/reprocessamento de jobs, observabilidade, controle 
   `maanu.com.br` e `www.maanu.com.br`; Let's Encrypt, renovação automática). Conferido: `https://maanu.com.br` 200,
   `http` e `www` redirecionam (308). Registros do Resend publicados (`send` → `forge.rmta.net`, DKIM `resend._domainkey`,
   DMARC `p=reject`); SMTP no Supabase ainda não ligado.
+- **SMTP ligado** pelo Breno à mão no Supabase (a conta Resend dele já tem integração com outro Supabase): `smtp.resend.com`
+  465, usuário `resend`, senha = API key só de envio restrita a `maanu.com.br`, remetente `nao-responda@maanu.com.br`
+  ("maanu"), intervalo 60 s por usuário. IA aplicou os 8 modelos em português (conferidos 1 a 1), avisos de senha/e-mail
+  alterados ligados e limite de 30 e-mails/hora. Teste: cadastro pela API de Auth com `brenosousaf13+teste-maanu@gmail.com`
+  → 200 com `confirmation_sent_at` (o Supabase devolve erro se o SMTP recusar). Falta o Breno confirmar que o e-mail chegou
+  e clicar; depois **apagar esse usuário de teste e a organização criada para ele**.
 
 ### 2026-10-12 — Sessão 15 · Plano da troca e reforço de segurança do Supabase da v2 (IA: Claude, via app Codex)
 - Pergunta do Breno: dá para tornar a v2 a `main` sem derrubar os clientes, sem migrar ninguém (6 clientes vão se
@@ -1470,7 +1476,7 @@ webhook do ML validado, fila/reprocessamento de jobs, observabilidade, controle 
    2. ✅ (DNS ativo e HTTPS emitido) **Breno — DNS no Cloudflare** (proxy **desligado**, nuvem cinza, "DNS only"): `A  @  216.150.1.1`,
       `A  @  216.150.16.1` e `CNAME  www  5205331b18becd29.vercel-dns-016.com`. A Vercel emite o certificado sozinha.
    3. ✅ `ML_CLIENT_SECRET` criado pelo Breno no projeto `maanu` (Production, sensível); produção republicada (Sessão 15b).
-   4. ⏳ **Breno — Resend:** adicionar o domínio `maanu.com.br` (o Resend mostra os registros MX/TXT de envio e DKIM; tem
+   4. ✅ **Breno — Resend:** adicionar o domínio `maanu.com.br` (o Resend mostra os registros MX/TXT de envio e DKIM; tem
       botão para configurar direto no Cloudflare) e, quando verificar, ligar o SMTP no Supabase pela integração do Resend
       (Resend → Integrations → Supabase → projeto "Mercado Livre Responde v2"; remetente `nao-responda@maanu.com.br`, nome
       `maanu`) ou à mão (Supabase → Authentication → Emails → SMTP: host `smtp.resend.com`, porta 465, usuário `resend`,
@@ -1478,7 +1484,7 @@ webhook do ML validado, fila/reprocessamento de jobs, observabilidade, controle 
       Cloudflare sempre **sem proxy**. Quem envia: o Supabase Auth dispara e monta o e-mail; o Resend entrega (SMTP) e
       mostra os logs de entrega. Situação (fim da Sessão 15b): Breno criou os registros no Cloudflare; o Registro.br ainda
       publicava os DNS antigos (`a/b.auto.dns.br`) e o SMTP ainda não estava ligado no Supabase.
-   5. ⏳ IA, depois do SMTP: aplicar os e-mails em português (`node scripts/emails-auth/gerar.mjs`) e subir o limite de
+   5. ✅ (SMTP ligado, modelos aplicados, 30/h; falta o Breno conferir a caixa de entrada) IA, depois do SMTP: aplicar os e-mails em português (`node scripts/emails-auth/gerar.mjs`) e subir o limite de
       e-mails; testar cadastro e "esqueci minha senha" ponta a ponta em `maanu.com.br`.
    6. ⏳ Breno, no DevCenter do **app da v2**: nome/logo maanu; redirect `https://maanu.com.br/api/auth/callback/mercadolivre`;
       notificações `https://maanu.com.br/api/webhook/mercadolivre`. (A staging `mlresponde-v2.vercel.app` deixa de receber.)
