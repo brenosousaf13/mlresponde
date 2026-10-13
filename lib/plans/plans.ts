@@ -53,7 +53,7 @@ export const SELLABLE_PLANS: readonly SellablePlan[] = [
     priceAnnual: 970,
     support: "email",
     features: [],
-    limits: { answersPerMonth: 500, mlAccounts: 1, listingImprovementsPerMonth: 0 },
+    limits: { answersPerMonth: 300, mlAccounts: 1, listingImprovementsPerMonth: 0 },
   },
   {
     id: "pro",
@@ -87,14 +87,14 @@ export const ADMIN_PLAN: PlanInfo = {
 }
 
 /**
- * Teste grátis de 7 dias (organização sem plano): conhece tudo do Pro, com 1 conta do ML, até 500 respostas
+ * Teste grátis de 7 dias (organização sem plano): conhece tudo do Pro, com 1 conta do ML, até 300 respostas (o mesmo do Starter)
  * automáticas e 3 análises de anúncio no período do teste. Não é um plano que se assina.
  */
 export const TRIAL_PLAN: PlanInfo = {
   id: "trial",
   name: "Teste grátis",
   features: PLAN_FEATURES,
-  limits: { answersPerMonth: 500, mlAccounts: 1, listingImprovementsPerMonth: 3 },
+  limits: { answersPerMonth: 300, mlAccounts: 1, listingImprovementsPerMonth: 3 },
 }
 
 /** Planos que o administrador pode atribuir a uma organização (os vendidos + o interno). */

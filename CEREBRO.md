@@ -4,7 +4,7 @@
 > inteiro antes de trabalhar e atualizá-lo ao terminar. Se algo aqui divergir do código, o código vence —
 > e este arquivo deve ser corrigido na mesma sessão.
 
-Última atualização: **2026-10-13** (Sessão 20 — planos Starter/Pro/Escala com limites, teste grátis e Melhorias de anúncio; Sessão 19 — pesquisa de preços e proposta de 3 planos; Sessão 18 — tour de boas-vindas e avisos de teste/conta ML redesenhados; Sessão 17 — chaves de IA cadastradas e trocadas pelo painel do administrador; Sessão 16 — textos do cadastro sem falar em cobrança; Sessão 15b — Fase 1 da troca preparada)
+Última atualização: **2026-10-13** (Sessão 20b — Starter com 300 respostas e espaço nos cards dos planos; Sessão 20 — planos Starter/Pro/Escala com limites, teste grátis e Melhorias de anúncio; Sessão 19 — pesquisa de preços e proposta de 3 planos; Sessão 18 — tour de boas-vindas e avisos de teste/conta ML redesenhados; Sessão 17 — chaves de IA cadastradas e trocadas pelo painel do administrador; Sessão 16 — textos do cadastro sem falar em cobrança; Sessão 15b — Fase 1 da troca preparada)
 
 ---
 
@@ -126,10 +126,10 @@ novas funcionalidades, segurança multi-tenant de verdade — **desenvolvido em 
   anel; celular: selo no topo) até o teste acabar ou a assinatura ficar ativa; a **conta do ML** vira um cartão no topo do
   conteúdo de todas as páginas, com "Conectar agora", até existir uma conta ativa.
   **Sessão 20 (2026-10-13): planos Starter, Pro e Escala** (decididos pelo Breno): R$ 97 / 197 / 397 por mês (anual com 2
-  meses grátis: R$ 81 / 164 / 331 por mês), **500 / 1.500 / 5.000 respostas automáticas por mês**, 1 / 3 / 10 contas do ML,
+  meses grátis: R$ 81 / 164 / 331 por mês), **300 / 1.500 / 5.000 respostas automáticas por mês** (Starter baixado de 500 para 300 a pedido do Breno, mesmo dia), 1 / 3 / 10 contas do ML,
   **pós-venda a partir do Pro**, **Melhorias de anúncio** 20 (Pro) / 100 (Escala) por mês, suporte e-mail / WhatsApp /
   prioritário. Relatórios em todos os planos; sem limite de equipe; sem excedente pago no Escala. **Teste grátis = tudo do
-  Pro** com 1 conta, 500 respostas e 3 análises. Limite de respostas conferido **antes de chamar a IA** (acabou → pergunta
+  Pro** com 1 conta, 300 respostas e 3 análises. Limite de respostas conferido **antes de chamar a IA** (acabou → pergunta
   ou conversa fica com o vendedor, `answers_limit`), avisos a partir de 80%, tela Assinatura nova com os 3 planos
   (contratação pelo app ainda desligada: o gateway será a **AbacatePay**). Menu novo **Melhorias de anúncio** (`/melhorias`):
   a IA lê as perguntas de cada anúncio (com as respostas) e o anúncio e sugere o que mudar, com texto pronto para colar e o
@@ -1229,8 +1229,8 @@ webhook do ML validado, fila/reprocessamento de jobs, observabilidade, controle 
 | 2026-10-13 | Tour de boas-vindas em **duas colunas com as ilustrações do Breno**, etapas nomeadas clicáveis, "Pular" e voltar; clicar fora não fecha (Esc e "Pular" fecham e gravam como visto) | Pedido do Breno: estava idêntico ao AgilizaPRO (modal pequeno com ícone, "Passo X de 4" e bolinhas). Clicar fora sem querer pulava a apresentação. |
 | 2026-10-13 | Teste grátis sai do topo e vai para um **cartão no rodapé do menu lateral** (anel com os dias; menu recolhido = só o anel; celular = selo no topo); conta do ML vira **cartão no topo do conteúdo**; nenhum dos dois pode ser fechado | Pedido do Breno: continuar sempre visíveis, mas sem as faixas de largura total do AgilizaPRO. Menu lateral é o padrão de SaaS para "dias de teste" e fica visível em todas as páginas; a conexão do ML é o passo que trava a plataforma, então fica no conteúdo com o botão de conectar. |
 | 2026-10-13 | Aviso de conta bloqueada distingue teste encerrado, pagamento pendente e assinatura inativa | Antes dizia "Seu período de teste terminou" até para quem já tinha assinado; prepara o sub-projeto 4 (cobrança). |
-| 2026-10-13 | **Planos Starter (R$ 97), Pro (R$ 197) e Escala (R$ 397)**; anual = 10 mensalidades; 500/1.500/5.000 respostas automáticas por mês; 1/3/10 contas; pós-venda a partir do Pro; Melhorias de anúncio 20/100 por mês; suporte e-mail/WhatsApp/prioritário | Decisão do Breno sobre a proposta da Sessão 19. Riscou: usuários da equipe, excedente pago do Escala e relatório como diferencial (relatórios em todos os planos). |
-| 2026-10-13 | **Teste grátis = tudo do Pro**, com 1 conta, 500 respostas e 3 análises no período do teste (sem plano + `trialing` no prazo = plano `trial`) | Decisão da IA, seguindo a proposta da Sessão 19 (o Breno não comentou): mostrar o produto completo converte mais. Muda em `TRIAL_PLAN` + `plan_includes_after_sale`. |
+| 2026-10-13 | **Planos Starter (R$ 97), Pro (R$ 197) e Escala (R$ 397)**; anual = 10 mensalidades; 300/1.500/5.000 respostas automáticas por mês (Starter era 500; Breno baixou para 300 para o Pro ficar mais atraente); 1/3/10 contas; pós-venda a partir do Pro; Melhorias de anúncio 20/100 por mês; suporte e-mail/WhatsApp/prioritário | Decisão do Breno sobre a proposta da Sessão 19. Riscou: usuários da equipe, excedente pago do Escala e relatório como diferencial (relatórios em todos os planos). |
+| 2026-10-13 | **Teste grátis = tudo do Pro**, com 1 conta, 300 respostas (o mesmo do Starter) e 3 análises no período do teste (sem plano + `trialing` no prazo = plano `trial`) | Decisão da IA, seguindo a proposta da Sessão 19 (o Breno não comentou): mostrar o produto completo converte mais. Muda em `TRIAL_PLAN` + `plan_includes_after_sale`. |
 | 2026-10-13 | Limite de respostas: mês do calendário de Brasília (no teste, o teste inteiro); acabou → pergunta/conversa fica com o vendedor (`answers_limit`), sem IA; aviso a partir de 80%; conta toda resposta enviada pela IA (inclusive mensagem padrão e as pendentes ao conectar), não conta sugestão/teste/manual | Simples de explicar ("renova dia 1º") e nada se perde. Limite "mole" (sem reserva) para não complicar o motor. Contar as pendentes ao conectar: é trabalho que a IA fez. |
 | 2026-10-13 | Plano desconhecido, cortesia sem plano ou teste vencido usam o **Starter como base** | Nunca deixar a IA sem limite nem dar extras por engano; cortesia deve ganhar um plano no painel. |
 | 2026-10-13 | Baixar o limite de contas **desativa as contas ativas mais novas** acima dele (gatilho no banco) | Sem isso, quem desce de plano manteria as contas extras funcionando. Nada é apagado; o cliente reativa a que quiser dentro do limite. |
@@ -1242,6 +1242,17 @@ webhook do ML validado, fila/reprocessamento de jobs, observabilidade, controle 
 ---
 
 ## 12. Diário de sessões (mais recente no topo)
+
+### 2026-10-13 — Sessão 20b · Starter com 300 respostas e espaço nos cards dos planos (IA: Claude, via app Codex)
+- Pedido do Breno: (1) os cards dos planos em Assinatura estavam colados na borda de baixo do cartão "Planos"; (2) baixar o
+  Starter de 500 para 300 respostas por mês (500 deixava o Pro pouco atraente).
+- (1) Causa: o `Card` do shadcn tira o espaço de baixo (`has-data-[slot=card-footer]:pb-0`) quando existe um rodapé em
+  qualquer nível dentro dele — os cards dos planos têm rodapé, então o cartão de fora também perdia o espaço. Corrigido só no
+  cartão "Planos" (`has-data-[slot=card-footer]:pb-(--card-spacing)`), conferido no navegador.
+- (2) `lib/plans/plans.ts`: Starter 300. O **teste grátis também foi para 300** (antes 500, igual ao Starter; manter 500 daria
+  ao teste de 7 dias mais respostas que o plano mensal de entrada). Sem migração (limites de respostas só no código).
+  Documentação atualizada (aqui, spec e referências de mercado).
+- QA com usuário temporário (apagado no fim). typecheck, testes, lint e build ok.
 
 ### 2026-10-13 — Sessão 20 · Planos Starter/Pro/Escala, limites e Melhorias de anúncio (IA: Claude, via app Codex)
 - Pedido do Breno: implementar os planos que ele definiu sobre a proposta da Sessão 19 (nomes Starter, Pro e Escala; Starter
@@ -1708,7 +1719,7 @@ webhook do ML validado, fila/reprocessamento de jobs, observabilidade, controle 
 
 0e. **Breno — conferir os planos (Sessão 20) em `maanu.com.br`:** Assinatura (seu plano, uso e os 3 planos), menu Melhorias de
    anúncio (precisa de conta ML conectada com perguntas) e, no painel admin, "Editar assinatura" (escolher o plano preenche
-   contas e mensalidade; campos Ciclo e Respostas por mês). Confirmar: (a) **teste grátis = tudo do Pro** com 1 conta, 500
+   contas e mensalidade; campos Ciclo e Respostas por mês). Confirmar: (a) **teste grátis = tudo do Pro** com 1 conta, 300
    respostas e 3 análises (decisão da IA); (b) o que acontece no limite (perguntas vão para o vendedor; sem pacote extra);
    (c) itens de plano escondidos no menu para quem não tem (ou mostrar com cadeado como vitrine); (d) passar o **e-mail e o
    WhatsApp de suporte** para aparecerem em Assinatura. O cliente "Descomplicasa" está em teste (vai até 20/10) e já vê

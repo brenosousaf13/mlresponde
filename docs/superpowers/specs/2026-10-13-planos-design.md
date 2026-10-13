@@ -8,7 +8,7 @@ as funcionalidades e restrições de cada um e publicar na v2:
 |---|---|---|---|
 | Mensal | R$ 97 | R$ 197 | R$ 397 |
 | Anual (2 meses grátis) | R$ 81/mês (R$ 970/ano) | R$ 164/mês (R$ 1.970/ano) | R$ 331/mês (R$ 3.970/ano) |
-| Respostas automáticas por mês | 500 | 1.500 | 5.000 |
+| Respostas automáticas por mês | 300 | 1.500 | 5.000 |
 | Contas do ML | 1 | 3 | 10 |
 | Pós-venda com IA | — | ✓ | ✓ |
 | Melhorias de anúncio | — | 20/mês | 100/mês |
@@ -28,7 +28,7 @@ Riscados pelo Breno na tabela: "usuários da equipe" (não existe limite/funcion
 
 ## Plano em vigor
 1. Plano cadastrado e conhecido → ele (vale mesmo se a organização ainda estiver em `trialing`).
-2. Sem plano e teste no prazo → **teste grátis** = tudo do Pro, com 1 conta, 500 respostas e 3 análises de anúncio no
+2. Sem plano e teste no prazo → **teste grátis** = tudo do Pro, com 1 conta, 300 respostas e 3 análises de anúncio no
    período do teste. (Decisão da IA, seguindo a proposta da Sessão 19; mudar em `TRIAL_PLAN` + `plan_includes_after_sale`.)
 3. Qualquer outro caso (plano desconhecido, cortesia sem plano, teste vencido) → Starter como base (sem extras). Quem não pode
    usar o app continua bloqueado à parte (`computeAccess`).

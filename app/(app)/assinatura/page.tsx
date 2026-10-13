@@ -96,7 +96,8 @@ export default async function SubscriptionPage({ searchParams }: PageProps<"/ass
         </CardFooter>
       </Card>
 
-      <Card>
+      {/* Os cards dos planos têm rodapé; sem o ajuste, o card de fora também perde o espaço de baixo (has-data-[slot=card-footer]). */}
+      <Card className="has-data-[slot=card-footer]:pb-(--card-spacing)">
         <CardHeader>
           <CardTitle>Planos</CardTitle>
           <CardDescription>

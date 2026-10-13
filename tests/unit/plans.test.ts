@@ -34,7 +34,7 @@ describe("catálogo de planos (decidido pelo Breno na Sessão 20)", () => {
     expect(SELLABLE_PLANS.map((plan) => plan.id)).toEqual(["starter", "pro", "escala"])
     const [starter, pro, escala] = SELLABLE_PLANS
     expect([starter.priceMonthly, pro.priceMonthly, escala.priceMonthly]).toEqual([97, 197, 397])
-    expect([starter.limits.answersPerMonth, pro.limits.answersPerMonth, escala.limits.answersPerMonth]).toEqual([500, 1500, 5000])
+    expect([starter.limits.answersPerMonth, pro.limits.answersPerMonth, escala.limits.answersPerMonth]).toEqual([300, 1500, 5000])
     expect([starter.limits.mlAccounts, pro.limits.mlAccounts, escala.limits.mlAccounts]).toEqual([1, 3, 10])
     expect([starter.limits.listingImprovementsPerMonth, pro.limits.listingImprovementsPerMonth, escala.limits.listingImprovementsPerMonth]).toEqual([0, 20, 100])
     expect(starter.features).toEqual([])
@@ -67,11 +67,11 @@ describe("plano em vigor", () => {
     expect(resolvePlan(org("admin"), NOW)).toBe(ADMIN_PLAN)
   })
 
-  it("sem plano e no prazo do teste = teste grátis (tudo do Pro, 1 conta, 500 respostas)", () => {
+  it("sem plano e no prazo do teste = teste grátis (tudo do Pro, 1 conta, 300 respostas)", () => {
     const plan = resolvePlan(org(null, "trialing"), NOW)
     expect(plan).toBe(TRIAL_PLAN)
     expect(plan.features).toEqual(expect.arrayContaining(["pos_venda", "melhorias_anuncio"]))
-    expect(plan.limits).toEqual({ answersPerMonth: 500, mlAccounts: 1, listingImprovementsPerMonth: 3 })
+    expect(plan.limits).toEqual({ answersPerMonth: 300, mlAccounts: 1, listingImprovementsPerMonth: 3 })
     expect(organizationIncludes(org(null, "trialing"), "pos_venda", NOW)).toBe(true)
   })
 

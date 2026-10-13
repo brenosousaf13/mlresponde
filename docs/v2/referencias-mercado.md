@@ -179,7 +179,7 @@ Hub.IA360, Bunker, Vendedor Alfa, SellSync, Magis5, Ideris, Olist, Anymarket. O 
 - Código a mudar: hoje o pós-venda é liberado por `plan = 'essencial'` (Sessão 11); passaria para `pro`.
 
 ### Decisão do Breno (Sessão 20, 2026-10-13) — implementada
-Nomes **Starter / Pro / Escala**; Starter com **500** respostas; sem "usuários da equipe"; Escala com 5.000 e **sem**
+Nomes **Starter / Pro / Escala**; Starter com **300** respostas (primeiro 500; o Breno baixou para 300 para o Pro valer mais a pena); sem "usuários da equipe"; Escala com 5.000 e **sem**
 excedente pago; relatórios em todos os planos (não é diferencial). O resto da proposta acima ficou como estava (preços,
 anual com 2 meses grátis, contas, pós-venda a partir do Pro, melhorias 20/100, suporte). Teste grátis = tudo do Pro com 1
-conta, 500 respostas e 3 análises (decisão da IA). Gateway: AbacatePay. Detalhes: `docs/superpowers/specs/2026-10-13-planos-design.md`.
+conta, 300 respostas e 3 análises (decisão da IA). Gateway: AbacatePay. Detalhes: `docs/superpowers/specs/2026-10-13-planos-design.md`.
