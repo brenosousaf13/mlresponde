@@ -61,16 +61,22 @@ export async function toggleAutoReply(sellerId: string, enabled: boolean) {
 
   const supabaseAdmin = createAdminClient()
 
-  // Atualizar a coluna auto_reply_enabled
-  const { error } = await supabaseAdmin
+  // Atualizar a coluna auto_reply_enabled (lida pelo workflow antes de cada resposta)
+  const { data: updated, error } = await supabaseAdmin
     .from('ml_credentials')
     .update({ auto_reply_enabled: enabled, updated_at: new Date().toISOString() })
     .eq('seller_id', sellerId)
     .eq('user_id', user.id)
+    .select('seller_id')
 
   if (error) {
     console.error('Toggle AutoReply error:', error)
     return { error: 'Falha ao atualizar o status da automação no Banco de Dados.' }
+  }
+
+  // Nenhuma linha alterada = a conta não é deste usuário (ou não existe): não fingir que mudou.
+  if (!updated || updated.length === 0) {
+    return { error: 'Não encontramos esta conta do Mercado Livre no seu login. Recarregue a página e tente de novo.' }
   }
 
   revalidatePath('/settings')

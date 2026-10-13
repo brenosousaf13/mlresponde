@@ -31,7 +31,7 @@ export default function AutoReplyToggle({ sellerId, initialStatus }: { sellerId:
         <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
           {enabled 
             ? "O robô está ativo e responderá clientes automaticamente." 
-            : "O robô está pausado. Você pode acompanhar as perguntas, mas ele não responderá."}
+            : "O robô está pausado. As perguntas novas aparecem no Painel, mas ele não responderá: responda pelo Mercado Livre."}
         </p>
       </div>
       

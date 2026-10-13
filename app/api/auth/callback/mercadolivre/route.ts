@@ -51,6 +51,16 @@ export async function GET(request: Request) {
     // Usando admin client para dar bypass no RLS e inserir/atualizar as credenciais
     const supabase = createAdminClient()
 
+    // Conta nova nasce com a automação LIGADA (como sempre funcionou: a coluna tem default false, mas até a
+    // pausa existir de verdade a IA respondia todo mundo). Reconexão não mexe na escolha do vendedor.
+    const { data: existingCredentials, error: existingError } = await supabase
+      .from('ml_credentials')
+      .select('id')
+      .eq('seller_id', sellerId)
+      .maybeSingle()
+    // Se a leitura falhar, segue a gravação de sempre (os tokens novos não podem se perder) sem mexer na automação.
+    const isNewAccount = !existingError && !existingCredentials
+
     const { error: upsertError } = await supabase
       .from('ml_credentials')
       .upsert({
@@ -59,6 +69,7 @@ export async function GET(request: Request) {
         access_token: accessToken,
         refresh_token: refreshToken,
         expires_at: expiresAt.toISOString(),
+        ...(isNewAccount ? { auto_reply_enabled: true } : {}),
       }, {
         onConflict: 'seller_id'
       })

@@ -1,6 +1,7 @@
 import { createAdminClient } from '@/lib/supabase/server'
 import { fetchQuestion, fetchItem, postAnswer } from '@/lib/mercadolivre/questions'
 import { generateAnswer } from '@/lib/ai/responder'
+import { isAutoReplyPaused } from '@/lib/mercadolivre/auto-reply'
 
 export async function processQuestionWorkflow(question_id: string, seller_id: string) {
   const supabase = createAdminClient()
@@ -36,6 +37,31 @@ export async function processQuestionWorkflow(question_id: string, seller_id: st
       }
       
       return { success: true, message: 'Already answered' }
+    }
+
+    // 2b. Automação pausada pelo vendedor (Configurações → "Automação de Respostas")?
+    // Só pausa se a conta estiver EXPLICITAMENTE desligada; erro de leitura = segue respondendo (ver auto-reply.ts).
+    const { data: autoReply, error: autoReplyError } = await supabase
+      .from('ml_credentials')
+      .select('auto_reply_enabled')
+      .eq('seller_id', seller_id)
+      .maybeSingle()
+
+    if (isAutoReplyPaused(autoReply, autoReplyError)) {
+      // Robô pausado: a pergunta fica registrada no Painel para o vendedor responder pelo Mercado Livre.
+      await supabase
+        .from('question_jobs')
+        .update({
+          status: 'manual',
+          item_id: item.id,
+          item_title: item.title,
+          item_url: item.permalink,
+          question_text: question.text,
+          updated_at: new Date().toISOString()
+        })
+        .eq('question_id', question_id)
+
+      return { success: true, message: 'Auto-reply paused for this seller' }
     }
 
     // 3. Como a pergunta é virgem, vamos marcar como "processing" e salvar a pergunta de verdade no banco

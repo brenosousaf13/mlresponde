@@ -7,7 +7,7 @@ export interface QuestionJob {
   id: string;
   question_id: string;
   seller_id: string;
-  status: 'pending' | 'processing' | 'done' | 'error';
+  status: 'pending' | 'processing' | 'done' | 'error' | 'manual';
   question_text?: string | null;
   item_title?: string | null;
   item_url?: string | null;
@@ -63,6 +63,8 @@ export default function LiveQuestions({ initialJobs, sellerIds }: { initialJobs:
         return <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400">🟢 Respondido</span>
       case 'error':
         return <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400">🔴 Erro ao sincronizar</span>
+      case 'manual':
+        return <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200">⏸️ Robô pausado</span>
       default:
         return null
     }
@@ -114,6 +116,12 @@ export default function LiveQuestions({ initialJobs, sellerIds }: { initialJobs:
               </div>
             )}
             
+            {job.status === 'manual' && !job.ai_response && (
+              <div className="p-3 bg-gray-50 dark:bg-gray-900 text-gray-600 dark:text-gray-300 rounded-lg text-sm border border-gray-200 dark:border-gray-700">
+                A automação está pausada nesta conta: responda esta pergunta pelo Mercado Livre.
+              </div>
+            )}
+
             {job.error_message && (
               <div className="p-3 bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400 rounded-lg text-sm border border-red-200 dark:border-red-800/30">
                 <strong>Log do erro:</strong> {job.error_message}
