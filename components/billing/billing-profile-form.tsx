@@ -31,6 +31,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Spinner } from "@/components/ui/spinner"
 import { lookupPostalCode } from "@/lib/billing/cep"
+import { BILLING_FORM_COPY, type BillingFormVariant } from "@/lib/billing/copy"
 import {
   BRAZIL_STATES,
   DOCUMENT_LABELS,
@@ -64,16 +65,13 @@ type CepStatus = "idle" | "loading" | "not_found" | "unavailable"
 
 const STATE_ITEMS = Object.fromEntries(BRAZIL_STATES.map((state) => [state.uf, state.uf]))
 
-const DOCUMENT_OPTIONS: { value: DocumentType; title: string; description: string }[] = [
-  { value: "cpf", title: "Pessoa física", description: "Cobrança no seu CPF" },
-  { value: "cnpj", title: "Pessoa jurídica", description: "Cobrança no CNPJ da empresa" },
-]
 
 const CORREIOS_CEP_URL = "https://buscacepinter.correios.com.br/app/endereco/index.php"
 
 /**
- * Dados de cobrança: CPF/CNPJ, nome/razão social e endereço. Usado no cadastro e em Configurações.
- * O CPF/CNPJ só é pedido na primeira vez (com confirmação); depois aparece travado.
+ * CPF/CNPJ, nome/razão social e endereço. Usado no cadastro (`variant="signup"`, textos sem falar em cobrança) e em
+ * Configurações (`variant="settings"`, "dados de cobrança"). O CPF/CNPJ só é pedido na primeira vez (com
+ * confirmação); depois aparece travado.
  */
 export function BillingProfileForm({
   action,
@@ -84,6 +82,7 @@ export function BillingProfileForm({
   submitLabel,
   pendingLabel = "Salvando...",
   columns = false,
+  variant = "settings",
 }: {
   action: (state: FormState, formData: FormData) => Promise<FormState>
   defaults: BillingFormValues
@@ -94,7 +93,13 @@ export function BillingProfileForm({
   pendingLabel?: string
   /** Titular e endereço lado a lado em telas largas (Configurações). */
   columns?: boolean
+  variant?: BillingFormVariant
 }) {
+  const copy = BILLING_FORM_COPY[variant]
+  const documentOptions: { value: DocumentType; title: string; description: string }[] = [
+    { value: "cpf", title: "Pessoa física", description: copy.cpfOption },
+    { value: "cnpj", title: "Pessoa jurídica", description: copy.cnpjOption },
+  ]
   const [state, formAction, pending] = useActionState(action, {})
   const [values, setValues] = useState<BillingFormValues>(defaults)
   const [legalNameTouched, setLegalNameTouched] = useState(Boolean(lockedDocument))
@@ -173,8 +178,8 @@ export function BillingProfileForm({
 
   const holderSection = (
     <FieldSet>
-      <FieldLegend>Titular da cobrança</FieldLegend>
-      <FieldDescription>Quem paga a assinatura e recebe a nota fiscal.</FieldDescription>
+      <FieldLegend>{copy.holderTitle}</FieldLegend>
+      <FieldDescription>{copy.holderDescription}</FieldDescription>
       <FieldGroup>
         {lockedDocument ? (
           <Field>
@@ -205,7 +210,7 @@ export function BillingProfileForm({
               className="sm:grid-cols-2"
               aria-label="Tipo de cadastro"
             >
-              {DOCUMENT_OPTIONS.map((option) => (
+              {documentOptions.map((option) => (
                 <FieldLabel key={option.value} htmlFor={`documentType-${option.value}`}>
                   <Field orientation="horizontal">
                     <FieldContent>
@@ -268,7 +273,7 @@ export function BillingProfileForm({
   const addressSection = (
     <FieldSet>
       <FieldLegend>Endereço</FieldLegend>
-      <FieldDescription>O endereço de cobrança, que vai na nota fiscal.</FieldDescription>
+      <FieldDescription>{copy.addressDescription}</FieldDescription>
       <FieldGroup className="gap-4">
         <Field data-invalid={invalid("postalCode")}>
           <FieldLabel htmlFor="postalCode">CEP</FieldLabel>

@@ -53,7 +53,7 @@ export async function completeBillingStep(_previous: FormState, formData: FormDa
   const context = await getAppContext()
   const values = formValues(formData, BILLING_FIELDS)
   if (!canManageOrganization(context.role)) {
-    return { message: "Só o dono ou um administrador da loja pode informar os dados de cobrança.", values }
+    return { message: "Só o dono ou um administrador da loja pode informar os dados do titular da conta.", values }
   }
 
   const parsed = parseBillingProfile(Object.fromEntries(formData), { withDocument: !context.billing.completed })

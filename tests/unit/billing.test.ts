@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest"
 
 import { parsePostalCodeResponse } from "@/lib/billing/cep"
+import { BILLING_FORM_COPY, ONBOARDING_HOLDER_COPY } from "@/lib/billing/copy"
 import {
   formatDocument,
   isValidCnpj,
@@ -168,5 +169,24 @@ describe("parsePostalCodeResponse", () => {
     expect(parsePostalCodeResponse({ erro: true })).toBeNull()
     expect(parsePostalCodeResponse({ erro: "true" })).toBeNull()
     expect(parsePostalCodeResponse(null)).toBeNull()
+  })
+})
+
+describe("textos do cadastro", () => {
+  // Quem está começando o teste grátis não deve ler sobre cobrança, pagamento ou nota fiscal.
+  const forbidden = /cobran|pag[aou]|assinatura|nota fiscal|fatura|mensalidade/i
+  const texts = [
+    ...Object.values(BILLING_FORM_COPY.signup),
+    ...Object.values(ONBOARDING_HOLDER_COPY.firstTime),
+    ...Object.values(ONBOARDING_HOLDER_COPY.existing),
+    ONBOARDING_HOLDER_COPY.privacyNotice,
+  ]
+
+  it.each(texts)("não fala de cobrança: %s", (text) => {
+    expect(text).not.toMatch(forbidden)
+  })
+
+  it("Configurações continua falando em cobrança", () => {
+    expect(BILLING_FORM_COPY.settings.holderTitle).toBe("Titular da cobrança")
   })
 })

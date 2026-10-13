@@ -12,6 +12,9 @@
   2. *Dados para cobrança*: tipo (pessoa física/jurídica), CPF ou CNPJ, nome completo/razão social e endereço
      (CEP, rua, número, complemento, bairro, cidade, UF). "Concluir cadastro" → `/contas` (tour).
   - "Voltar" na etapa 2 reabre a etapa 1 (`?etapa=loja`) com os dados já salvos.
+  - **Textos (2026-10-12, Sessão 16):** no cadastro a etapa se chama "Dados da conta" e fala em "titular da conta",
+    sem cobrança/assinatura/nota fiscal (quem está no teste grátis estranharia). "Dados de cobrança" só em Configurações.
+    Textos em `lib/billing/copy.ts`.
 - **Por que depois da confirmação do e-mail, e não na tela `/cadastro`:** o documento só pode ser gravado por uma conta
   com e-mail comprovado. Se fosse na primeira tela, um e-mail digitado errado (que nunca é confirmado) prenderia o CPF
   numa conta morta, e qualquer pessoa poderia "reservar" o CPF/CNPJ de outra sem provar o e-mail. A tela de cadastro

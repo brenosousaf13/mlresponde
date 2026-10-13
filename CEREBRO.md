@@ -4,7 +4,7 @@
 > inteiro antes de trabalhar e atualizá-lo ao terminar. Se algo aqui divergir do código, o código vence —
 > e este arquivo deve ser corrigido na mesma sessão.
 
-Última atualização: **2026-10-12** (Sessão 15b — Fase 1 da troca preparada: projeto Vercel `maanu`, chaves novas, banco limpo; Sessão 15 — **reforço de segurança do Supabase da v2**, que vira a produção; decidido o plano da troca: v1 descontinuada sem migrar dados, mesmo app ML de produção, domínio `maanu.com.br`)
+Última atualização: **2026-10-12** (Sessão 16 — textos do cadastro sem falar em cobrança; Sessão 15b — Fase 1 da troca preparada: projeto Vercel `maanu`, chaves novas, banco limpo)
 
 ---
 
@@ -243,6 +243,7 @@ lib/
   validation/billing.ts           # parseBillingProfile (com/sem documento) + mensagens de erro da gravação
   billing/documents.ts            # CPF/CNPJ (inclusive alfanumérico), máscaras, CEP, UFs (puro, testado)
   billing/cep.ts                  # busca de CEP no navegador (ViaCEP → BrasilAPI)
+  billing/copy.ts                 # textos do formulário: cadastro ("titular da conta", sem cobrança) × Configurações
   dal/billing.ts                  # getBillingProfile (RLS) + saveBillingProfile (service role; documento nunca muda)
   security/crypto.ts, keys.ts     # AES-256-GCM com AAD + chave ML_TOKEN_ENCRYPTION_KEY
   mercadolivre/pkce.ts, oauth.ts, oauth-cookie.ts, api.ts, accounts.ts   # OAuth v2 + tokens (lease de refresh)
@@ -572,11 +573,13 @@ exportação só faz GET e a importação recusa qualquer destino que não seja 
 - **Login** `/login` (mensagens PT-BR; e-mail não confirmado → botão de reenviar). `next` só aceita caminho interno.
 - **Senha:** `/recuperar-senha` → e-mail → `/auth/confirm?next=/redefinir-senha` → `updateUser`. Em
   `/configuracoes`, troca exige a senha atual (verificada com cliente sem cookies e sessão descartada).
-- **Onboarding** `/onboarding` (2 etapas): (1) nome da loja + WhatsApp; (2) dados de cobrança — pessoa física/jurídica,
+- **Onboarding** `/onboarding` (2 etapas): (1) nome da loja + WhatsApp; (2) "Dados da conta" (titular) — pessoa física/jurídica,
   CPF/CNPJ (confirmação em `AlertDialog`; depois não muda), nome/razão social, CEP (preenche rua/bairro/cidade/UF),
   número, complemento → `onboarding_completed_at` → `/contas` com tour de 4 passos. Sem dados de cobrança (contas
   antigas), dono/admin volta para a etapa 2 em qualquer página. Membro comum e admin da plataforma pulam a etapa 2.
-  Configurações tem o card "Dados de cobrança" (documento travado, endereço editável).
+  Configurações tem o card "Dados de cobrança" (documento travado, endereço editável). No cadastro os textos **não falam**
+  em cobrança/assinatura/nota fiscal (quem está no teste grátis estranharia); só Configurações usa essa linguagem
+  (`lib/billing/copy.ts`, `variant` do formulário; teste em `tests/unit/billing.test.ts` barra essas palavras no cadastro).
 - **Acesso** (`lib/access/access.ts`, checado em toda página/ação/rota): bloqueado (teste vencido sem assinatura) → só
   `/assinatura` e `/configuracoes`; sem conta ML ativa → também `/contas`; senão tudo. Cortesia (`billing_exempt`) libera.
 - **Conectar ML:** `/api/ml/oauth/start` (dono/admin, não bloqueado) → ML → `/api/auth/callback/mercadolivre` →
@@ -1058,6 +1061,7 @@ webhook do ML validado, fila/reprocessamento de jobs, observabilidade, controle 
 | 2026-10-11 | Dados de cobrança em tabela própria (`billing_profiles`), lidos só por dono/administrador | Dado pessoal (LGPD): membros comuns e futuras equipes não veem o CPF do dono; fica pronto para o gateway/nota fiscal (sub-projeto 4). |
 | 2026-10-11 | Aceitar o **CNPJ alfanumérico** (Receita, desde jul/2026) | Empresas novas já recebem CNPJ com letras; rejeitar seria perder cliente. Mesmo cálculo valida o CNPJ antigo. |
 | 2026-10-11 | Contas antigas (e as da v1 no cutover) completam os dados no próximo acesso; admin da plataforma e membros comuns dispensados | Cobrança certa para todos; a "Loja Demonstração" não pode prender o CPF do Breno. |
+| 2026-10-12 | No cadastro, CPF/CNPJ e endereço aparecem como **"Dados da conta" / "Titular da conta"**, sem falar em cobrança; "dados de cobrança" só em Configurações | Pedido do Breno: quem só quer testar estranha falar de cobrança no período grátis. Os dados e as regras (único, imutável) não mudaram. |
 | 2026-10-11 | Modo "Responder sempre": a IA **nunca escreve o "não sei"** — ela escala com resposta vazia e o sistema envia a mensagem padrão da loja | Texto previsível e personalizável pelo cliente; a Regra 0 continua inteira (nada de palpite) e dá para medir/filtrar essas respostas (`fallback_reason`). |
 | 2026-10-11 | No modo sempre, desconto, reclamação, pedido e contato recebem respostas de **procedimento** (condições do anúncio, desculpas + "Minhas compras", atendimento pelo ML) em vez da mensagem padrão | "Não temos essa informação" para uma reclamação soaria descaso; as respostas de procedimento não afirmam nada do produto. |
 | 2026-10-11 | Anúncio bloqueado, respostas pausadas, conta inativa e erro continuam indo para o vendedor mesmo no modo sempre | O bloqueio é uma escolha explícita do vendedor; os outros casos nem chegam à IA. |
@@ -1102,6 +1106,17 @@ webhook do ML validado, fila/reprocessamento de jobs, observabilidade, controle 
 
 ## 12. Diário de sessões (mais recente no topo)
 
+### 2026-10-12 — Sessão 16 · Textos do cadastro sem falar em cobrança (IA: Claude, via app Codex)
+- Pedido do Breno (com print da etapa 2): quem só quer testar pode estranhar falar de cobrança no período grátis.
+- Etapa 2 do cadastro: "Dados para cobrança" → **"Dados da conta"** ("Último passo: conte quem é o titular da conta. Seu
+  teste continua grátis e sem cartão."); "Titular da cobrança" → "Titular da conta"; opções "Conta no seu CPF" / "Conta
+  no CNPJ da empresa"; endereço "Seu endereço ou o da sua empresa."; rodapé sem "cobrança e nota fiscal". Contas antigas
+  ("Complete seu cadastro") também sem cobrança. Configurações continua com "Dados de cobrança".
+- Código: `lib/billing/copy.ts` (textos por `variant` `signup`/`settings`), prop `variant` no `BillingProfileForm`,
+  `app/onboarding/page.tsx`, mensagem de erro da etapa. Teste novo impede palavras de cobrança nos textos do cadastro.
+  Dados, validação e regras (único, imutável) não mudaram; nada no banco.
+- Verificação: typecheck, 311 testes, lint 0, build ok. Sem QA no navegador: o `.env.local` agora aponta para o banco de
+  produção e não criei usuário de teste nele (mudança só de texto, coberta pelo teste).
 ### 2026-10-12 — Sessão 15b · Fase 1 da troca: banco limpo, chaves novas, projeto Vercel `maanu` (IA: Claude, via app Codex)
 - Breno: "pode fazer"; vai pôr o domínio no **Cloudflare** e cuidar do DNS; já tem conta no **Resend**; pode apagar a Noord.
 - Banco (`ookosqyfazobiwmopiix`): apagadas a conta ML fictícia `LOJA_DEMONSTRACAO` (398 perguntas, 2 ensinadas, 1 bloqueio
@@ -1493,8 +1508,8 @@ webhook do ML validado, fila/reprocessamento de jobs, observabilidade, controle 
 2. **Breno: conferir na staging** o menu recolhendo pela barra, a caixa de entrada (filtro por anúncio, ordem, páginas), o
    novo Painel e a tela **Resultados** (a "Loja Demonstração" já tem 90 dias de histórico). Dizer se as premissas padrão
    da economia (3 min por resposta, R$ 20/h) fazem sentido para os clientes dele.
-2b. **Breno: conferir o cadastro novo na staging** — criar uma conta (ou entrar na "Noord Shop", que vai pedir os dados
-   de cobrança no próximo acesso) e ver as 2 etapas, a busca do CEP e o CPF travado em Configurações. Decidir se quer
+2b. **Breno: conferir o cadastro novo em `maanu.com.br`** (depois do DNS/SMTP) — criar uma conta e ver as 2 etapas (a 2ª agora
+   se chama "Dados da conta", sem falar em cobrança), a busca do CEP e o CPF travado em Configurações. Decidir se quer
    pedir também e-mail financeiro ou inscrição estadual (depende do gateway/nota fiscal do sub-projeto 4).
 3. **Breno: observar as respostas do `gpt-6-luna` na staging** (aba Testar do Assistente e perguntas reais). Se algo piorar,
    dá para voltar ao antigo sem código: variável `OPENAI_MODEL=gpt-4o-mini` (Preview + `v2`) e novo deploy.

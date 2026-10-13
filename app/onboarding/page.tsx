@@ -9,6 +9,7 @@ import { BillingProfileForm } from "@/components/billing/billing-profile-form"
 import { OnboardingForm } from "@/components/onboarding/onboarding-form"
 import { buttonVariants } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { ONBOARDING_HOLDER_COPY } from "@/lib/billing/copy"
 import { getAppContext, needsOnboarding } from "@/lib/dal/app-context"
 import { formatWhatsapp } from "@/lib/validation/forms"
 
@@ -34,8 +35,9 @@ function SignOutFootnote({ email }: { email: string }) {
 }
 
 /**
- * Cadastro depois de confirmar o e-mail. Etapa 1: nome da loja + WhatsApp. Etapa 2: CPF/CNPJ + endereço de cobrança
+ * Cadastro depois de confirmar o e-mail. Etapa 1: nome da loja + WhatsApp. Etapa 2: CPF/CNPJ + endereço do titular
  * (só para quem administra a loja). Contas antigas, já com a etapa 1 feita, veem só a etapa 2.
+ * Quem está começando o teste grátis não vê textos de cobrança/nota fiscal (`lib/billing/copy.ts`).
  */
 export default async function OnboardingPage({ searchParams }: PageProps<"/onboarding">) {
   const context = await getAppContext()
@@ -48,6 +50,7 @@ export default async function OnboardingPage({ searchParams }: PageProps<"/onboa
     storePending && (!context.profile.whatsapp || etapa === "loja" || !billingPending) ? "loja" : "cobranca"
   const totalSteps = storePending && billingPending ? 2 : 1
   const firstName = context.profile.fullName.split(" ")[0]
+  const holderCopy = storePending ? ONBOARDING_HOLDER_COPY.firstTime : ONBOARDING_HOLDER_COPY.existing
 
   if (step === "loja") {
     const storeName = context.organization.name === "Minha loja" ? "" : context.organization.name
@@ -81,12 +84,8 @@ export default async function OnboardingPage({ searchParams }: PageProps<"/onboa
       <Card>
         <CardHeader className="text-center">
           {totalSteps > 1 ? <StepLabel current={2} total={totalSteps} /> : null}
-          <CardTitle className="text-xl">{storePending ? "Dados para cobrança" : "Complete seu cadastro"}</CardTitle>
-          <CardDescription className="text-balance">
-            {storePending
-              ? "Último passo. Usamos estes dados para emitir a cobrança e a nota fiscal da assinatura."
-              : "Precisamos do CPF ou CNPJ e do endereço de cobrança da conta. Eles são usados na cobrança e na nota fiscal da assinatura."}
-          </CardDescription>
+          <CardTitle className="text-xl">{holderCopy.title}</CardTitle>
+          <CardDescription className="text-balance">{holderCopy.description}</CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-3">
           <BillingProfileForm
@@ -106,7 +105,8 @@ export default async function OnboardingPage({ searchParams }: PageProps<"/onboa
             lockedDocument={null}
             personName={context.profile.fullName}
             accountEmail={context.user.email}
-            submitLabel={storePending ? "Concluir cadastro" : "Salvar e continuar"}
+            submitLabel={holderCopy.submitLabel}
+            variant="signup"
           />
           {storePending ? (
             <Link href="/onboarding?etapa=loja" className={buttonVariants({ variant: "ghost", className: "w-full" })}>
@@ -116,7 +116,7 @@ export default async function OnboardingPage({ searchParams }: PageProps<"/onboa
         </CardContent>
       </Card>
       <p className="px-6 text-center text-xs text-balance text-muted-foreground">
-        Seus dados são usados só para cobrança e nota fiscal, conforme a{" "}
+        {ONBOARDING_HOLDER_COPY.privacyNotice}{" "}
         <Link href="/privacidade" target="_blank" className="underline underline-offset-4 hover:text-primary">
           Política de Privacidade
         </Link>
