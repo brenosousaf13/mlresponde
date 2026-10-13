@@ -4,7 +4,7 @@
 > inteiro antes de trabalhar e atualizá-lo ao terminar. Se algo aqui divergir do código, o código vence —
 > e este arquivo deve ser corrigido na mesma sessão.
 
-Última atualização: **2026-10-13** (Sessão 20b — Starter com 300 respostas e espaço nos cards dos planos; Sessão 20 — planos Starter/Pro/Escala com limites, teste grátis e Melhorias de anúncio; Sessão 19 — pesquisa de preços e proposta de 3 planos; Sessão 18 — tour de boas-vindas e avisos de teste/conta ML redesenhados; Sessão 17 — chaves de IA cadastradas e trocadas pelo painel do administrador; Sessão 16 — textos do cadastro sem falar em cobrança; Sessão 15b — Fase 1 da troca preparada)
+Última atualização: **2026-10-13** (Sessão 21 — v1: botão de pausar a IA funcionando, commit `bf56777` na `main`; Sessão 20b — Starter com 300 respostas e espaço nos cards dos planos; Sessão 20 — planos Starter/Pro/Escala com limites, teste grátis e Melhorias de anúncio; Sessão 19 — pesquisa de preços e proposta de 3 planos; Sessão 18 — tour de boas-vindas e avisos de teste/conta ML redesenhados; Sessão 17 — chaves de IA cadastradas e trocadas pelo painel do administrador; Sessão 16 — textos do cadastro sem falar em cobrança; Sessão 15b — Fase 1 da troca preparada)
 
 ---
 
@@ -862,7 +862,9 @@ Projeto `ookosqyfazobiwmopiix` (vai virar a produção da v2). Conferido e corri
 > desligar "Allow new users to sign up" em Authentication no painel do Supabase de prod (usuários existentes e
 > criação manual pelo painel continuam funcionando). Recomendado fazer já.
 
-- **Toggle "Automação de Respostas" não funciona em produção.** A checagem de `auto_reply_enabled` foi adicionada
+- ✅ (v1, 2026-10-13, Sessão 21, commit `bf56777` na `main`) **Toggle "Automação de Respostas" agora pausa de verdade.**
+  Detalhes no diário da Sessão 21. Texto original do problema:
+  **Toggle "Automação de Respostas" não funciona em produção.** A checagem de `auto_reply_enabled` foi adicionada
   (commit `d50544e`) só em `app/api/process/route.ts`, rota legada que ninguém chama desde `4665c5c`. O webhook usa
   `lib/mercadolivre/workflow.ts`, que **sempre responde**. Cliente que "pausa o robô" continua tendo respostas automáticas.
 - **Vazamento entre lojas em `question_jobs` (✅ CONFIRMADO em 2026-10-11).** A policy de prod é
@@ -1242,6 +1244,34 @@ webhook do ML validado, fila/reprocessamento de jobs, observabilidade, controle 
 ---
 
 ## 12. Diário de sessões (mais recente no topo)
+
+### 2026-10-13 — Sessão 21 · v1: botão de pausar a IA funcionando (IA: Claude, via app Codex)
+- Pedido do Breno: o botão "Automação de Respostas" da v1 precisa funcionar (para pausar na v1 o cliente que vai testar a
+  v2), **sem parar a IA de ninguém**.
+- Causa: a v1 só checava `auto_reply_enabled` na rota legada `/api/process` (ninguém chama); o webhook
+  (`lib/mercadolivre/workflow.ts`) sempre respondia. Armadilha: a coluna tem **default false** — leitura (só leitura) do banco
+  da v1 mostrou **3 das 7 contas com `false`** e respondendo normalmente. Só ligar a checagem pararia essas 3.
+- Feito (worktree `codex/v1-pausa-ia` a partir da `main`, fast-forward para a `main` = `bf56777`, pedido explícito do Breno):
+  - `lib/mercadolivre/auto-reply.ts`: pausa **só** com `false` explícito; sem linha, nulo ou **erro ao ler o banco** = continua
+    respondendo (nunca desliga por falha).
+  - `workflow.ts`: checa antes de chamar a IA; pausada → `question_jobs.status = 'manual'` com pergunta e anúncio preenchidos,
+    sem chamar a OpenAI nem postar no ML.
+  - Toggle: confere se alguma linha mudou (antes dizia "ok" mesmo sem mudar nada); texto explica que é para responder pelo ML.
+  - Callback do OAuth: conta **nova** nasce com `auto_reply_enabled = true` (reconexão não mexe na escolha; se a leitura falhar,
+    grava como sempre, sem mexer na automação).
+  - Painel: selo "⏸️ Robô pausado" e aviso nas perguntas pausadas.
+- **Dado alterado no banco da v1 (antes de publicar):** as 3 contas com `false` passaram para `true` (comportamento real
+  preservado: já eram respondidas). Lista local em `docs/v2/privado/v1-pausa-ia.md`. Conferido depois: as 7 contas `true`.
+- Verificação: `tsc` ok, build ok, lint sem problema novo (os 4 `any` são antigos), teste da regra (7 casos) e simulação do
+  workflow com banco/ML/IA falsos (ligada responde, pausada não chama a IA e fica `manual`, nulo/sem linha/erro de leitura
+  respondem, pergunta já respondida no ML continua `done`). Produção: deploy `dpl_3gq3PDVhN3mEk7TujqPQrpAmiEDh` READY,
+  login/settings/webhook 200, webhooks do ML chegando; nenhuma pergunta nova entre a publicação e o fim da sessão (a 1ª
+  pergunta real confirma o fluxo).
+- Rollback, se preciso: Vercel → `mlresponde` → Deployments → promover `dpl_DvR1qS3pZ6WpZxyLz7kANr6Vqoyv` (versão de
+  junho). Os valores `true` não atrapalham a versão antiga.
+- **Como pausar o cliente do teste na v1:** botão em **Configurações** do login **dele** na v1
+  (`mlresponde.vercel.app/settings`). Pausado, a v1 continua recebendo as perguntas (aparecem como "Robô pausado") mas não
+  responde; isso substitui remover o app "Meli Fácil" da conta ML (e é reversível pelo mesmo botão).
 
 ### 2026-10-13 — Sessão 20b · Starter com 300 respostas e espaço nos cards dos planos (IA: Claude, via app Codex)
 - Pedido do Breno: (1) os cards dos planos em Assinatura estavam colados na borda de baixo do cartão "Planos"; (2) baixar o
@@ -1766,7 +1796,8 @@ webhook do ML validado, fila/reprocessamento de jobs, observabilidade, controle 
       login. Nenhuma conta ML conectada ainda ao fim da Sessão 15b.)
    7. Cliente do teste: cadastro em `maanu.com.br`, conecta a conta ML, configura o Assistente, liga a IA e **remove o app
       "Meli Fácil" dos aplicativos autorizados da conta ML** (senão a v1 continua respondendo por ele). Voltar atrás:
-      reconectar na v1 e pausar a IA na v2. Admin acompanha em `maanu.com.br/admin` (o Breno precisa refazer o QR da 2ª
+      reconectar na v1 e pausar a IA na v2. **Desde a Sessão 21 basta PAUSAR na v1** (Configurações do login dele em
+      `mlresponde.vercel.app/settings`), sem remover o app; voltar = religar o mesmo botão. Admin acompanha em `maanu.com.br/admin` (o Breno precisa refazer o QR da 2ª
       etapa só se perder o autenticador; o fator TOTP continua no banco).   **Fase 2 — depois que o Breno aprovar o teste:**
    8. Merge `v2` → `main` (com aprovação); projeto "maanu" passa a usar production branch `main`; projeto antigo
       `mlresponde` desligado (ou sem Git) para não publicar a v2 com as variáveis da v1.
