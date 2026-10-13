@@ -4,7 +4,7 @@
 > inteiro antes de trabalhar e atualizá-lo ao terminar. Se algo aqui divergir do código, o código vence —
 > e este arquivo deve ser corrigido na mesma sessão.
 
-Última atualização: **2026-10-12** (Sessão 16 — textos do cadastro sem falar em cobrança; Sessão 15b — Fase 1 da troca preparada: projeto Vercel `maanu`, chaves novas, banco limpo)
+Última atualização: **2026-10-12** (Sessão 17 — chaves de IA cadastradas e trocadas pelo painel do administrador; Sessão 16 — textos do cadastro sem falar em cobrança; Sessão 15b — Fase 1 da troca preparada)
 
 ---
 
@@ -113,6 +113,12 @@ novas funcionalidades, segurança multi-tenant de verdade — **desenvolvido em 
   `v2`, crons rodando, variáveis de produção, domínio `maanu.com.br` + `www` adicionados — falta o DNS no Cloudflare),
   login do Supabase apontando para `maanu.com.br` e e-mails do login em português prontos (entram quando o SMTP do Resend
   for ligado). **A partir daqui todo push na `v2` publica em produção.**
+  **Sessão 17 (2026-10-12): Chaves de IA no painel do administrador** (`/admin/chaves-ia`). As chaves da OpenAI passam a
+  ser cadastradas e trocadas pelo painel, sem novo deploy: ficam **criptografadas pelo servidor** (AES-256-GCM com a
+  chave-mestra `AI_KEYS_ENCRYPTION_KEY`, que só existe na Vercel), o painel nunca mostra a chave de novo (só o final
+  `sk-proj-…a1b2`), toda chave é **testada na OpenAI antes** de entrar em uso, há **reserva** que entra sozinha se a OpenAI
+  recusar a chave em uso (HTTP 401; no máximo 1 troca automática a cada 10 min) e a `OPENAI_API_KEY` da Vercel continua
+  como último recurso. Uso e custo por chave. Spec: `docs/superpowers/specs/2026-10-12-chaves-ia-design.md`.
 - **Marca:** **maanu** (decisão do Breno, 2026-10-11). Guia de uso, paleta e arquivos em `docs/brand/README.md`; nome,
   assinatura e slogan em `lib/config/site.ts`; logo só pelos componentes de `components/brand/logo.tsx`.
 - P0 de segurança/toggle (§8) **adiados** por decisão do Breno — revisitar antes de abrir para novos clientes.
@@ -164,7 +170,7 @@ novas funcionalidades, segurança multi-tenant de verdade — **desenvolvido em 
 | Banco | Supabase Postgres, migrações em `supabase/migrations/`, tipos gerados em `lib/supabase/database.types.ts` | painel, sem migrações |
 | Segurança | RLS só-leitura para o navegador; escritas via service role no servidor (DAL `server-only`); tokens ML AES-256-GCM | RLS fraca |
 | Testes | **Vitest** (`tests/unit`), testes de RLS em SQL (`supabase/tests`) | nenhum |
-| IA | OpenAI **`gpt-6-luna`** (desde a Sessão 8; configurável por `OPENAI_MODEL`), Chat Completions com `reasoning_effort: "none"`, saída estruturada JSON Schema `{action, answer, confidence, reason}`, temperature 0.2, `max_completion_tokens` 700. SDK `openai` 4.x (tipa só low/medium/high: `"none"` vai com cast em `lib/answers/ai.ts`) | OpenAI `gpt-4o-mini`, texto livre |
+| IA | OpenAI **`gpt-6-luna`** (desde a Sessão 8; configurável por `OPENAI_MODEL`), Chat Completions com `reasoning_effort: "none"`, saída estruturada JSON Schema `{action, answer, confidence, reason}`, temperature 0.2, `max_completion_tokens` 700. SDK `openai` 4.x (tipa só low/medium/high: `"none"` vai com cast em `lib/answers/ai.ts`). Chave: a "em uso" do painel (Chaves de IA, Sessão 17) → `OPENAI_API_KEY` | OpenAI `gpt-4o-mini`, texto livre |
 | Hospedagem | Vercel (Preview da branch `v2`) | Vercel Production |
 
 Ambiente local verificado: Node v24.18.0, npm 11.16.0, Windows + PowerShell 7. `@types/node` 24.
@@ -245,7 +251,7 @@ lib/
   billing/cep.ts                  # busca de CEP no navegador (ViaCEP → BrasilAPI)
   billing/copy.ts                 # textos do formulário: cadastro ("titular da conta", sem cobrança) × Configurações
   dal/billing.ts                  # getBillingProfile (RLS) + saveBillingProfile (service role; documento nunca muda)
-  security/crypto.ts, keys.ts     # AES-256-GCM com AAD + chave ML_TOKEN_ENCRYPTION_KEY
+  security/crypto.ts, keys.ts     # AES-256-GCM com AAD + chaves ML_TOKEN_ENCRYPTION_KEY e AI_KEYS_ENCRYPTION_KEY (aiKeysEncryption)
   mercadolivre/pkce.ts, oauth.ts, oauth-cookie.ts, api.ts, accounts.ts   # OAuth v2 + tokens (lease de refresh)
   mercadolivre/client.ts        # mlRequest(accountId, path): token válido + erros tipados (401 → token inválido)
   mercadolivre/questions.ts     # pergunta, item, descrição, perguntas respondidas do anúncio, POST /answers, sync
@@ -270,11 +276,20 @@ lib/
   results/metrics.ts            # Resultados (puro, testado): período, economia, fator de velocidade, horário comercial e
                                 # espera evitada, série diária, distribuição de velocidade, assuntos por palavra-chave
   results/format.ts             # R$, horas, dias de trabalho, variação
+  (app/admin/(painel)/chaves-ia/: page.tsx + actions.ts (cadastrar, testar, usar, reserva, desativar, remover);
+   components/admin/ai-key-add-dialog.tsx e ai-key-actions.tsx)
   admin/                          # PAINEL DO ADMINISTRADOR (puro, testado em tests/unit/admin.test.ts): session (regra da
                                   #   2ª etapa, espelho de admin_assert), host (subdomínio ADMIN_HOST e links), labels, format,
                                   #   finance (MRR, projeção, margem), schemas (formulários), csv (sem injeção), types (JSON do banco)
   ai/pricing.ts                   # preço por modelo (US$/1M tokens) + custo de cada chamada (puro, testado)
-  ai/usage.ts                     # trackedCompletion: pausa geral da IA + registro em ai_usage_events (toda chamada à OpenAI)
+  ai/usage.ts                     # trackedCompletion: pausa geral + chave em uso + troca para a reserva no 401 (repete 1 vez)
+                                  #   + registro em ai_usage_events com a chave usada (toda chamada à OpenAI)
+  ai/keys.ts                      # CHAVES DE IA (puro, testado em tests/unit/ai-keys.test.ts): limpar a chave colada, final
+                                  #   (sk-proj-…a1b2), contexto da criptografia, mascarar chaves em erros, erros da OpenAI
+  ai/key-crypto.ts                # criptografa/abre a chave (id da linha no AAD) + impressão digital (HMAC, subchave HKDF)
+  ai/key-store.ts                 # qual chave usar (painel → OPENAI_API_KEY), 1 min de memória, cliente OpenAI por chave,
+                                  #   aviso de chave recusada (rpc ai_key_report_invalid), leitura para o painel testar
+  ai/key-check.ts                 # teste real da chave (resposta mínima no mesmo modelo; registrado como key_check)
   dal/admin.ts                    # requireAdmin (admin + 2 etapas recente), leituras via rpc admin_* com a sessão do admin
   plans/plans.ts                  # planos e o que liberam (essencial → pos_venda; admin → tudo). Espelho no banco:
                                   #   plan_includes_after_sale(). featureAccess (admin da plataforma vê tudo)
@@ -296,7 +311,8 @@ supabase/
   config.toml, migrations/        # baseline_v1 (espelho de prod) + fundacao_v2 + respostas_v2 + assistente_ia +
                                   # perguntas_escala + resultados + dados_cobranca + modo_responder_sempre + pos_venda +
                                   # painel_admin
-  tests/fundacao_rls.sql, respostas_rls.sql, resultados_rls.sql, cobranca_rls.sql, pos_venda_rls.sql, admin_rls.sql
+  tests/fundacao_rls.sql, respostas_rls.sql, resultados_rls.sql, cobranca_rls.sql, pos_venda_rls.sql, admin_rls.sql,
+       ai_keys_rls.sql
                                   # sucesso = erro "TESTES_..._OK"
 scripts/v1-para-v2/                # exportar.mjs (v1 → JSON, só GET, sem tokens) e importar.mjs (JSON → Supabase de TESTES; trava
                                   #   pelo project ref do .env.local). Saídas com dados de clientes só em docs/v2/privado/ (§6.3)
@@ -320,7 +336,7 @@ Usadas no código:
 | `NEXT_PUBLIC_SUPABASE_URL` | URL do projeto Supabase |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | chave anon (browser + server com cookies) |
 | `SUPABASE_SERVICE_ROLE_KEY` | admin client (bypassa RLS) — só no servidor |
-| `OPENAI_API_KEY` | geração de respostas e do manual |
+| `OPENAI_API_KEY` | IA: **último recurso** desde a Sessão 17 (vale quando não há chave em uso no painel Chaves de IA ou ela não abre). Nos testes com IA real (`tests/integration`) é a única usada. |
 | `ML_CLIENT_ID`, `ML_CLIENT_SECRET` | app do Mercado Livre |
 | `ML_REDIRECT_URI` | `https://<dominio>/api/auth/callback/mercadolivre` |
 
@@ -332,6 +348,7 @@ Novas na v2:
 | `NEXT_PUBLIC_SITE_URL` | URL base para os links dos e-mails de auth (staging: `https://mlresponde-v2.vercel.app`; local: `http://localhost:3000`) |
 | `OPENAI_MODEL` | opcional; padrão `gpt-6-luna`. Não existe na Vercel (verificado na Sessão 8). Para voltar ao modelo antigo sem mexer no código: `OPENAI_MODEL=gpt-4o-mini` (modelos `gpt-4*`/`gpt-3.5*` não recebem `reasoning_effort`). |
 | `CRON_SECRET` | protege `/api/cron/questions`. **Precisa existir em Production no cutover** (o cron só roda em produção). |
+| `AI_KEYS_ENCRYPTION_KEY` | Sessão 17. 32 bytes base64; chave-mestra que tranca as chaves de IA do painel (separada da `ML_TOKEN_ENCRYPTION_KEY` de propósito). **Sensível** na Vercel: projeto `maanu` (Production) e `mlresponde` (Preview + branch `v2`), mesma nos dois e no `.env.local` (mesmo banco). Sem ela, o painel não cadastra e a IA usa a `OPENAI_API_KEY`. Perdeu ou trocou: gere outra e **cadastre as chaves de novo** (as antigas não abrem mais; nenhum outro dado é afetado). |
 | `ADMIN_HOST` | opcional (Sessão 13). Endereço próprio do painel do administrador, ex.: `admin.maanu.com.br`. Com ele, `/admin` só abre nesse endereço (no domínio do app vira 404) e o endereço só serve o painel e o login. Sem ele, o painel fica em `/admin` do próprio app. Hoje **não** existe na Vercel (sem domínio próprio). |
 
 Obsoletas (citadas no `instructions.md`, não usadas): `ANTHROPIC_API_KEY`, `NEXT_PUBLIC_APP_URL`.
@@ -355,8 +372,8 @@ região `iad1`, Standard Protection (só os domínios próprios são públicos),
 `/api/cron/pos-venda` a cada minuto. Variáveis de **Production**: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`
 (= chave **publishable**), `SUPABASE_SERVICE_ROLE_KEY` (= chave **secret** `maanu_servidor`), `ML_CLIENT_ID`
 (`8693830632560554`), `ML_REDIRECT_URI` e `NEXT_PUBLIC_SITE_URL` (`https://maanu.com.br`), `ML_TOKEN_ENCRYPTION_KEY` (a
-mesma da staging/`.env.local`, para as duas lerem os tokens do mesmo banco), `CRON_SECRET` (novo, só na Vercel) e
-`OPENAI_API_KEY`. **Falta `ML_CLIENT_SECRET`** (sensível: o Breno cola no painel). Domínios: `maanu.com.br` e
+mesma da staging/`.env.local`, para as duas lerem os tokens do mesmo banco), `CRON_SECRET` (novo, só na Vercel),
+`OPENAI_API_KEY` (sensível) e, desde a Sessão 17, `AI_KEYS_ENCRYPTION_KEY` (sensível). **Falta `ML_CLIENT_SECRET`** (sensível: o Breno cola no painel). Domínios: `maanu.com.br` e
 `www.maanu.com.br` (redireciona 308 para o sem www). No projeto antigo `mlresponde` foi colocado um ignored build step que
 só publica `main` e `v2` (outras branches pegariam as variáveis da v1).
 
@@ -367,7 +384,7 @@ código (supabase-js 2.103). Para criar/girar: Management API `/v1/projects/{ref
 
 Variáveis da v2 na Vercel (Preview + branch `v2`): `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`,
 `SUPABASE_SERVICE_ROLE_KEY`, `ML_CLIENT_ID`, `ML_CLIENT_SECRET`, `ML_REDIRECT_URI`, `ML_TOKEN_ENCRYPTION_KEY`,
-`NEXT_PUBLIC_SITE_URL`, `CRON_SECRET`. `OPENAI_API_KEY` herdada da geral (não está no `.env.local`; para testar a IA
+`NEXT_PUBLIC_SITE_URL`, `CRON_SECRET`, `AI_KEYS_ENCRYPTION_KEY` (Sessão 17, sensível). `OPENAI_API_KEY` herdada da geral (não está no `.env.local`; para testar a IA
 localmente, definir no terminal).
 
 ---
@@ -494,6 +511,24 @@ localmente, definir no terminal).
   automático de `anon`/`authenticated` (e função nova não fica executável por `public`). **Toda migração nova precisa de
   `grant` explícito** (ex.: `grant select on table ... to authenticated;` / `grant execute on function ... to authenticated;`);
   sem isso a função falha fechada com erro de permissão. `service_role` continua com acesso total.
+
+### 6.1g v2 — Chaves de IA (migrações `20261013012212_chaves_ia.sql` e `20261013015035_chaves_ia_trava.sql`, Sessão 17)
+
+- `ai_provider_keys`: `id` (gerado pelo servidor; entra no AAD da criptografia), `provider` (`openai`), `label`,
+  `key_ciphertext` (AES-256-GCM `v1.iv.ct.tag`), `key_hint` (`sk-proj-…a1b2`), `key_fingerprint` (HMAC-SHA256 hex, único
+  por provedor = sem cadastro repetido), `status` `active|standby|disabled` (**no máximo 1 `active`**: índice único
+  parcial), motivo/data de desativação, último teste (`last_checked_at/ok/error`), quem cadastrou.
+- RLS ligado, **nenhuma** policy e nenhum privilégio para anon/authenticated (de propósito: nem o admin lê a tabela direto);
+  `service_role` só **SELECT** (o servidor lê a chave em uso). Escrita só pelas funções: `admin_add_ai_key`,
+  `admin_set_ai_key_status` (tirar a em uso promove a reserva mais nova), `admin_record_ai_key_check`, `admin_delete_ai_key`
+  (recusa a em uso) — todas com `admin_assert()` e histórico `ai_key.*` —, leitura `admin_list_ai_keys` (sem o conteúdo
+  criptografado; uso de 30 dias por chave e da variável, últimos eventos) e `ai_key_report_invalid` (**só service role**:
+  401 da OpenAI → desativa a em uso e promove a reserva; no máximo 1 troca automática a cada 10 min, contada no histórico;
+  a trava pode ser encurtada só dentro de uma transação de teste com `app.ai_key_switch_cooldown_seconds`).
+  `ai_keys_promote_standby` é interna. Grants explícitos de `execute` para `authenticated` nas `admin_*`.
+- `ai_usage_events` + `ai_key_id` (FK, `on delete set null`) e `key_source` (`panel|env`, nulo = antes da Sessão 17);
+  `feature` ganhou `key_check` (teste de chave pelo painel; CHECK recriado com os mesmos valores + 1).
+- Testado em `supabase/tests/ai_keys_rls.sql` (TESTES_CHAVES_IA_OK).
 
 ### 6.2 v1 — produção (✅ CONFIRMADO em 2026-10-11)
 
@@ -660,6 +695,13 @@ exportação só faz GET e a importação recusa qualquer destino que não seja 
    nem receber link de senha pelo painel (só pelo banco).
 5. **Perdeu o celular do autenticador:** no SQL Editor do Supabase do ambiente,
    `delete from auth.mfa_factors where user_id = (select id from auth.users where email = '<email>');` e cadastrar de novo.
+6. **Chaves de IA** (`/admin/chaves-ia`, Sessão 17): "Cadastrar chave" (nome + chave + "Usar esta chave agora") → Server Action
+   limpa o que veio colado, recusa `sk-admin-` e repetidas, **testa na OpenAI** (`checkOpenAIKey`), criptografa e grava
+   (`admin_add_ai_key`). Ações por chave: testar agora, testar e usar, testar e deixar como reserva, desativar (com
+   confirmação; a reserva mais nova assume, ou a variável), remover (só fora de uso; lembra de revogar na OpenAI). Cada
+   chamada da IA usa a chave em uso (1 min de memória por servidor); se a OpenAI devolver 401, a chave é desativada, a
+   reserva entra e a chamada é repetida uma vez. **Girar a chave:** criar a nova na OpenAI → cadastrar com "usar agora" → ver
+   "Último uso" → revogar a antiga na OpenAI → Desativar → Remover.
 
 ### 7.1 v1 (produção) — Login
 `/login` → server action `login` (`signInWithPassword`) → `/`. `proxy.ts` redireciona não-logados para `/login`
@@ -1143,8 +1185,12 @@ webhook do ML validado, fila/reprocessamento de jobs, observabilidade, controle 
   465, usuário `resend`, senha = API key só de envio restrita a `maanu.com.br`, remetente `nao-responda@maanu.com.br`
   ("maanu"), intervalo 60 s por usuário. IA aplicou os 8 modelos em português (conferidos 1 a 1), avisos de senha/e-mail
   alterados ligados e limite de 30 e-mails/hora. Teste: cadastro pela API de Auth com `brenosousaf13+teste-maanu@gmail.com`
-  → 200 com `confirmation_sent_at` (o Supabase devolve erro se o SMTP recusar). Falta o Breno confirmar que o e-mail chegou
-  e clicar; depois **apagar esse usuário de teste e a organização criada para ele**.
+  → 200 com `confirmation_sent_at`. **Breno confirmou: o e-mail de confirmação e o de nova senha chegaram e funcionaram.**
+  Usuário de teste e a organização dele apagados (SQL). No banco ficaram o admin do Breno ("Loja Maanu") e uma conta nova
+  `brenosousaf132@…` com a loja "Descomplicasa" (criada pelo Breno depois da limpeza; não mexida).
+- ⚠️ Dica técnica: a chave `sb_secret_` é **recusada** quando a chamada vem com User-Agent de navegador — o PowerShell
+  (`Invoke-RestMethod`) manda "Mozilla/..." e recebe "Forbidden use of secret API key in browser". Para tarefas de
+  administração usar Node (`@supabase/supabase-js`) ou SQL via `npx supabase db query`. O app (servidor Node) não é afetado.
 
 ### 2026-10-12 — Sessão 15 · Plano da troca e reforço de segurança do Supabase da v2 (IA: Claude, via app Codex)
 - Pergunta do Breno: dá para tornar a v2 a `main` sem derrubar os clientes, sem migrar ninguém (6 clientes vão se
@@ -1484,7 +1530,7 @@ webhook do ML validado, fila/reprocessamento de jobs, observabilidade, controle 
       Cloudflare sempre **sem proxy**. Quem envia: o Supabase Auth dispara e monta o e-mail; o Resend entrega (SMTP) e
       mostra os logs de entrega. Situação (fim da Sessão 15b): Breno criou os registros no Cloudflare; o Registro.br ainda
       publicava os DNS antigos (`a/b.auto.dns.br`) e o SMTP ainda não estava ligado no Supabase.
-   5. ✅ (SMTP ligado, modelos aplicados, 30/h; falta o Breno conferir a caixa de entrada) IA, depois do SMTP: aplicar os e-mails em português (`node scripts/emails-auth/gerar.mjs`) e subir o limite de
+   5. ✅ (SMTP ligado, modelos aplicados, 30/h; cadastro e nova senha testados pelo Breno) IA, depois do SMTP: aplicar os e-mails em português (`node scripts/emails-auth/gerar.mjs`) e subir o limite de
       e-mails; testar cadastro e "esqueci minha senha" ponta a ponta em `maanu.com.br`.
    6. ⏳ Breno, no DevCenter do **app da v2**: nome/logo maanu; redirect `https://maanu.com.br/api/auth/callback/mercadolivre`;
       notificações `https://maanu.com.br/api/webhook/mercadolivre`. (A staging `mlresponde-v2.vercel.app` deixa de receber.)
