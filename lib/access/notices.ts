@@ -1,0 +1,105 @@
+import { siteConfig } from "@/lib/config/site"
+
+import type { Access } from "./access"
+
+const dayMonth = new Intl.DateTimeFormat("pt-BR", {
+  day: "numeric",
+  month: "long",
+  timeZone: "America/Sao_Paulo",
+})
+
+/**
+ * Aviso do teste grátis (menu lateral e topo do celular).
+ * Aparece durante o teste e, depois, enquanto a conta estiver bloqueada; some quando a assinatura fica ativa
+ * (ou a organização tem cortesia), porque aí `access.state` é "active".
+ */
+export type TrialNotice =
+  | {
+      kind: "trial"
+      daysLeft: number
+      totalDays: number
+      /** Fração do teste que ainda resta (1 = começou agora, perto de 0 = acabando). */
+      remaining: number
+      /** Últimos 2 dias: destaque maior para "Ver planos". */
+      urgent: boolean
+      title: string
+      detail: string
+      /** Texto curto para o topo do celular. */
+      short: string
+    }
+  | { kind: "ended"; title: string; detail: string; short: string }
+
+export function trialNotice(
+  access: Access,
+  subscriptionStatus: string,
+  totalDays: number = siteConfig.trialDays
+): TrialNotice | null {
+  if (access.state === "active") return null
+
+  if (access.state === "blocked") {
+    if (subscriptionStatus === "past_due") {
+      return {
+        kind: "ended",
+        title: "Pagamento pendente",
+        detail: "Regularize a assinatura para voltar a usar.",
+        short: "Pagamento pendente",
+      }
+    }
+    if (subscriptionStatus === "trialing") {
+      return {
+        kind: "ended",
+        title: "Seu teste grátis terminou",
+        detail: `Assine um plano para voltar a usar a ${siteConfig.name}.`,
+        short: "Teste encerrado",
+      }
+    }
+    return {
+      kind: "ended",
+      title: "Assinatura inativa",
+      detail: `Assine um plano para voltar a usar a ${siteConfig.name}.`,
+      short: "Assinatura inativa",
+    }
+  }
+
+  const daysLeft = Math.max(1, access.trialDaysLeft)
+  const total = Math.max(totalDays, daysLeft)
+  return {
+    kind: "trial",
+    daysLeft,
+    totalDays: total,
+    remaining: daysLeft / total,
+    urgent: daysLeft <= 2,
+    title: daysLeft === 1 ? "Último dia de teste grátis" : `Faltam ${daysLeft} dias de teste`,
+    detail: `Grátis até ${dayMonth.format(new Date(access.trialEndsAt))}`,
+    short: daysLeft === 1 ? "Último dia de teste" : `${daysLeft} dias de teste`,
+  }
+}
+
+/**
+ * Aviso de conta do Mercado Livre (topo das páginas): aparece até existir uma conta ativa.
+ * Com a conta bloqueada não aparece (o aviso do teste é o que importa e a página de contas fica fechada).
+ */
+export type MlConnectionNotice = {
+  kind: "connect" | "reactivate"
+  title: string
+  description: string
+}
+
+export function mlConnectionNotice(
+  access: Access,
+  mlAccounts: { total: number; active: number }
+): MlConnectionNotice | null {
+  if (access.state === "blocked" || mlAccounts.active > 0) return null
+  if (mlAccounts.total === 0) {
+    return {
+      kind: "connect",
+      title: "Conecte sua conta do Mercado Livre",
+      description: "Com ela conectada, a plataforma é liberada e você já pode configurar a IA. Leva menos de um minuto.",
+    }
+  }
+  return {
+    kind: "reactivate",
+    title: "Nenhuma conta do Mercado Livre ativa",
+    description: "Ative ou reconecte uma conta para a plataforma voltar a funcionar.",
+  }
+}

@@ -4,7 +4,7 @@
 > inteiro antes de trabalhar e atualizá-lo ao terminar. Se algo aqui divergir do código, o código vence —
 > e este arquivo deve ser corrigido na mesma sessão.
 
-Última atualização: **2026-10-12** (Sessão 17 — chaves de IA cadastradas e trocadas pelo painel do administrador; Sessão 16 — textos do cadastro sem falar em cobrança; Sessão 15b — Fase 1 da troca preparada)
+Última atualização: **2026-10-13** (Sessão 18 — tour de boas-vindas e avisos de teste/conta ML redesenhados; Sessão 17 — chaves de IA cadastradas e trocadas pelo painel do administrador; Sessão 16 — textos do cadastro sem falar em cobrança; Sessão 15b — Fase 1 da troca preparada)
 
 ---
 
@@ -119,6 +119,12 @@ novas funcionalidades, segurança multi-tenant de verdade — **desenvolvido em 
   `sk-proj-…a1b2`), toda chave é **testada na OpenAI antes** de entrar em uso, há **reserva** que entra sozinha se a OpenAI
   recusar a chave em uso (HTTP 401; no máximo 1 troca automática a cada 10 min) e a `OPENAI_API_KEY` da Vercel continua
   como último recurso. Uso e custo por chave. Spec: `docs/superpowers/specs/2026-10-12-chaves-ia-design.md`.
+  **Sessão 18 (2026-10-13): tour e avisos com visual próprio** (pedido do Breno: estavam idênticos ao AgilizaPRO). O tour de
+  boas-vindas continua com 4 passos, agora com as **ilustrações do Breno** (`public/tour/`), em duas colunas (ilustração +
+  texto), etapas com nome clicáveis, voltar/avançar, "Pular" e setas do teclado. As faixas coloridas de largura total no topo
+  saíram: o **teste grátis** fica num cartão no rodapé do menu lateral com um anel dos dias que faltam (menu recolhido: só o
+  anel; celular: selo no topo) até o teste acabar ou a assinatura ficar ativa; a **conta do ML** vira um cartão no topo do
+  conteúdo de todas as páginas, com "Conectar agora", até existir uma conta ativa.
 - **Marca:** **maanu** (decisão do Breno, 2026-10-11). Guia de uso, paleta e arquivos em `docs/brand/README.md`; nome,
   assinatura e slogan em `lib/config/site.ts`; logo só pelos componentes de `components/brand/logo.tsx`.
 - P0 de segurança/toggle (§8) **adiados** por decisão do Breno — revisitar antes de abrir para novos clientes.
@@ -200,7 +206,7 @@ app/
   auth/confirm/route.ts           # links dos e-mails: ?code= (padrão Supabase) e ?token_hash=&type= (template próprio)
   onboarding/                     # cadastro pós-e-mail: etapa 1 loja + WhatsApp, etapa 2 CPF/CNPJ + endereço → /contas
                                   # (contas antigas sem dados de cobrança caem aqui só na etapa 2)
-  (app)/                          # área logada: sidebar shadcn (collapsible="icon"), header, barras de aviso, tour
+  (app)/                          # área logada: sidebar shadcn (collapsible="icon"), header, avisos, tour
     layout.tsx                    # requireOnboardedContext + menu com cadeados (decideSectionAccess)
     actions.ts                    # completeTour
     painel/ perguntas/ resultados/ assistente/ contas/ assinatura/ configuracoes/   # cada page chama requireSection(...)
@@ -224,7 +230,9 @@ app/
 components/
   ui/                             # shadcn (não editar à toa; regenerar com a CLI)
   app/                            # app-sidebar (botão de recolher no topo da própria barra), nav-user, app-header (só no
-                                  # celular), access-banners, welcome-tour, page-header...
+                                  # celular), account-notices (avisos no topo: conta ML e pausa geral),
+                                  # trial-status + trial-ring (teste grátis no rodapé do menu e no topo do celular),
+                                  # welcome-tour (tour de 4 passos com imagens de public/tour), page-header...
   perguntas/                      # inbox-tabs, inbox-list (toolbar + linhas agrupadas por dia + rodapé de página),
                                   # inbox-row-link, question-detail, answer-composer, question-menu,
                                   # question-search (next/form), live-refresh, sync-button
@@ -246,6 +254,7 @@ lib/
   config/site.ts                  # nome da marca, dias de teste, versão dos termos
   env.ts                          # leitura de env obrigatória (server-only)
   access/access.ts                # computeAccess (trial/active/blocked) + decideSectionAccess (puro, testado)
+  access/notices.ts               # trialNotice + mlConnectionNotice: quando e o que os avisos mostram (puro, testado)
   dal/app-context.ts              # getCurrentUser, getAppContext (cache por request), requireSection, canManageOrganization
   validation/forms.ts             # schemas zod, WhatsApp BR, safeRedirectPath, FormState
   validation/billing.ts           # parseBillingProfile (com/sem documento) + mensagens de erro da gravação
@@ -619,6 +628,11 @@ exportação só faz GET e a importação recusa qualquer destino que não seja 
   (`lib/billing/copy.ts`, `variant` do formulário; teste em `tests/unit/billing.test.ts` barra essas palavras no cadastro).
 - **Acesso** (`lib/access/access.ts`, checado em toda página/ação/rota): bloqueado (teste vencido sem assinatura) → só
   `/assinatura` e `/configuracoes`; sem conta ML ativa → também `/contas`; senão tudo. Cortesia (`billing_exempt`) libera.
+  **Avisos** (`lib/access/notices.ts`, Sessão 18): teste grátis no rodapé do menu (+ selo no topo do celular) enquanto
+  `access.state` for `trial` ou `blocked` (some com assinatura ativa ou cortesia; bloqueado vira "Seu teste grátis
+  terminou"/"Pagamento pendente"/"Assinatura inativa"); conta do ML no topo do conteúdo enquanto não houver conta ativa e a
+  conta não estiver bloqueada (sem nenhuma conta: "Conectar agora" abre o diálogo de conexão para dono/admin; membro comum
+  vai para Contas; contas existentes mas inativas: "Ver contas"). Pausa geral da IA também aparece no topo do conteúdo.
 - **Conectar ML:** `/api/ml/oauth/start` (dono/admin, não bloqueado) → ML → `/api/auth/callback/mercadolivre` →
   valida cookie/state/usuário → troca code+verifier → `/users/me` (confere `user_id`) → `connectMlAccount`:
   conta de outra org → `conflito`; mesma org → reconecta; nova → ativa (ou desativada se passou do limite).
@@ -832,6 +846,9 @@ Projeto `ookosqyfazobiwmopiix` (vai virar a produção da v2). Conferido e corri
 - Sync de treinamento sem tratamento de rate limit (429) do ML; tokens refrescados sem lock (refresh concorrente).
 
 ### 🟡 P2
+- (v2, visto na Sessão 18, não corrigido) Links com cara de botão `outline` montados com `className={buttonVariants(...)}`
+  **sem `cn(...)`** ficam sem borda (o `cva` junta `border-transparent` e `border-border` e o primeiro vence). Aparece em 7
+  lugares (Resultados, Perguntas, Pós-venda e painel admin). Correção: `className={cn(buttonVariants({ ... }))}`.
 - ✅ (v2, 2026-10-11) Rota legada `app/api/process/route.ts` removida.
 - ✅ (v2) Migrações versionadas, testes (Vitest + RLS) e `.env.example`. Ainda falta CI e README; `instructions.md` é histórico.
 - ✅ (v2) `app/layout.tsx` com metadata da marca e `lang="pt-BR"`.
@@ -1155,10 +1172,37 @@ webhook do ML validado, fila/reprocessamento de jobs, observabilidade, controle 
 | 2026-10-12 | Toda chave é **testada de verdade** (resposta mínima no mesmo modelo) antes de entrar em uso ou na reserva; chaves `sk-admin-` recusadas | Evita pôr em produção chave errada, sem permissão ou sem acesso ao modelo; a de administração dá poder sobre a conta inteira da OpenAI. Custo ~US$ 0,000004 por teste (registrado como `key_check`). |
 | 2026-10-12 | Reserva entra **sozinha só no 401** (chave recusada), repetindo a chamada uma vez, com no máximo 1 troca automática a cada 10 min | 401 = problema da chave; outra chave resolve. 429/5xx não: o limite é do projeto/organização, não da chave (várias chaves no mesmo projeto não aumentam capacidade). A trava impede que uma instabilidade da OpenAI queime todas as reservas. |
 | 2026-10-12 | Chave em uso fica **1 minuto** na memória de cada servidor | Evita uma consulta ao banco por pergunta; trocar no painel vale na hora no servidor que trocou e em até 1 min nos outros. |
+| 2026-10-13 | Tour de boas-vindas em **duas colunas com as ilustrações do Breno**, etapas nomeadas clicáveis, "Pular" e voltar; clicar fora não fecha (Esc e "Pular" fecham e gravam como visto) | Pedido do Breno: estava idêntico ao AgilizaPRO (modal pequeno com ícone, "Passo X de 4" e bolinhas). Clicar fora sem querer pulava a apresentação. |
+| 2026-10-13 | Teste grátis sai do topo e vai para um **cartão no rodapé do menu lateral** (anel com os dias; menu recolhido = só o anel; celular = selo no topo); conta do ML vira **cartão no topo do conteúdo**; nenhum dos dois pode ser fechado | Pedido do Breno: continuar sempre visíveis, mas sem as faixas de largura total do AgilizaPRO. Menu lateral é o padrão de SaaS para "dias de teste" e fica visível em todas as páginas; a conexão do ML é o passo que trava a plataforma, então fica no conteúdo com o botão de conectar. |
+| 2026-10-13 | Aviso de conta bloqueada distingue teste encerrado, pagamento pendente e assinatura inativa | Antes dizia "Seu período de teste terminou" até para quem já tinha assinado; prepara o sub-projeto 4 (cobrança). |
 
 ---
 
 ## 12. Diário de sessões (mais recente no topo)
+
+### 2026-10-13 — Sessão 18 · Tour de boas-vindas e avisos com visual próprio (IA: Claude, via app Codex)
+- Pedido do Breno: usar as 4 imagens novas (`passo1..4.png`, colocadas na raiz) no tour do primeiro acesso, deixar o tour mais
+  clean/bonito e mudar o visual dos avisos "sem conta do ML" e "teste de 7 dias" (estavam idênticos ao AgilizaPRO), mantendo
+  as regras: ML até conectar uma conta; teste até acabar ou até assinar.
+- Imagens: originais movidas para `docs/brand/onboarding/` (usado o `passo2semfundo.png` como passo 2; o com fundo branco
+  ficou como `passo-2-com-fundo.png`, só referência); `docs/brand/scripts/onboarding.mjs` (sharp) recorta as margens e
+  equilibra o tamanho dos 4 desenhos em `public/tour/passo-N.png` (640 px). Pasta `tour` e não `onboarding` porque
+  `/onboarding` já é uma rota do app.
+- Tour (`components/app/welcome-tour.tsx`): diálogo shadcn largo em duas colunas — à esquerda a ilustração num "palco" claro
+  (grade de pontos suave, brilho branco, logo maanu) com troca deslizando; à direita etapas nomeadas (Rapidez, IA, Controle,
+  Contas) com barra de progresso clicável, título e texto, "Pular", voltar e "Próximo"/"Começar a usar". Setas ← → navegam;
+  foco inicial no diálogo; clicar fora não fecha mais; erro ao gravar mostra aviso e fecha mesmo assim. Respeita "reduzir
+  movimento". No celular a ilustração fica em cima.
+- Avisos: `components/app/access-banners.tsx` removido. `lib/access/notices.ts` (puro, 10 testes novos em
+  `tests/unit/notices.test.ts`) decide quando e o que aparece; `trial-status.tsx` + `trial-ring.tsx` (cartão no rodapé do menu,
+  anel no menu recolhido, selo no topo do celular; âmbar nos 2 últimos dias; vermelho quando bloqueado);
+  `account-notices.tsx` (cartões `Item` do shadcn no topo do conteúdo: conta do ML com ponto âmbar e "Conectar agora" —
+  `ConnectMlDialog` ganhou a prop `size` — e a pausa geral da IA). Regras de acesso e bloqueios não mudaram.
+- QA visual numa página temporária com dados fictícios (sem banco; apagada antes do commit) no navegador do app, em 1440 px e
+  390 px: os 4 passos, menu aberto/recolhido/gaveta do celular, teste com 5, 2 e 1 dia, bloqueado, sem conta, contas
+  inativas, membro comum e pausa geral. Ajustes feitos no caminho: anel de foco no 1º passo ao abrir, textura do palco
+  invisível, botões "Ver contas"/"Ver perguntas" sem borda (ver §8 P2), textos cortados no cartão e no celular.
+- Verificação: typecheck, 341 testes, lint 0, build ok. Nada no banco.
 
 ### 2026-10-12 — Sessão 17 · Chaves de IA no painel do administrador (IA: Claude, via app Codex)
 - Pergunta do Breno: qual o jeito mais seguro de cadastrar os tokens da IA? Hoje são variável de ambiente e ele vai precisar
@@ -1559,6 +1603,10 @@ webhook do ML validado, fila/reprocessamento de jobs, observabilidade, controle 
 
 ## 13. Próximos passos
 
+0c. **Breno — conferir o tour e os avisos novos (Sessão 18) em `maanu.com.br`:** criar uma conta de teste (ou zerar o
+   `tour_completed_at` do seu perfil no banco para rever o tour) e ver os 4 passos com as imagens, o cartão do teste no rodapé
+   do menu (e o selo no topo, no celular) e o cartão "Conecte sua conta do Mercado Livre" no topo. Dizer se prefere o aviso do
+   teste também no topo do conteúdo (hoje só no menu/celular). Ideia não feita: corrigir os 7 botões sem borda do §8 P2.
 0b. **Breno — Chaves de IA (Sessão 17), em `maanu.com.br/admin/chaves-ia`:** hoje **nenhuma** chave está cadastrada no
    painel, então a IA continua com a `OPENAI_API_KEY` da Vercel (a mesma da v1). Recomendado: (a) na OpenAI, criar um
    **projeto só da maanu** com limite de gasto mensal; (b) criar nele uma chave de projeto com **data de validade** e

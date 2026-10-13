@@ -18,6 +18,8 @@
 | `app/icon.svg`, `app/favicon.ico` | Favicon: "m." branco num quadrado grafite (aparece bem em abas claras e escuras). |
 | `app/apple-icon.png` | Ícone da tela inicial do iPhone (o iOS arredonda). |
 | `app/opengraph-image.png` | Imagem de compartilhamento de links (WhatsApp, redes sociais). |
+| `docs/brand/onboarding/passo-1..4.png` | Ilustrações originais do tour de boas-vindas (1254 px, fundo transparente; `passo-2-com-fundo.png` é só referência). |
+| `public/tour/passo-1..4.png` | As mesmas ilustrações recortadas, centralizadas e equilibradas (640 px) para o tour. Regerar com `node docs/brand/scripts/onboarding.mjs`. |
 | `components/brand/logo.tsx` | `LogoWordmark` ("maanu.") e `LogoMark` ("m.") em SVG no próprio HTML: as letras usam a cor do texto (`text-white` em fundo escuro) e o ponto é sempre teal. |
 
 Na interface, use sempre os componentes de `components/brand/logo.tsx` (não `<img>` dos PNGs). Os PNGs servem para

@@ -19,6 +19,7 @@ import { usePathname } from "next/navigation"
 
 import { LogoMark, LogoWordmark } from "@/components/brand/logo"
 import { NavUser } from "@/components/app/nav-user"
+import { SidebarTrialStatus } from "@/components/app/trial-status"
 import { Button } from "@/components/ui/button"
 import {
   Sidebar,
@@ -35,6 +36,7 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
+import type { TrialNotice } from "@/lib/access/notices"
 import type { NavItemConfig } from "@/lib/navigation"
 
 const ICONS: Record<NavItemConfig["icon"], LucideIcon> = {
@@ -55,12 +57,15 @@ export function AppSidebar({
   user,
   organizationName,
   adminHref,
+  trialNotice,
   ...props
 }: React.ComponentProps<typeof Sidebar> & {
   items: SidebarNavItem[]
   user: { name: string; email: string; isPlatformAdmin?: boolean }
   organizationName: string
   adminHref?: string
+  /** Teste grátis (ou conta bloqueada): fica no rodapé do menu, sempre visível. */
+  trialNotice?: TrialNotice | null
 }) {
   const pathname = usePathname()
 
@@ -114,6 +119,7 @@ export function AppSidebar({
         </SidebarGroup>
       </SidebarContent>
       <SidebarFooter>
+        {trialNotice ? <SidebarTrialStatus notice={trialNotice} /> : null}
         <NavUser user={user} adminHref={adminHref} />
       </SidebarFooter>
       <SidebarRail aria-label="Recolher ou abrir o menu" title="Recolher ou abrir o menu" />

@@ -25,13 +25,15 @@ const PERMISSIONS = [
 export function ConnectMlDialog({
   label = "Conectar conta",
   variant = "default",
+  size = "default",
 }: {
   label?: string
   variant?: React.ComponentProps<typeof Button>["variant"]
+  size?: React.ComponentProps<typeof Button>["size"]
 }) {
   return (
     <Dialog>
-      <DialogTrigger render={<Button variant={variant} />}>
+      <DialogTrigger render={<Button variant={variant} size={size} />}>
         <PlusIcon data-icon="inline-start" />
         {label}
       </DialogTrigger>
