@@ -38,6 +38,12 @@ export async function POST(request: Request) {
   if (message) {
     console.info(`[webhook] mensagem ${message.messageId} da conta ML ${message.mlUserId} (tentativa ${attempts(body)})`)
     after(() => handleMessage(message.mlUserId, message.messageId))
+    return ok()
+  }
+  // Tópicos que ainda não usamos (items, shipments...): só o registro, para saber de quais contas o ML está mandando.
+  const other = body && typeof body === "object" ? (body as Record<string, unknown>) : {}
+  if (String(other.application_id ?? "") === applicationId) {
+    console.info(`[webhook] ${String(other.topic ?? "?").slice(0, 40)} da conta ML ${Number(other.user_id) || "?"} (ignorada)`)
   }
   return ok()
 }

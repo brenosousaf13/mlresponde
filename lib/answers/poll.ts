@@ -3,7 +3,7 @@ import "server-only"
 import { computeAccess } from "@/lib/access/access"
 import { processDueQuestions, processQuestion } from "@/lib/answers/engine"
 import { registerQuestion } from "@/lib/answers/ingest"
-import { POLL_WINDOW_MS, pollingOffsets, unknownQuestions } from "@/lib/answers/polling"
+import { POLL_WINDOW_MS, accountsThisMinute, pollingOffsets, unknownQuestions } from "@/lib/answers/polling"
 import { searchUnansweredQuestions } from "@/lib/mercadolivre/questions"
 import { createServiceClient } from "@/lib/supabase/admin"
 
@@ -76,7 +76,7 @@ export async function runQuestionRounds(
   const sleep = options.sleep ?? ((ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms)))
   const startedAt = now()
 
-  const accounts = await pollableAccounts()
+  const accounts = accountsThisMinute(await pollableAccounts(), Math.floor(startedAt / 60_000))
   const result: QuestionRoundsResult = { accounts: accounts.length, rounds: 0, found: 0, processed: 0, failures: 0 }
 
   for (const offset of pollingOffsets(accounts.length)) {

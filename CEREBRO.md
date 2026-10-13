@@ -302,7 +302,7 @@ lib/
   answers/engine.ts             # processQuestion, processDueQuestions, reconcileQuestion, suggestAnswer, sendManualAnswer
   answers/ingest.ts             # registerQuestion, syncUnansweredQuestions
   answers/poll.ts               # runQuestionRounds: rotina de segurança do cron (não depende da notificação do ML)
-  answers/polling.ts            # pollingOffsets (rodadas no minuto, teto ~300 consultas/min) + unknownQuestions (puro, testado)
+  answers/polling.ts            # pollingOffsets (rodadas no minuto), accountsThisMinute (rodízio acima de 100 contas), teto de 100 consultas/min, unknownQuestions (puro, testado)
   dal/dashboard.ts              # números do painel (question_stats) + listas Esperando você / Últimas / Anúncios
   dal/results.ts                # Resultados: rpc analytics_overview + amostra de textos (assuntos) + premissas
   results/metrics.ts            # Resultados (puro, testado): período, economia, fator de velocidade, horário comercial e
@@ -697,7 +697,7 @@ exportação só faz GET e a importação recusa qualquer destino que não seja 
    **Caminho 2 (Sessão 22), não depende do ML notificar:** o cron `/api/cron/questions` (1/min) roda `runQuestionRounds`:
    a cada ~10 s durante ~50 s, `GET /my/received_questions/search?status=UNANSWERED` (50 mais recentes) de cada conta ativa,
    com token válido e organização com acesso → registra só as que o banco não tem → `processQuestion` (até 3 juntas) →
-   fila. Com mais de 50 contas as rodadas se espaçam (teto ~300 consultas ao ML por minuto). Pergunta nova aparece em
+   fila. Teto de 100 consultas ao ML por minuto (1/3 do limite do app, 18.000/h): acima de 16 contas as rodadas se espaçam e acima de 100 contas vira rodízio. Pergunta nova aparece em
    segundos pela notificação ou em ~10–20 s pela rotina.
 2. `processQuestion`: `claim_ml_question` (lock 2 min) → `GET /questions/{id}` (fonte da verdade). Já respondida/apagada
    no ML → `answered_outside`/`ignored` (se o texto bate com o nosso, `answered`). Conta inativa / assinatura bloqueada /
@@ -1261,7 +1261,7 @@ webhook do ML validado, fila/reprocessamento de jobs, observabilidade, controle 
 | 2026-10-13 | **Melhorias de anúncio**: a IA lê as perguntas do anúncio **com as respostas enviadas** + o anúncio e devolve até 6 sugestões com texto pronto; 1 análise = 1 da cota; mínimo 3 perguntas; a maanu não altera o anúncio; mede o efeito (perguntas/semana antes × depois) | Ideia do Breno (perguntas mais feitas → melhorar o anúncio). As respostas são a melhor fonte do que falta; texto pronto e efeito medido mostram valor. Alterar o anúncio pela API fica para depois (risco de apagar conteúdo do vendedor). |
 | 2026-10-13 | Análise de anúncio com `gpt-6-luna` e **raciocínio `low`** (as respostas seguem sem raciocínio) | Volume baixo (até 100/mês por cliente) e a qualidade importa mais; teste real ~7 s. |
 | 2026-10-13 | Contratação pelo app só com o gateway (**AbacatePay**, decisão do Breno); até lá o botão "Assinar" aparece desativado ("em breve") e o administrador ativa o plano no painel | Não há chave nem conta de pagamento configurada ainda; o catálogo já tem preços mensal/anual para virar produtos (`externalId`). |
-| 2026-10-13 | Perguntas novas chegam por **dois caminhos**: notificação do ML (segundos) **e** consulta ao ML a cada ~10 s pelo cron de 1 min (rodadas durante ~50 s) | O ML não entregou nenhuma notificação da conta do 1º cliente ao app da v2 e a documentação dele admite perda/desligamento de tópicos. ~10–20 s continua "praticamente na hora" para o comprador. Custo: 1 consulta ao ML por conta por rodada (teto ~300/min; com mais de 50 contas as rodadas se espaçam) e o cron fica ~50 s ativo por minuto (Fluid compute; a função passa quase todo o tempo esperando). Cron de segundos em outro serviço ficou de fora (mais uma peça para manter). |
+| 2026-10-13 | Perguntas novas chegam por **dois caminhos**: notificação do ML (segundos) **e** consulta ao ML a cada ~10 s pelo cron de 1 min (rodadas durante ~50 s) | O ML não entregou nenhuma notificação da conta do 1º cliente ao app da v2 e a documentação dele admite perda/desligamento de tópicos. ~10–20 s continua "praticamente na hora" para o comprador. Custo: 1 consulta ao ML por conta por rodada, com teto de 100/min = 1/3 do limite do app no ML (18.000/h para tudo); acima de 16 contas as rodadas se espaçam e acima de 100 contas vira rodízio (aí a notificação volta a ser o caminho principal) e o cron fica ~50 s ativo por minuto (Fluid compute; a função passa quase todo o tempo esperando). Cron de segundos em outro serviço ficou de fora (mais uma peça para manter). |
 | 2026-10-13 | Webhook do ML responde 200 **antes** de qualquer acesso ao banco (tudo em `after()`) | Regra do ML: 200 em até 500 ms, senão os tópicos podem ser desligados ("fall back") e é preciso se inscrever de novo. |
 | 2026-10-13 | Fotos do ML sempre em https (`mlImageUrl`), corrigidas também na hora de mostrar | O ML devolve http; corrigir na tela resolve as fotos já gravadas sem mexer no banco de produção. Endereço que não é do `mlstatic.com` vira o ícone de pacote (nunca imagem quebrada). |
 
@@ -1282,7 +1282,11 @@ webhook do ML validado, fila/reprocessamento de jobs, observabilidade, controle 
   pelo horário e pela contagem, as da conta do Breno (`131607524`, que fez as perguntas e também está conectada). Na API do
   ML com o token do cliente (só GET): a autorização do app da v2 existe (criada às 18:30 de Brasília, com os escopos de
   comunicação) e a busca de perguntas funciona. Conclusão: o ML não está entregando as notificações dessa conta ao app da
-  v2; a causa exata fica do lado do ML (o `missed_feeds` só abre com o token do **dono** do app). Suspeito documentado
+  v2. Depois do deploy, com o token da conta do Breno (`SOUSABRENO30` é a **dona** do app da v2): a configuração do app no
+  ML está certa (`notifications_callback_url` = `https://maanu.com.br/api/webhook/mercadolivre`, tópicos `questions`,
+  `messages.created`, `items`, `shipments`, `orders_v2` e outros), `missed_feeds` **vazio** (o ML nem tentou entregar),
+  `certification_status: not_certified` e `max_requests_per_hour: 18000` (300/min para o app inteiro). Nos 30 min seguintes
+  chegaram ~20 notificações do ML em `maanu.com.br` (provavelmente da conta do Breno). Causa exata do lado do ML. Suspeito documentado
   pelo ML: o webhook precisa responder 200 em até 500 ms, senão os tópicos podem ser desligados ("fall back") e é preciso
   se inscrever de novo; o nosso consultava e gravava no banco antes de responder (medido de fora: 310–560 ms com a função
   já aquecida; fria passa disso).
@@ -1292,8 +1296,8 @@ webhook do ML validado, fila/reprocessamento de jobs, observabilidade, controle 
   - `lib/answers/poll.ts` + `lib/answers/polling.ts` (puro): o cron `/api/cron/questions` (1/min) roda **rodadas a cada
     ~10 s durante ~50 s**; em cada uma, `GET /my/received_questions/search?status=UNANSWERED` (50 mais recentes) de todas
     as contas ativas, com token válido e organização com acesso; registra só as que o banco não tem, já manda para a IA
-    (até 3 ao mesmo tempo) e roda a fila (`processDueQuestions(10)`). Mais de 50 contas → rodadas mais espaçadas (teto
-    ~300 consultas ao ML por minuto). Erro numa conta não para as outras; rodada que passaria de 50 s fica para o minuto
+    (até 3 ao mesmo tempo) e roda a fila (`processDueQuestions(10)`). Mais de 16 contas → rodadas mais espaçadas (teto
+    100 consultas ao ML por minuto = 1/3 do limite do app, 18.000/h; acima de 100 contas, rodízio). Erro numa conta não para as outras; rodada que passaria de 50 s fica para o minuto
     seguinte. `maxDuration` do cron: 120 s. A tela já atualiza sozinha (Realtime), então a pergunta aparece sem clicar.
   - Webhook: responde 200 **antes** de tocar no banco (tudo em `after()`, também no pós-venda) e loga cada notificação de
     pergunta/mensagem (`[webhook] pergunta X da conta ML Y (tentativa N)`) para sabermos quando o ML voltar a entregar.
@@ -1806,13 +1810,14 @@ webhook do ML validado, fila/reprocessamento de jobs, observabilidade, controle 
 
 ## 13. Próximos passos
 
-0f. **Breno — notificações do ML (Sessão 22):** (a) no DevCenter, abrir o app da maanu (Client ID `8693830632560554`) →
-   notificações: conferir a URL `https://maanu.com.br/api/webhook/mercadolivre` e os tópicos **questions** e **messages**
-   marcados e **salvar de novo** (o ML diz que tópico desligado por "fall back" exige nova inscrição). (b) Fazer uma pergunta
+0f. **Breno — notificações do ML (Sessão 22):** (a) a configuração do app está certa (URL e tópicos conferidos pela API do
+   ML); mesmo assim, no DevCenter, abrir o app da maanu (Client ID `8693830632560554`) → notificações e **salvar de novo**
+   (o ML diz que tópico desligado por "fall back" exige nova inscrição). Se continuar sem chegar notificação da conta do
+   cliente, dá para testar pedir ao cliente "Reconectar" a conta (cria a autorização de novo). (b) Fazer uma pergunta
    de teste num anúncio do cliente: deve aparecer respondida em segundos (notificação) ou em ~10–20 s (rotina). A IA confere
    nos logs do projeto Vercel `maanu`: linha `[webhook] pergunta ...` = o ML voltou a entregar. (c) Se o ML continuar sem
-   entregar, chamado no suporte de desenvolvedores do ML; com o token do **dono** do app dá para ver
-   `/missed_feeds?app_id=8693830632560554`. (d) Mesmo risco no **pós-venda**: hoje ele confere as não lidas só a cada 15 min
+   entregar, chamado no suporte de desenvolvedores do ML (`missed_feeds` estava vazio: o ML nem tenta entregar; dá para
+   reconferir com o token da conta `SOUSABRENO30`, dona do app). (d) Mesmo risco no **pós-venda**: hoje ele confere as não lidas só a cada 15 min
    e só com o agente ligado; se o agente for ligado para o cliente, levar a mesma rotina para lá (pedir aprovação: mais
    consultas ao ML). (e) Com muitas contas (> 50), rever o custo da rotina (consultas ao ML e tempo do cron na Vercel).
 0e. **Breno — conferir os planos (Sessão 20) em `maanu.com.br`:** Assinatura (seu plano, uso e os 3 planos), menu Melhorias de

@@ -1,21 +1,40 @@
 import { beforeEach, describe, expect, it, vi } from "vitest"
 
-import { pollingOffsets, unknownQuestions } from "@/lib/answers/polling"
+import { accountsThisMinute, pollingOffsets, unknownQuestions } from "@/lib/answers/polling"
 
 describe("pollingOffsets (quando a rotina consulta o ML dentro de cada minuto)", () => {
-  it("até 50 contas: a cada 10 s (6 rodadas no minuto)", () => {
+  it("até 16 contas: a cada 10 s (6 rodadas no minuto)", () => {
     expect(pollingOffsets(1)).toEqual([0, 10_000, 20_000, 30_000, 40_000, 50_000])
-    expect(pollingOffsets(50)).toEqual([0, 10_000, 20_000, 30_000, 40_000, 50_000])
+    expect(pollingOffsets(16)).toEqual([0, 10_000, 20_000, 30_000, 40_000, 50_000])
   })
 
-  it("com mais contas espaça as rodadas para não passar de ~300 consultas ao ML por minuto", () => {
-    expect(pollingOffsets(60)).toEqual([0, 12_000, 24_000, 36_000, 48_000])
-    expect(pollingOffsets(100)).toEqual([0, 20_000, 40_000])
-    expect(pollingOffsets(400)).toEqual([0])
+  it("com mais contas espaça as rodadas: no máximo ~100 consultas por minuto (1/3 do limite do app no ML)", () => {
+    expect(pollingOffsets(20)).toEqual([0, 12_000, 24_000, 36_000, 48_000])
+    expect(pollingOffsets(25)).toEqual([0, 15_000, 30_000, 45_000])
+    expect(pollingOffsets(50)).toEqual([0, 30_000])
+    expect(pollingOffsets(100)).toEqual([0])
   })
 
   it("sem contas roda uma vez (só a fila)", () => {
     expect(pollingOffsets(0)).toEqual([0])
+  })
+})
+
+describe("accountsThisMinute", () => {
+  const accounts = Array.from({ length: 250 }, (_, index) => index)
+
+  it("até 100 contas: todas, todo minuto", () => {
+    expect(accountsThisMinute(accounts.slice(0, 100), 7)).toHaveLength(100)
+  })
+
+  it("acima de 100: rodízio de 100 por minuto, sem repetir e cobrindo todas", () => {
+    const minute0 = accountsThisMinute(accounts, 0)
+    const minute1 = accountsThisMinute(accounts, 1)
+    const minute2 = accountsThisMinute(accounts, 2)
+    expect(minute0).toEqual(accounts.slice(0, 100))
+    expect(minute1).toEqual(accounts.slice(100, 200))
+    expect(minute2).toEqual([...accounts.slice(200, 250), ...accounts.slice(0, 50)])
+    expect(new Set([...minute0, ...minute1, ...minute2]).size).toBe(250)
   })
 })
 
