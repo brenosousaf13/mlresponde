@@ -9,8 +9,9 @@
 
 ## Regras inegociáveis (detalhes no `CEREBRO.md` §2)
 - **Desde a Sessão 15 (2026-10-12) existem DUAS produções** (a troca está em andamento, ver `CEREBRO.md` §13 item 0a):
-  - `main` = **v1** (projeto Vercel `mlresponde`, clientes antigos, será desligada). Não fazer push/merge na `main`
-    sem aprovação explícita do Breno.
+  - `main` = **v1** (projeto Vercel `mlresponde`, clientes antigos). **A v1 NÃO PODE PARAR** até o Breno mandar desligar
+    (semana de teste da v2): não mexer na `main`, nas variáveis de Production do projeto `mlresponde`, no app ML da v1 nem
+    no banco da v1. Não fazer push/merge na `main` sem aprovação explícita do Breno.
   - **`v2` = PRODUÇÃO da v2**: todo push na `v2` publica em **`maanu.com.br`** (projeto Vercel `maanu`) para cliente real.
     A IA continua com autonomia na `v2` (decide, implementa, commit e push), mas **só faz push com as 4 verificações
     passando**; mudança grande ou arriscada vai antes para uma branch `codex/...` (não publica em lugar nenhum).

@@ -127,7 +127,9 @@ novas funcionalidades, segurança multi-tenant de verdade — **desenvolvido em 
 
 ## 2. Regras de ouro (produção está no ar!)
 
-0. **Desde a Sessão 15 há duas produções:** `main` = v1 (projeto Vercel `mlresponde`, clientes antigos) e **`v2` = produção
+0. **Desde a Sessão 15 há duas produções:** `main` = v1 (projeto Vercel `mlresponde`, clientes antigos; **não pode parar
+   até o Breno mandar desligar** — nada na `main`, nas variáveis de Production do `mlresponde`, no app ML da v1 ou no banco
+   da v1; conferido no fim da Sessão 15b: v1 no ar com o deploy `ad72bff` de 2026-06-08 e app ML próprio, diferente do da v2) e **`v2` = produção
    da v2** (projeto Vercel `maanu`, `maanu.com.br`, cliente real em teste). Push na `v2` só com typecheck/test/lint/build
    passando; mudança grande ou arriscada vai antes para uma branch `codex/...` (nenhum projeto publica outras branches).
    O Supabase `ookosqyfazobiwmopiix` é **produção** (as regras abaixo sobre "banco de produção" valem para ele).
