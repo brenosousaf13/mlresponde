@@ -1134,6 +1134,11 @@ webhook do ML validado, fila/reprocessamento de jobs, observabilidade, controle 
   troca de e-mail, link de acesso, convite, código e avisos de senha/e-mail alterados. O Supabase **recusou aplicar** sem SMTP
   próprio (plano grátis) → aplicar quando o Resend estiver ligado.
 - `AGENTS.md` e §2: `v2` agora é produção (push só com as 4 verificações) e o banco da v2 é produção.
+- DNS: Breno ativou o Cloudflare (NS `chance`/`malavika.ns.cloudflare.com`). O domínio abriu sem HTTPS ("Não seguro"): a
+  Vercel ainda não tinha emitido o certificado. Resolvido pedindo o certificado pela API (`POST /v8/certs` com
+  `maanu.com.br` e `www.maanu.com.br`; Let's Encrypt, renovação automática). Conferido: `https://maanu.com.br` 200,
+  `http` e `www` redirecionam (308). Registros do Resend publicados (`send` → `forge.rmta.net`, DKIM `resend._domainkey`,
+  DMARC `p=reject`); SMTP no Supabase ainda não ligado.
 
 ### 2026-10-12 — Sessão 15 · Plano da troca e reforço de segurança do Supabase da v2 (IA: Claude, via app Codex)
 - Pergunta do Breno: dá para tornar a v2 a `main` sem derrubar os clientes, sem migrar ninguém (6 clientes vão se
@@ -1462,7 +1467,7 @@ webhook do ML validado, fila/reprocessamento de jobs, observabilidade, controle 
    **Fase 1 — semana de teste com 1 cliente (a v1 continua no ar para os outros):**
    1. ✅ IA (15b): banco limpo; chaves novas (legadas desligadas, HS256 revogado); projeto Vercel `maanu` com production
       branch `v2`, variáveis de Production e domínios; Auth com Site URL/redirects `maanu.com.br`; e-mails prontos.
-   2. ⏳ **Breno — DNS no Cloudflare** (proxy **desligado**, nuvem cinza, "DNS only"): `A  @  216.150.1.1`,
+   2. ✅ (DNS ativo e HTTPS emitido) **Breno — DNS no Cloudflare** (proxy **desligado**, nuvem cinza, "DNS only"): `A  @  216.150.1.1`,
       `A  @  216.150.16.1` e `CNAME  www  5205331b18becd29.vercel-dns-016.com`. A Vercel emite o certificado sozinha.
    3. ✅ `ML_CLIENT_SECRET` criado pelo Breno no projeto `maanu` (Production, sensível); produção republicada (Sessão 15b).
    4. ⏳ **Breno — Resend:** adicionar o domínio `maanu.com.br` (o Resend mostra os registros MX/TXT de envio e DKIM; tem
