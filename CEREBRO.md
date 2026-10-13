@@ -1449,13 +1449,15 @@ webhook do ML validado, fila/reprocessamento de jobs, observabilidade, controle 
       branch `v2`, variáveis de Production e domínios; Auth com Site URL/redirects `maanu.com.br`; e-mails prontos.
    2. ⏳ **Breno — DNS no Cloudflare** (proxy **desligado**, nuvem cinza, "DNS only"): `A  @  216.150.1.1`,
       `A  @  216.150.16.1` e `CNAME  www  5205331b18becd29.vercel-dns-016.com`. A Vercel emite o certificado sozinha.
-   3. ⏳ **Breno — Vercel → projeto `maanu` → Settings → Environment Variables:** criar `ML_CLIENT_SECRET` (Production,
-      sensível) com o secret do app ML da v2 (DevCenter) e mandar a IA republicar.
+   3. ✅ `ML_CLIENT_SECRET` criado pelo Breno no projeto `maanu` (Production, sensível); produção republicada (Sessão 15b).
    4. ⏳ **Breno — Resend:** adicionar o domínio `maanu.com.br` (o Resend mostra os registros MX/TXT de envio e DKIM; tem
       botão para configurar direto no Cloudflare) e, quando verificar, ligar o SMTP no Supabase pela integração do Resend
       (Resend → Integrations → Supabase → projeto "Mercado Livre Responde v2"; remetente `nao-responda@maanu.com.br`, nome
       `maanu`) ou à mão (Supabase → Authentication → Emails → SMTP: host `smtp.resend.com`, porta 465, usuário `resend`,
-      senha = API key do Resend). Recomendado também um TXT `_dmarc` = `v=DMARC1; p=none;`.
+      senha = API key do Resend). Recomendado também um TXT `_dmarc` = `v=DMARC1; p=none;`. Registros do Resend no
+      Cloudflare sempre **sem proxy**. Quem envia: o Supabase Auth dispara e monta o e-mail; o Resend entrega (SMTP) e
+      mostra os logs de entrega. Situação (fim da Sessão 15b): Breno criou os registros no Cloudflare; o Registro.br ainda
+      publicava os DNS antigos (`a/b.auto.dns.br`) e o SMTP ainda não estava ligado no Supabase.
    5. ⏳ IA, depois do SMTP: aplicar os e-mails em português (`node scripts/emails-auth/gerar.mjs`) e subir o limite de
       e-mails; testar cadastro e "esqueci minha senha" ponta a ponta em `maanu.com.br`.
    6. ⏳ Breno, no DevCenter do **app da v2**: nome/logo maanu; redirect `https://maanu.com.br/api/auth/callback/mercadolivre`;
