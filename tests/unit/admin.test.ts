@@ -164,8 +164,8 @@ describe("financeiro", () => {
     ai_cost_prev_month_usd: 8,
     ai_cost_unassigned_month_usd: 0,
     rows: [
-      { organization_id: "a", name: "A", status: "active", plan: "essencial", monthly_price: 100, ai_cost_month_usd: 5, ai_answers_month: 10, current_period_end: null },
-      { organization_id: "b", name: "B", status: "active", plan: "essencial", monthly_price: 200, ai_cost_month_usd: 1, ai_answers_month: 3, current_period_end: null },
+      { organization_id: "a", name: "A", status: "active", plan: "pro", monthly_price: 100, ai_cost_month_usd: 5, ai_answers_month: 10, current_period_end: null },
+      { organization_id: "b", name: "B", status: "active", plan: "escala", monthly_price: 200, ai_cost_month_usd: 1, ai_answers_month: 3, current_period_end: null },
       { organization_id: "c", name: "C", status: "courtesy", plan: null, monthly_price: 50, ai_cost_month_usd: 2, ai_answers_month: 1, current_period_end: null },
     ],
     past_due: [],
@@ -218,29 +218,61 @@ describe("formulários do painel", () => {
     const ok = parseOrganizationForm(
       form({
         name: " Loja X ",
-        plan: "essencial",
+        plan: "pro",
         subscription_status: "active",
         trial_ends_at: "2026-10-20",
         current_period_end: "",
         ml_accounts_limit: "3",
         monthly_price: "149,90",
         billing_exempt: "on",
+        monthly_answers_limit: "2.000",
+        billing_cycle: "annual",
       })
     )
     expect(ok.success).toBe(true)
     if (ok.success) {
-      expect(ok.data).toMatchObject({ name: "Loja X", plan: "essencial", monthly_price: 149.9, billing_exempt: true, current_period_end: null })
+      expect(ok.data).toMatchObject({
+        name: "Loja X",
+        plan: "pro",
+        monthly_price: 149.9,
+        billing_exempt: true,
+        current_period_end: null,
+        monthly_answers_limit: 2000,
+        billing_cycle: "annual",
+      })
       expect(ok.data.trial_ends_at).toBe("2026-10-21T02:59:59.000Z")
     }
     const bad = parseOrganizationForm(
-      form({ name: "", plan: "ouro", subscription_status: "x", trial_ends_at: "", ml_accounts_limit: "-1", monthly_price: "abc" })
+      form({
+        name: "",
+        plan: "essencial",
+        subscription_status: "x",
+        trial_ends_at: "",
+        ml_accounts_limit: "-1",
+        monthly_price: "abc",
+        monthly_answers_limit: "-5",
+        billing_cycle: "semanal",
+      })
     )
     expect(bad.success).toBe(false)
     if (!bad.success) {
       expect(Object.keys(bad.fieldErrors).sort()).toEqual(
-        ["ml_accounts_limit", "monthly_price", "name", "plan", "subscription_status", "trial_ends_at"].sort()
+        [
+          "billing_cycle",
+          "ml_accounts_limit",
+          "monthly_answers_limit",
+          "monthly_price",
+          "name",
+          "plan",
+          "subscription_status",
+          "trial_ends_at",
+        ].sort()
       )
     }
+    const blank = parseOrganizationForm(
+      form({ name: "Loja", plan: "", subscription_status: "trialing", trial_ends_at: "2026-10-20", ml_accounts_limit: "1" })
+    )
+    expect(blank.success && blank.data).toMatchObject({ plan: null, monthly_answers_limit: null, billing_cycle: null })
   })
 
   it("valida usuário e configurações", () => {

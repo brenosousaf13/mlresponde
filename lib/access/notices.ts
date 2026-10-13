@@ -1,4 +1,6 @@
 import { siteConfig } from "@/lib/config/site"
+import { formatNumber } from "@/lib/format"
+import type { Quota } from "@/lib/plans/usage"
 
 import type { Access } from "./access"
 
@@ -102,4 +104,33 @@ export function mlConnectionNotice(
     title: "Nenhuma conta do Mercado Livre ativa",
     description: "Ative ou reconecte uma conta para a plataforma voltar a funcionar.",
   }
+}
+
+/**
+ * Aviso do limite de respostas automáticas (topo das páginas): a partir de 80% do limite e quando acaba.
+ * Com a conta bloqueada ou sem limite não aparece.
+ */
+export type AnswersUsageNotice = {
+  level: "warning" | "reached"
+  title: string
+  description: string
+}
+
+export function answersUsageNotice(access: Access, quota: Quota | null, resetText: string): AnswersUsageNotice | null {
+  if (!quota || access.state === "blocked" || quota.limit === null) return null
+  if (quota.level === "reached") {
+    return {
+      level: "reached",
+      title: "As respostas automáticas do período acabaram",
+      description: `A IA usou as ${formatNumber(quota.limit)} respostas do seu plano. As perguntas novas ficam para você responder (nada se perde). ${resetText}.`,
+    }
+  }
+  if (quota.level === "warning") {
+    return {
+      level: "warning",
+      title: `Você já usou ${quota.percent}% das respostas automáticas`,
+      description: `${formatNumber(quota.used)} de ${formatNumber(quota.limit)}. ${resetText}. Quando acabar, as perguntas novas ficam para você responder.`,
+    }
+  }
+  return null
 }

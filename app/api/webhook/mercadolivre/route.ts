@@ -6,7 +6,7 @@ import { processDueQuestions, processQuestion, reconcileQuestion } from "@/lib/a
 import { registerQuestion } from "@/lib/answers/ingest"
 import { parseQuestionNotification } from "@/lib/answers/notification"
 import { serverEnv } from "@/lib/env"
-import { planIncludes } from "@/lib/plans/plans"
+import { organizationIncludes } from "@/lib/plans/plans"
 import { createServiceClient } from "@/lib/supabase/admin"
 
 export const maxDuration = 60
@@ -65,17 +65,17 @@ async function handleQuestion(mlUserId: number, mlQuestionId: number) {
   }
 }
 
-/** Mensagem pós-venda: só para contas cujo plano inclui o pós-venda (as demais são ignoradas sem custo). */
+/** Mensagem pós-venda: só para contas cujo plano em vigor inclui o pós-venda (as demais são ignoradas sem custo). */
 async function handleMessage(mlUserId: number, messageId: string) {
   try {
     const admin = createServiceClient()
     const { data: account } = await admin
       .from("ml_accounts")
-      .select("id, organization_id, status, organizations(plan)")
+      .select("id, organization_id, status, organizations(plan, subscription_status, trial_ends_at)")
       .eq("ml_user_id", mlUserId)
       .maybeSingle()
     if (!account || account.status === "disconnected") return
-    if (!planIncludes(account.organizations?.plan, "pos_venda")) return
+    if (!account.organizations || !organizationIncludes(account.organizations, "pos_venda")) return
 
     after(async () => {
       try {

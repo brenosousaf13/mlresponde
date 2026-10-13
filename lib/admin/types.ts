@@ -10,6 +10,7 @@ export type AiFeatureKey =
   | "after_sale_suggestion"
   | "after_sale_test"
   | "key_check"
+  | "listing_improvement"
 
 export type AdminOrgRow = {
   organization_id: string

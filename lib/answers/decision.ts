@@ -17,6 +17,7 @@ export type ReviewReason =
   | "account_inactive"
   | "access_blocked"
   | "processing_error"
+  | "answers_limit"
 
 /**
  * careful = o que a IA não tiver certeza fica para o vendedor (padrão).
@@ -106,6 +107,7 @@ export const REVIEW_REASON_LABELS: Record<ReviewReason, string> = {
   account_inactive: "Conta desativada ou desconectada",
   access_blocked: "Assinatura inativa",
   processing_error: "Erro ao processar",
+  answers_limit: "Limite de respostas automáticas do plano atingido",
 }
 
 /** Por que a mensagem padrão foi enviada (modo "sempre"), em linguagem do vendedor. */

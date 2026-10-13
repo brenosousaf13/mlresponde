@@ -10,7 +10,7 @@ import {
   type Access,
   type AppSection,
 } from "@/lib/access/access"
-import { featureAccess, type PlanFeature } from "@/lib/plans/plans"
+import { featureAccess, resolvePlan, type PlanFeature, type PlanInfo } from "@/lib/plans/plans"
 import { createServiceClient } from "@/lib/supabase/admin"
 import { createClient } from "@/lib/supabase/server"
 
@@ -28,10 +28,17 @@ export type AppContext = {
   organization: {
     id: string
     name: string
+    /** Plano cadastrado (null = sem plano: teste grátis ou cortesia). Para regras, use `plan` (plano em vigor). */
     plan: string | null
     subscriptionStatus: string
     mlAccountsLimit: number
+    createdAt: string
+    trialEndsAt: string
+    /** Limite de respostas automáticas definido pelo administrador (null = o do plano). */
+    monthlyAnswersLimit: number | null
   }
+  /** Plano em vigor (cadastrado, teste grátis ou o Starter como base). */
+  plan: PlanInfo
   role: MemberRole
   access: Access
   mlAccounts: { total: number; active: number }
@@ -68,7 +75,7 @@ async function loadAccount(userId: string) {
     supabase
       .from("organization_members")
       .select(
-        "role, organizations(id, name, plan, trial_ends_at, subscription_status, current_period_end, billing_exempt, ml_accounts_limit, billing_profiles(organization_id))"
+        "role, organizations(id, name, plan, trial_ends_at, subscription_status, current_period_end, billing_exempt, ml_accounts_limit, monthly_answers_limit, created_at, billing_profiles(organization_id))"
       )
       .eq("user_id", userId)
       .order("created_at", { ascending: true })
@@ -145,6 +152,7 @@ export const getAppContext = cache(async (): Promise<AppContext> => {
 
   const role = membership.role as MemberRole
   touchLastSeen(user.id, profile.last_seen_at)
+  const plan = resolvePlan(organization)
 
   return {
     user: { id: user.id, email: user.email ?? "" },
@@ -161,14 +169,18 @@ export const getAppContext = cache(async (): Promise<AppContext> => {
       plan: organization.plan,
       subscriptionStatus: organization.subscription_status,
       mlAccountsLimit: organization.ml_accounts_limit,
+      createdAt: organization.created_at,
+      trialEndsAt: organization.trial_ends_at,
+      monthlyAnswersLimit: organization.monthly_answers_limit,
     },
+    plan,
     role,
     access: computeAccess(organization),
     mlAccounts: {
       total: mlAccounts.length,
       active: mlAccounts.filter((account) => account.status === "active").length,
     },
-    features: featureAccess(organization.plan, profile.is_platform_admin),
+    features: featureAccess(plan, profile.is_platform_admin),
     billing: {
       required: canManageOrganization(role) && !profile.is_platform_admin,
       completed: Boolean(organization.billing_profiles),

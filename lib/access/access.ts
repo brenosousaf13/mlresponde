@@ -38,6 +38,7 @@ export type AppSection =
   | "painel"
   | "perguntas"
   | "pos_venda"
+  | "melhorias"
   | "resultados"
   | "assistente"
   | "contas"
@@ -53,6 +54,7 @@ const ALWAYS_ALLOWED: readonly AppSection[] = ["assinatura", "configuracoes"]
 /** Seções exclusivas de um plano (o resto vale para todos os planos). */
 export const SECTION_FEATURES: Partial<Record<AppSection, PlanFeature>> = {
   pos_venda: "pos_venda",
+  melhorias: "melhorias_anuncio",
 }
 
 export function decideSectionAccess(

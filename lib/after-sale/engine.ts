@@ -54,7 +54,8 @@ import {
   uploadMessageAttachment,
 } from "@/lib/mercadolivre/messages"
 import { fetchItem, fetchItemContext } from "@/lib/mercadolivre/questions"
-import { planIncludes } from "@/lib/plans/plans"
+import { answersQuotaFor } from "@/lib/dal/plan"
+import { organizationIncludes } from "@/lib/plans/plans"
 import { createServiceClient } from "@/lib/supabase/admin"
 import type { Database, Json } from "@/lib/supabase/database.types"
 
@@ -64,7 +65,7 @@ type ConversationUpdate = Database["public"]["Tables"]["ml_conversations"]["Upda
 type MessageRow = Database["public"]["Tables"]["ml_conversation_messages"]["Row"]
 
 const ACCOUNT_FIELDS =
-  "id, organization_id, ml_user_id, nickname, site_id, status, answer_tone, answer_mode, store_briefing, store_profile, after_sale_enabled, after_sale_instructions, after_sale_confidence_threshold, after_sale_sensitive_policy, after_sale_signature, organizations(name, plan, trial_ends_at, subscription_status, current_period_end, billing_exempt)"
+  "id, organization_id, ml_user_id, nickname, site_id, status, answer_tone, answer_mode, store_briefing, store_profile, after_sale_enabled, after_sale_instructions, after_sale_confidence_threshold, after_sale_sensitive_policy, after_sale_signature, organizations(name, plan, created_at, monthly_answers_limit, trial_ends_at, subscription_status, current_period_end, billing_exempt)"
 
 const MANUAL_LOCK_SECONDS = 90
 
@@ -95,7 +96,7 @@ function isPermanent(error: unknown) {
 export function afterSaleAvailability(account: Pick<AfterSaleAccount, "organizations">): "ok" | "access_blocked" | "plan_inactive" {
   const organization = account.organizations
   if (!organization || computeAccess(organization).state === "blocked") return "access_blocked"
-  if (!planIncludes(organization.plan, "pos_venda")) return "plan_inactive"
+  if (!organizationIncludes(organization, "pos_venda")) return "plan_inactive"
   return "ok"
 }
 
@@ -538,6 +539,13 @@ async function processOnce(conversationId: string): Promise<boolean> {
     const synced = await syncConversation(admin, account, conversation)
     const decided = statusWithoutAi(account, synced)
     if (decided) return await finish(admin, conversation.id, { ...synced.columns, last_error: null, ...decided })
+    // Limite de respostas automáticas do plano (perguntas + pós-venda): acabou → fica com o vendedor, sem gastar IA.
+    if (account.organizations) {
+      const quota = await answersQuotaFor(admin, conversation.organization_id, account.organizations)
+      if (quota.level === "reached") {
+        return await finish(admin, conversation.id, { ...synced.columns, last_error: null, ...review("answers_limit") })
+      }
+    }
 
     let run: AfterSaleRun
     try {

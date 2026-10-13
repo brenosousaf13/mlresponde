@@ -23,6 +23,7 @@ export type AiFeature =
   | "after_sale_suggestion"
   | "after_sale_test"
   | "key_check"
+  | "listing_improvement"
 
 /** Quem gastou: toda chamada à OpenAI informa a organização/conta para o painel do administrador. */
 export type AiUsageContext = {

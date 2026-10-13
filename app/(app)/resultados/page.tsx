@@ -218,7 +218,7 @@ export default async function ResultsPage({ searchParams }: PageProps<"/resultad
         </Card>
       </div>
 
-      <TopItemsCard items={overview.items} total={current.total} />
+      <TopItemsCard items={overview.items} total={current.total} improvementsIncluded={context.features.melhorias_anuncio} />
 
       <div className="grid gap-4 xl:grid-cols-2">
         <TopicsCard topics={topics.topics} total={topics.total} sampled={topicsSampled} />

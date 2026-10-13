@@ -1,9 +1,9 @@
-import { ArrowRightIcon, ExternalLinkIcon, PackageSearchIcon } from "lucide-react"
+import { ArrowRightIcon, ExternalLinkIcon, LightbulbIcon, PackageSearchIcon } from "lucide-react"
 import Link from "next/link"
 
 import { ItemThumb } from "@/components/perguntas/question-detail"
 import { Badge } from "@/components/ui/badge"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty"
 import { Progress } from "@/components/ui/progress"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
@@ -15,7 +15,16 @@ function questionsHref(item: ItemRow) {
 }
 
 /** Anúncios que mais recebem perguntas, com quanto a IA resolveu em cada um. */
-export function TopItemsCard({ items, total }: { items: ItemRow[]; total: number }) {
+export function TopItemsCard({
+  items,
+  total,
+  improvementsIncluded,
+}: {
+  items: ItemRow[]
+  total: number
+  /** O plano inclui Melhorias de anúncio (senão o rodapé mostra a partir de qual plano). */
+  improvementsIncluded?: boolean
+}) {
   return (
     <Card>
       <CardHeader>
@@ -114,6 +123,20 @@ export function TopItemsCard({ items, total }: { items: ItemRow[]; total: number
           </Table>
         )}
       </CardContent>
+      {items.length > 0 && improvementsIncluded !== undefined ? (
+        <CardFooter className="border-t text-sm">
+          <Link
+            href={improvementsIncluded ? "/melhorias" : "/assinatura?recurso=melhorias_anuncio"}
+            className="inline-flex items-center gap-1.5 font-medium text-primary hover:underline"
+          >
+            <LightbulbIcon className="size-4" />
+            {improvementsIncluded
+              ? "Ver o que mudar nesses anúncios para receber menos perguntas"
+              : "No plano Pro, a IA diz o que mudar nesses anúncios para receber menos perguntas"}
+            <ArrowRightIcon className="size-3.5" />
+          </Link>
+        </CardFooter>
+      ) : null}
     </Card>
   )
 }

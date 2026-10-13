@@ -101,6 +101,7 @@ export type AfterSaleReviewReason =
   | "claim_open"
   | "send_rejected"
   | "processing_error"
+  | "answers_limit"
 
 export const AFTER_SALE_REVIEW_LABELS: Record<AfterSaleReviewReason, string> = {
   ai_escalated: "O agente preferiu deixar para você",
@@ -115,6 +116,7 @@ export const AFTER_SALE_REVIEW_LABELS: Record<AfterSaleReviewReason, string> = {
   claim_open: "Reclamação ou mediação aberta",
   send_rejected: "O Mercado Livre recusou a mensagem",
   processing_error: "Erro ao processar",
+  answers_limit: "Limite de respostas automáticas do plano atingido",
 }
 
 export type AfterSaleSettings = {

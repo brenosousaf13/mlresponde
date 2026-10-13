@@ -6,11 +6,13 @@ import { AppSidebar, type SidebarNavItem } from "@/components/app/app-sidebar"
 import { WelcomeTour } from "@/components/app/welcome-tour"
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
 import { decideSectionAccess } from "@/lib/access/access"
-import { mlConnectionNotice, trialNotice } from "@/lib/access/notices"
+import { answersUsageNotice, mlConnectionNotice, trialNotice } from "@/lib/access/notices"
 import { canManageOrganization, requireOnboardedContext } from "@/lib/dal/app-context"
+import { getPlanUsage } from "@/lib/dal/plan"
 import { adminPanelHref } from "@/lib/admin/host"
 import { isPlatformAiPaused } from "@/lib/ai/usage"
 import { LOCK_REASONS, NAV_ITEMS } from "@/lib/navigation"
+import { periodText } from "@/lib/plans/usage"
 import { createClient } from "@/lib/supabase/server"
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
@@ -20,7 +22,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const hasActiveMlAccount = context.mlAccounts.active > 0
 
   const supabase = await createClient()
-  const [{ count: reviewCount }, { count: afterSaleCount }, platformAiPaused] = await Promise.all([
+  const [{ count: reviewCount }, { count: afterSaleCount }, platformAiPaused, usage] = await Promise.all([
     supabase
       .from("ml_questions")
       .select("id", { count: "exact", head: true })
@@ -34,6 +36,13 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           .in("status", ["needs_review", "failed"])
       : Promise.resolve({ count: 0 }),
     isPlatformAiPaused(),
+    // Uso do plano (aviso de 80% e de limite esgotado). Uma falha aqui não derruba a página.
+    context.access.state === "blocked"
+      ? Promise.resolve(null)
+      : getPlanUsage(context).catch((error: unknown) => {
+          console.error("[app] uso do plano:", error instanceof Error ? error.message : error)
+          return null
+        }),
   ])
   const badges: Partial<Record<SidebarNavItem["section"], number>> = {
     perguntas: reviewCount ?? 0,
@@ -57,6 +66,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   // Conta do ML: no topo do conteúdo até existir uma conta ativa.
   const trial = trialNotice(context.access, context.organization.subscriptionStatus)
   const mlNotice = mlConnectionNotice(context.access, context.mlAccounts)
+  const usageNotice = usage ? answersUsageNotice(context.access, usage.answers, periodText(usage.period)) : null
 
   return (
     <SidebarProvider defaultOpen={defaultOpen}>
@@ -80,6 +90,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
             ml={mlNotice}
             canManage={canManageOrganization(context.role)}
             platformAiPaused={platformAiPaused}
+            usage={usageNotice}
           />
           {children}
         </div>

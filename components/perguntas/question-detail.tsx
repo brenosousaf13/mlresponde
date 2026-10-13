@@ -172,6 +172,14 @@ export function QuestionDetail({
               <div className="flex flex-col gap-0.5">
                 <p className="font-medium">{reason ?? "Esta pergunta está esperando você"}</p>
                 {question.ai_reason ? <p className="opacity-80">{question.ai_reason}</p> : null}
+                {question.review_reason === "answers_limit" ? (
+                  <p className="opacity-80">
+                    As respostas automáticas do seu plano acabaram neste período.{" "}
+                    <Link href="/assinatura" className="font-medium underline underline-offset-4">
+                      Ver planos
+                    </Link>
+                  </p>
+                ) : null}
               </div>
             </div>
           ) : null}

@@ -29,31 +29,36 @@ import {
   saleUrl,
 } from "@/lib/after-sale/presentation"
 import { bodyLimit, composeAfterSaleMessage, normalizeForMatch, toMlMessageText } from "@/lib/after-sale/text"
-import { featureAccess, planIncludes, planName, requiredPlanName } from "@/lib/plans/plans"
+import { featureAccess, planIncludes, planName, requiredPlanName, resolvePlan, TRIAL_PLAN } from "@/lib/plans/plans"
 
 const SELLER = 415458330
 const AGENT_MLB = 3037675074
 const BUYER = 266272126
 
 describe("planos", () => {
-  it("só o Essencial (e a organização de administração) incluem o pós-venda", () => {
-    expect(planIncludes("essencial", "pos_venda")).toBe(true)
-    expect(planIncludes(" Essencial ", "pos_venda")).toBe(true)
+  it("o pós-venda é a partir do Pro (e na organização de administração)", () => {
+    expect(planIncludes("pro", "pos_venda")).toBe(true)
+    expect(planIncludes(" Escala ", "pos_venda")).toBe(true)
     expect(planIncludes("admin", "pos_venda")).toBe(true)
     expect(planIncludes(null, "pos_venda")).toBe(false)
     expect(planIncludes("starter", "pos_venda")).toBe(false)
+    expect(planIncludes("essencial", "pos_venda")).toBe(false)
   })
 
   it("administrador da plataforma vê tudo", () => {
-    expect(featureAccess(null, true).pos_venda).toBe(true)
-    expect(featureAccess(null, false).pos_venda).toBe(false)
+    const starter = resolvePlan({ plan: "starter", subscription_status: "active", trial_ends_at: "2026-01-01T00:00:00Z" })
+    expect(featureAccess(starter, true).pos_venda).toBe(true)
+    expect(featureAccess(starter, false).pos_venda).toBe(false)
+    expect(featureAccess(TRIAL_PLAN, false).pos_venda).toBe(true)
   })
 
   it("nomes para exibir", () => {
-    expect(planName("essencial")).toBe("Essencial")
+    expect(planName("starter")).toBe("Starter")
     expect(planName("pro")).toBe("Pro")
+    expect(planName("escala")).toBe("Escala")
+    expect(planName("ouro")).toBe("Ouro")
     expect(planName(null)).toBeNull()
-    expect(requiredPlanName("pos_venda")).toBe("Essencial")
+    expect(requiredPlanName("pos_venda")).toBe("Pro")
   })
 })
 

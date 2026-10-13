@@ -497,6 +497,81 @@ export type Database = {
         }
         Relationships: []
       }
+      listing_improvements: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          done_suggestions: number[]
+          id: string
+          item_id: string
+          item_permalink: string | null
+          item_thumbnail: string | null
+          item_title: string | null
+          ml_account_id: string
+          model: string | null
+          organization_id: string
+          questions_analyzed: number
+          questions_from: string | null
+          questions_to: string | null
+          result: Json
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          done_suggestions?: number[]
+          id?: string
+          item_id: string
+          item_permalink?: string | null
+          item_thumbnail?: string | null
+          item_title?: string | null
+          ml_account_id: string
+          model?: string | null
+          organization_id: string
+          questions_analyzed?: number
+          questions_from?: string | null
+          questions_to?: string | null
+          result?: Json
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          done_suggestions?: number[]
+          id?: string
+          item_id?: string
+          item_permalink?: string | null
+          item_thumbnail?: string | null
+          item_title?: string | null
+          ml_account_id?: string
+          model?: string | null
+          organization_id?: string
+          questions_analyzed?: number
+          questions_from?: string | null
+          questions_to?: string | null
+          result?: Json
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "listing_improvements_ml_account_id_fkey"
+            columns: ["ml_account_id"]
+            isOneToOne: false
+            referencedRelation: "ml_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "listing_improvements_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ml_account_tokens: {
         Row: {
           access_token_enc: string
@@ -1053,11 +1128,13 @@ export type Database = {
         Row: {
           analytics_hourly_cost: number
           analytics_minutes_per_answer: number
+          billing_cycle: string | null
           billing_exempt: boolean
           created_at: string
           current_period_end: string | null
           id: string
           ml_accounts_limit: number
+          monthly_answers_limit: number | null
           monthly_price: number | null
           name: string
           plan: string | null
@@ -1068,11 +1145,13 @@ export type Database = {
         Insert: {
           analytics_hourly_cost?: number
           analytics_minutes_per_answer?: number
+          billing_cycle?: string | null
           billing_exempt?: boolean
           created_at?: string
           current_period_end?: string | null
           id?: string
           ml_accounts_limit?: number
+          monthly_answers_limit?: number | null
           monthly_price?: number | null
           name?: string
           plan?: string | null
@@ -1083,11 +1162,13 @@ export type Database = {
         Update: {
           analytics_hourly_cost?: number
           analytics_minutes_per_answer?: number
+          billing_cycle?: string | null
           billing_exempt?: boolean
           created_at?: string
           current_period_end?: string | null
           id?: string
           ml_accounts_limit?: number
+          monthly_answers_limit?: number | null
           monthly_price?: number | null
           name?: string
           plan?: string | null
@@ -1383,6 +1464,10 @@ export type Database = {
         Args: { p_organization_id: string }
         Returns: Json
       }
+      admin_organization_usage: {
+        Args: { p_from: string; p_organization_id: string; p_to: string }
+        Returns: Json
+      }
       admin_overview: { Args: never; Returns: Json }
       admin_pause_ml_account: {
         Args: { p_context?: Json; p_ml_account_id: string; p_scope: string }
@@ -1564,7 +1649,38 @@ export type Database = {
         Args: { p_document: string; p_type: string }
         Returns: boolean
       }
+      listing_question_ranking: {
+        Args: {
+          p_from: string
+          p_limit?: number
+          p_ml_account_id?: string
+          p_organization_id: string
+        }
+        Returns: {
+          item_id: string
+          item_permalink: string
+          item_thumbnail: string
+          item_title: string
+          last_question_at: string
+          ml_account_id: string
+          open_questions: number
+          questions: number
+        }[]
+      }
+      organization_ai_answers: {
+        Args: { p_from: string; p_organization_id: string; p_to: string }
+        Returns: number
+      }
+      organization_plan_id: {
+        Args: {
+          p_plan: string
+          p_subscription_status: string
+          p_trial_ends_at: string
+        }
+        Returns: string
+      }
       plan_includes_after_sale: { Args: { p_plan: string }; Returns: boolean }
+      plan_ml_accounts_limit: { Args: { p_plan: string }; Returns: number }
       question_stats: {
         Args: {
           p_ml_account_id?: string

@@ -27,9 +27,10 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { formatBrl, formatInteger, formatShare, formatTokens, formatUsd } from "@/lib/admin/format"
 import { AI_FEATURES, MEMBER_ROLES, ML_ACCOUNT_STATUS, QUESTION_STATUS, SUBSCRIPTION_STATUSES } from "@/lib/admin/labels"
 import { formatDocument } from "@/lib/billing/documents"
-import { getAdminOrganization, requireAdmin } from "@/lib/dal/admin"
+import { getAdminOrganization, getAdminOrganizationPlan, requireAdmin } from "@/lib/dal/admin"
 import { formatDate, formatDateTime, timeAgo } from "@/lib/format"
-import { planName } from "@/lib/plans/plans"
+import { BILLING_CYCLE_LABELS, planName } from "@/lib/plans/plans"
+import { periodText } from "@/lib/plans/usage"
 import { cn } from "@/lib/utils"
 
 export const metadata: Metadata = { title: "Cliente" }
@@ -49,6 +50,7 @@ export default async function AdminClientPage({ params }: { params: Promise<{ id
   if (!detail) notFound()
 
   const org = detail.organization
+  const planUsage = await getAdminOrganizationPlan(org)
   const questions = detail.questions_30d
   const aiCost30d = Number(org.ai_cost_30d_usd)
   const usageDaily = detail.usage_daily.map((point) => ({ day: point.day, value: Number(point.cost_usd) }))
@@ -89,6 +91,8 @@ export default async function AdminClientPage({ params }: { params: Promise<{ id
                 ml_accounts_limit: org.ml_accounts_limit,
                 monthly_price: org.monthly_price === null ? null : Number(org.monthly_price),
                 ml_active: org.ml_active,
+                monthly_answers_limit: planUsage.monthlyAnswersLimit,
+                billing_cycle: planUsage.billingCycle,
               }}
             />
           </div>
@@ -293,6 +297,21 @@ export default async function AdminClientPage({ params }: { params: Promise<{ id
                   <OrgStatusBadge status={org.status} />
                 </Row>
                 <Row label="Plano">{planName(org.plan) ?? "—"}</Row>
+                <Row label="Plano em vigor">{planUsage.plan.name}</Row>
+                <Row label="Ciclo">{planUsage.billingCycle ? BILLING_CYCLE_LABELS[planUsage.billingCycle] : "—"}</Row>
+                <Row label="Respostas automáticas">
+                  {formatInteger(planUsage.answers.used)} de{" "}
+                  {planUsage.answers.limit === null ? "sem limite" : formatInteger(planUsage.answers.limit)}
+                  {planUsage.monthlyAnswersLimit !== null ? " (acordo)" : ""}
+                  <span className="block text-xs font-normal text-muted-foreground">{periodText(planUsage.period)}</span>
+                </Row>
+                <Row label="Melhorias de anúncio">
+                  {planUsage.improvements
+                    ? `${formatInteger(planUsage.improvements.used)} de ${
+                        planUsage.improvements.limit === null ? "sem limite" : formatInteger(planUsage.improvements.limit)
+                      }`
+                    : "Não inclui"}
+                </Row>
                 <Row label="Mensalidade">{org.monthly_price !== null ? formatBrl(Number(org.monthly_price)) : "—"}</Row>
                 <Row label="Fim do teste">{formatDateTime(org.trial_ends_at)}</Row>
                 <Row label="Pago até">{org.current_period_end ? formatDate(org.current_period_end, "short") : "—"}</Row>

@@ -14,6 +14,7 @@ import Link from "next/link"
 import { AccessBadge } from "@/components/app/access-badge"
 import { PageHeader } from "@/components/app/page-header"
 import { AwaitingQuestionsCard, RecentQuestionsCard, TopItemsCard } from "@/components/painel/question-cards"
+import { UsageMeter } from "@/components/plans/usage-meter"
 import { AfterSaleSummaryCard } from "@/components/pos-venda/summary-card"
 import { buttonVariants } from "@/components/ui/button"
 import {
@@ -28,7 +29,10 @@ import {
 import { requireSection } from "@/lib/dal/app-context"
 import { getAfterSaleSummary } from "@/lib/dal/after-sale"
 import { getDashboardData } from "@/lib/dal/dashboard"
+import { getPlanUsage } from "@/lib/dal/plan"
 import { formatDate, formatDuration, formatNumber, pluralize } from "@/lib/format"
+import { TRIAL_PLAN } from "@/lib/plans/plans"
+import { periodText } from "@/lib/plans/usage"
 import { cn } from "@/lib/utils"
 
 export const metadata: Metadata = { title: "Painel" }
@@ -38,7 +42,7 @@ const DAYS = 7
 export default async function DashboardPage() {
   const context = await requireSection("painel")
   const firstName = context.profile.fullName.split(" ")[0]
-  const { access, mlAccounts, organization, features } = context
+  const { access, mlAccounts, organization, features, plan } = context
 
   const {
     total,
@@ -53,7 +57,10 @@ export default async function DashboardPage() {
     topItems,
     topItemsSampled,
   } = await getDashboardData(organization.id, DAYS)
-  const afterSale = features.pos_venda ? await getAfterSaleSummary(organization.id, DAYS) : null
+  const [afterSale, usage] = await Promise.all([
+    features.pos_venda ? getAfterSaleSummary(organization.id, DAYS) : Promise.resolve(null),
+    getPlanUsage(context),
+  ])
   const aiRate = total ? Math.round((answeredAi / total) * 100) : 0
 
   const steps = [
@@ -151,7 +158,7 @@ export default async function DashboardPage() {
         <div className="flex min-w-0 flex-col gap-4">
           <Card>
             <CardHeader>
-              <CardDescription>Assinatura</CardDescription>
+              <CardDescription>{plan.id === TRIAL_PLAN.id ? "Teste grátis" : `Plano ${plan.name}`}</CardDescription>
               <CardTitle className="text-2xl">
                 {access.state === "trial" ? pluralize(access.trialDaysLeft, "dia restante", "dias restantes") : "Plano ativo"}
               </CardTitle>
@@ -159,15 +166,21 @@ export default async function DashboardPage() {
                 <AccessBadge state={access.state} />
               </CardAction>
             </CardHeader>
-            <CardContent className="text-sm text-muted-foreground">
-              {access.state === "trial"
-                ? `O teste grátis vai até ${formatDate(access.trialEndsAt)}.`
-                : "Sua assinatura está em dia."}
+            <CardContent className="flex flex-col gap-3 text-sm text-muted-foreground">
+              <p>
+                {access.state === "trial"
+                  ? `O teste grátis vai até ${formatDate(access.trialEndsAt)}.`
+                  : "Sua assinatura está em dia."}
+              </p>
+              <UsageMeter label="Respostas automáticas" quota={usage.answers} hint={periodText(usage.period)} />
             </CardContent>
-            <CardFooter className="mt-auto">
+            <CardFooter className="mt-auto flex-wrap gap-2">
               <Link href="/contas" className={cn(buttonVariants({ variant: "outline", size: "sm" }))}>
                 {mlAccounts.active} de {organization.mlAccountsLimit} conta{organization.mlAccountsLimit === 1 ? "" : "s"} ML
                 <ArrowRightIcon data-icon="inline-end" />
+              </Link>
+              <Link href="/assinatura" className={cn(buttonVariants({ variant: "ghost", size: "sm" }))}>
+                Ver plano
               </Link>
             </CardFooter>
           </Card>

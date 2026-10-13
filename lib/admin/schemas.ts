@@ -3,7 +3,7 @@
 import { z } from "zod"
 
 import { normalizeOpenAIKey } from "@/lib/ai/keys"
-import { PLANS } from "@/lib/plans/plans"
+import { BILLING_CYCLES, PLANS, type BillingCycle } from "@/lib/plans/plans"
 import { normalizeWhatsapp } from "@/lib/validation/forms"
 
 import {
@@ -43,6 +43,9 @@ export type OrganizationChanges = {
   billing_exempt: boolean
   ml_accounts_limit: number
   monthly_price: number | null
+  /** null = o limite do plano. */
+  monthly_answers_limit: number | null
+  billing_cycle: BillingCycle | null
 }
 
 export type FieldErrors = Record<string, string[]>
@@ -67,6 +70,15 @@ const organizationSchema = z.object({
       const number = parseDecimal(value)
       return number === null || (Number.isFinite(number) && number >= 0 && number <= 1_000_000)
     }, "Valor inválido (ex.: 129,90)."),
+  monthly_answers_limit: z
+    .string()
+    .trim()
+    .refine((value) => value === "" || /^\d{1,7}$/.test(value.replace(/\./g, "")), "Use um número inteiro (ou deixe vazio).")
+    .refine((value) => value === "" || Number(value.replace(/\./g, "")) <= 1_000_000, "Máximo 1.000.000."),
+  billing_cycle: z
+    .string()
+    .trim()
+    .refine((value) => value === "" || (BILLING_CYCLES as readonly string[]).includes(value), "Ciclo inválido."),
 })
 
 export function parseOrganizationForm(
@@ -80,6 +92,8 @@ export function parseOrganizationForm(
     current_period_end: formData.get("current_period_end") ?? "",
     ml_accounts_limit: formData.get("ml_accounts_limit") ?? "",
     monthly_price: formData.get("monthly_price") ?? "",
+    monthly_answers_limit: formData.get("monthly_answers_limit") ?? "",
+    billing_cycle: formData.get("billing_cycle") ?? "",
   })
   if (!parsed.success) return { success: false, fieldErrors: parsed.error.flatten().fieldErrors as FieldErrors }
   const value = parsed.data
@@ -94,6 +108,8 @@ export function parseOrganizationForm(
       billing_exempt: formData.get("billing_exempt") === "on",
       ml_accounts_limit: value.ml_accounts_limit,
       monthly_price: parseDecimal(value.monthly_price),
+      monthly_answers_limit: value.monthly_answers_limit === "" ? null : Number(value.monthly_answers_limit.replace(/\./g, "")),
+      billing_cycle: value.billing_cycle === "" ? null : (value.billing_cycle as BillingCycle),
     },
   }
 }

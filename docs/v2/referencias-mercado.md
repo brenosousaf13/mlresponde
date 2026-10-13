@@ -115,3 +115,71 @@ cobra o excedente semanalmente. "Melhorias": 5 análises/mês incluídas, excede
 - Linha inteira do usuário (com hash de senha) enviada ao navegador; senha master padrão pública.
 - JWT de sessão enviado para webhooks do n8n chamados direto do navegador; IDs de webhook expostos.
 - Orquestração em n8n (sem versionamento/testes): preferimos workers próprios com fila.
+
+## Pesquisa de preços e planos — concorrentes no Brasil (2026-10-13, Sessão 19)
+
+> Preços públicos lidos nos sites oficiais em 2026-10-13 (mensal, salvo indicação). Não é decisão: base para o Breno
+> definir os planos da maanu (proposta da IA no fim). Atualizar se os concorrentes mudarem.
+
+### Concorrentes diretos (IA responde as perguntas do ML, pequeno/médio vendedor)
+| Plataforma | Planos (R$/mês) | Métrica do limite | Pós-venda | Teste |
+|---|---|---|---|---|
+| AgilizaPRO (agilizapro.ia.br) | 97,90 · 159,80 · 299 | 250 / 1.000 / 5.000 perguntas; 1 / 3 / 10 contas; excedente R$ 0,10 e R$ 10/conta (só no topo) | módulo no app (plano não informado) | 7 dias; anual −17% |
+| Zelure (usezelure.app) | Starter 97 · Pro 247 | por loja (+R$ 97 ou +R$ 147 por loja extra) | **só no Pro** (rastreio, trava em reclamação) | sem teste (paga no cartão) |
+| Vantaro (vantaro.com.br) | 97 · 197 · 397 (lançamento; depois 197/297/497) | vendas/mês (500 / 2.000 / 4.000); perguntas ilimitadas; 1/3/6 contas; 1/4/8 usuários | não | 7 dias sem cartão; anual "pague 10, leve 12" |
+| SellerChat (sellerchat.com.br) | 47 · 97 · 147 · 499,90 · 999 | 20 / 100 / 300 / 1.500 / ilimitadas perguntas; IA é extra (+R$ 29,90) | não | 7 dias (aprovação pelo WhatsApp) |
+| Ginte (atendimento.ginte.com.br) | 174,30 (anual) | ilimitado, multicanal | sim | 30 dias |
+| LiveDesk (livedesk.com.br) | 29,90 · 49,90 | 15 / 50 respostas de IA + R$ 0,80 por extra | não | 7 dias |
+| AnswerForMe (answerforme.io; estrangeira, atende o ML Brasil) | créditos: US$ 10 / 40 / 145 (1k/5k/20k) | créditos, sem mensalidade; copiloto (aprova antes) | não | 500 créditos |
+| SmartSelling (smartselling.app; argentina, site em português) | US$ 10 a 38,50 (anual) | vendas/mês; 20 a 1.300 respostas de IA | chatbot de opções | 15 dias |
+| Otto (otto.app.br) | 99 · 199 · 499 | 5k / 30k / 300k perguntas; 2/6/30 contas; resposta sugerida | não | 14 dias |
+| Rednev (rednev.com) | 199 · 299 · 399 · 599 · 999 | pedidos/mês (1k a 16k); nada sai sem aprovação | sim (reclamações) | 3–7 dias; anual 2 meses grátis |
+| TrueSeller (trueseller.software/br; cobra como compra internacional) | 139 · 249 · 339 · 499 | vendas/mês; 2 a 5 contas; tudo liberado | sim, em todos | 15 dias; anual −30% |
+| Real Trends (real-trends.com/br) | 92 a 356 | vendas/mês; suíte completa de gestão | mensagens | 30 dias; anual −20% |
+
+### SAC enterprise / multicanal (referência de teto)
+GoBots 699 · 999 · 1.599 · 2.499 · 3.799 por faturamento + setup R$ 2.000 · Predize a partir de 879 (oferta 570 anual com
+150 respostas de IA) · Zaapi 1.300 + 400 por marketplace · Vechat 149,90–349,90 anual (IA nas perguntas do ML só no topo)
+· Atendente.AI ML só no Pro (499 anual) · Promp ML só no Prime (2.497).
+
+### Gestão/ERP com IA nas perguntas (adjacentes)
+QuantumOps 97/147/490/1.490 · MeliPilot 97/297/897 · Ryzo grátis/49/89/150 (chave de IA do cliente) · Fluv Hub
+197/697/1.297 · ADS Premium 0/99,90/249,99/499,99 · Seconds 79,90–189,97 · UpSeller (regras, grátis) · sem preço público:
+Hub.IA360, Bunker, Vendedor Alfa, SellSync, Magis5, Ideris, Olist, Anymarket. O próprio Mercado Livre dá de graça a
+"resposta sugerida" por IA, o assistente de vendedores e o assistente de pós-venda (reclamações).
+
+### Leituras
+- Âncora do mercado: entrada **R$ 97**, meio **R$ 160–250**, topo **R$ 300–500**. Acima disso é SAC enterprise com reunião.
+- Pós-venda como diferencial do plano superior é padrão (Zelure: 97 → 247).
+- Limite por perguntas (AgilizaPRO, SellerChat, LiveDesk) × por vendas (Vantaro, TrueSeller, Rednev, Real Trends) ×
+  ilimitado (Ginte). "Ilimitado" virou argumento de venda.
+- Custo de IA da maanu por resposta (gpt-6-luna): menos de R$ 0,01 (estimativa; conferir no painel admin › Uso de IA).
+  O limite é cerca de valor/segmentação, não de custo.
+- Volume da v1 (CEREBRO §6.2 e Sessão 14, ~2.680 perguntas desde abril): a conta mais ativa ~1.630 (≈ 300/mês), a 2ª
+  831 em 5 meses (≈ 170/mês) e as outras 5 contas ~220 no total. 300 respostas/mês cobrem com folga o pequeno vendedor.
+
+### Proposta da IA (para o Breno decidir)
+| | Essencial | Pro (destaque) | Escala |
+|---|---|---|---|
+| Mensal / no anual (2 meses grátis) | R$ 97 / R$ 81 | R$ 197 / R$ 164 | R$ 397 / R$ 331 |
+| Respostas automáticas da IA por mês (perguntas + pós-venda) | 300 | 1.500 | 5.000 (+R$ 0,05 por resposta acima) |
+| Contas do ML | 1 | 3 | 10 |
+| Pós-venda com IA | — | ✓ | ✓ |
+| Usuários da equipe (a construir) | 1 | 3 | 10 |
+| Sugestões de melhoria de anúncio (a construir) | — | 20/mês | 100/mês |
+| Relatório mensal por e-mail e vendas geradas pelas respostas (a construir) | — | ✓ | ✓ |
+| Suporte | e-mail | WhatsApp | prioritário + configuração assistida |
+- Iguais em todos: IA nas perguntas completa (Assistente, modo cuidadoso ou "Responder sempre", ensinar, bloqueios),
+  caixa de entrada, Painel e Resultados. Conta extra no Pro/Escala: R$ 39/mês.
+- Conta como resposta: pergunta respondida pela IA (inclusive mensagem padrão) e mensagem de pós-venda enviada pela IA.
+  Não contam: sugestão da IA, Testar, resposta manual, pergunta escalada e as pendentes respondidas ao conectar a conta.
+- No limite (Essencial/Pro): aviso em 80% e 100%; depois as perguntas vão para o vendedor (nada se perde), com "subir de
+  plano" ou pacote de +500 respostas por R$ 29.
+- Teste grátis de 7 dias com o Pro (pós-venda incluído), 1 conta e teto de 300 respostas.
+- Código a mudar: hoje o pós-venda é liberado por `plan = 'essencial'` (Sessão 11); passaria para `pro`.
+
+### Decisão do Breno (Sessão 20, 2026-10-13) — implementada
+Nomes **Starter / Pro / Escala**; Starter com **500** respostas; sem "usuários da equipe"; Escala com 5.000 e **sem**
+excedente pago; relatórios em todos os planos (não é diferencial). O resto da proposta acima ficou como estava (preços,
+anual com 2 meses grátis, contas, pós-venda a partir do Pro, melhorias 20/100, suporte). Teste grátis = tudo do Pro com 1
+conta, 500 respostas e 3 análises (decisão da IA). Gateway: AbacatePay. Detalhes: `docs/superpowers/specs/2026-10-13-planos-design.md`.

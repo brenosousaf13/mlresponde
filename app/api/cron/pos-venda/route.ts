@@ -4,7 +4,7 @@ import { NextResponse, type NextRequest } from "next/server"
 
 import { processDueConversations, reconcileWaitingConversations, syncUnreadConversations } from "@/lib/after-sale/engine"
 import { serverEnv } from "@/lib/env"
-import { PLANS } from "@/lib/plans/plans"
+import { organizationIncludes } from "@/lib/plans/plans"
 import { createServiceClient } from "@/lib/supabase/admin"
 
 export const dynamic = "force-dynamic"
@@ -18,10 +18,6 @@ function authorized(request: NextRequest) {
   return expected.length === received.length && timingSafeEqual(expected, received)
 }
 
-/** Planos com pós-venda (para a rotina de segurança só olhar as contas que podem usar). */
-const AFTER_SALE_PLANS = Object.values(PLANS)
-  .filter((plan) => plan.features.includes("pos_venda"))
-  .map((plan) => plan.id)
 
 /**
  * Pós-venda (Vercel Cron a cada minuto, só em produção): fila de conversas; a cada 15 minutos também confere as
@@ -35,14 +31,18 @@ export async function GET(request: NextRequest) {
   let reconciled = 0
   if (new Date().getUTCMinutes() % 15 === 0) {
     reconciled = await reconcileWaitingConversations(10)
-    const { data: accounts, error } = await createServiceClient()
+    // Só as contas cujo plano em vigor inclui o pós-venda (Pro, Escala, interno ou teste grátis).
+    const { data: candidates, error } = await createServiceClient()
       .from("ml_accounts")
-      .select("id, organizations!inner(plan)")
+      .select("id, organizations!inner(plan, subscription_status, trial_ends_at)")
       .eq("status", "active")
       .eq("after_sale_enabled", true)
-      .in("organizations.plan", AFTER_SALE_PLANS)
-      .limit(25)
+      .order("updated_at", { ascending: true })
+      .limit(200)
     if (error) throw error
+    const accounts = candidates
+      .filter((account) => account.organizations && organizationIncludes(account.organizations, "pos_venda"))
+      .slice(0, 25)
     for (const account of accounts) {
       try {
         synced += (await syncUnreadConversations(account.id)).length

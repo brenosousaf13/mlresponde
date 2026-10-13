@@ -22,6 +22,8 @@ import type {
   AdminOverview,
 } from "@/lib/admin/types"
 import { serverEnv } from "@/lib/env"
+import { answersLimit, resolvePlan, type BillingCycle } from "@/lib/plans/plans"
+import { quotaStatus, usagePeriod } from "@/lib/plans/usage"
 import { periodRange } from "@/lib/results/metrics"
 import { aiKeysEncryption } from "@/lib/security/keys"
 import { createServiceClient } from "@/lib/supabase/admin"
@@ -140,6 +142,45 @@ export async function getAdminOrganization(id: string): Promise<AdminOrgDetail |
   const { data, error } = await supabase.rpc("admin_organization_detail", { p_organization_id: id })
   if (error) throw error
   return (data as unknown as AdminOrgDetail | null) ?? null
+}
+
+/** Plano em vigor e uso dos limites de uma organização (mês do calendário ou o teste grátis inteiro). */
+export async function getAdminOrganizationPlan(org: {
+  organization_id: string
+  plan: string | null
+  subscription_status: string
+  trial_ends_at: string
+  created_at: string
+}) {
+  await requireAdmin()
+  const plan = resolvePlan(org)
+  const period = usagePeriod(plan, { createdAt: org.created_at, trialEndsAt: org.trial_ends_at })
+  const supabase = await createClient()
+  const { data, error } = await supabase.rpc("admin_organization_usage", {
+    p_organization_id: org.organization_id,
+    p_from: period.from.toISOString(),
+    p_to: period.to.toISOString(),
+  })
+  if (error) throw error
+  const usage = (data ?? {}) as {
+    monthly_answers_limit?: number | null
+    billing_cycle?: string | null
+    answers?: number
+    improvements?: number
+  }
+  const override = usage.monthly_answers_limit ?? null
+  const billingCycle: BillingCycle | null =
+    usage.billing_cycle === "monthly" || usage.billing_cycle === "annual" ? usage.billing_cycle : null
+  return {
+    plan,
+    period,
+    monthlyAnswersLimit: override,
+    billingCycle,
+    answers: quotaStatus(Number(usage.answers ?? 0), answersLimit(plan, override)),
+    improvements: plan.features.includes("melhorias_anuncio")
+      ? quotaStatus(Number(usage.improvements ?? 0), plan.limits.listingImprovementsPerMonth)
+      : null,
+  }
 }
 
 export async function getAdminAiUsage(days: number): Promise<AdminAiUsage & { from: Date; to: Date }> {

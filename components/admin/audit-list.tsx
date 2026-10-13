@@ -2,7 +2,7 @@ import Link from "next/link"
 
 import { formatBrl } from "@/lib/admin/format"
 import { AI_KEY_STATUS, AUDIT_FIELDS, SUBSCRIPTION_STATUSES, auditActionLabel } from "@/lib/admin/labels"
-import { planName } from "@/lib/plans/plans"
+import { BILLING_CYCLE_LABELS, planName } from "@/lib/plans/plans"
 import { formatWhatsapp } from "@/lib/validation/forms"
 import type { AdminAuditRow } from "@/lib/admin/types"
 import { formatDateTime } from "@/lib/format"
@@ -14,6 +14,9 @@ const ISO_DATE = /^\d{4}-\d{2}-\d{2}T/
 function show(value: unknown, key?: string): string {
   if (value === null || value === undefined || value === "") return "—"
   if (key === "plan" && typeof value === "string") return planName(value) ?? value
+  if (key === "billing_cycle" && typeof value === "string") {
+    return BILLING_CYCLE_LABELS[value as keyof typeof BILLING_CYCLE_LABELS] ?? value
+  }
   if (key === "subscription_status" && typeof value === "string") {
     return SUBSCRIPTION_STATUSES[value as keyof typeof SUBSCRIPTION_STATUSES] ?? value
   }

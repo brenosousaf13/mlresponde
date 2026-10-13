@@ -33,6 +33,7 @@ export const AI_FEATURES: Record<AiFeatureKey, { label: string; short: string }>
   after_sale_suggestion: { label: "Sugestões do pós-venda", short: "Sugestões PV" },
   after_sale_test: { label: "Testes do agente de pós-venda", short: "Testes PV" },
   key_check: { label: "Testes de chave (painel do administrador)", short: "Teste de chave" },
+  listing_improvement: { label: "Melhorias de anúncio", short: "Melhorias" },
 }
 
 export const AI_KEY_STATUS: Record<"active" | "standby" | "disabled", { label: string; tone: Tone; hint: string }> = {
@@ -98,6 +99,8 @@ export const AUDIT_FIELDS: Record<string, string> = {
   billing_exempt: "Cortesia",
   ml_accounts_limit: "Limite de contas ML",
   monthly_price: "Mensalidade (R$)",
+  monthly_answers_limit: "Respostas automáticas por mês (acordo)",
+  billing_cycle: "Ciclo de cobrança",
   full_name: "Nome",
   whatsapp: "WhatsApp",
   email: "E-mail",

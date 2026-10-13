@@ -41,7 +41,7 @@ const NOTICES: Record<string, { ok: boolean; title: string; message: string }> =
   inativa: {
     ok: false,
     title: "Conta conectada, mas desativada",
-    message: "Seu plano já está no limite de contas ativas. Desative outra conta para ativar esta.",
+    message: "Seu plano já está no limite de contas ativas. Desative outra conta para ativar esta ou suba de plano em Assinatura.",
   },
   conflito: {
     ok: false,
@@ -82,7 +82,7 @@ export default async function MlAccountsPage({ searchParams }: PageProps<"/conta
     <>
       <PageHeader
         title="Contas do Mercado Livre"
-        description={`${context.mlAccounts.active} de ${limit} conta${limit === 1 ? "" : "s"} ativa${limit === 1 ? "" : "s"} no seu plano.`}
+        description={`${context.mlAccounts.active} de ${limit} conta${limit === 1 ? "" : "s"} ativa${limit === 1 ? "" : "s"} no ${context.plan.id === "trial" ? "teste grátis" : `plano ${context.plan.name}`}.`}
         actions={canManage && accounts.length > 0 ? <ConnectMlDialog /> : undefined}
       />
 

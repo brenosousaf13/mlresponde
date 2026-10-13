@@ -4,7 +4,7 @@
 > inteiro antes de trabalhar e atualizá-lo ao terminar. Se algo aqui divergir do código, o código vence —
 > e este arquivo deve ser corrigido na mesma sessão.
 
-Última atualização: **2026-10-13** (Sessão 18 — tour de boas-vindas e avisos de teste/conta ML redesenhados; Sessão 17 — chaves de IA cadastradas e trocadas pelo painel do administrador; Sessão 16 — textos do cadastro sem falar em cobrança; Sessão 15b — Fase 1 da troca preparada)
+Última atualização: **2026-10-13** (Sessão 20 — planos Starter/Pro/Escala com limites, teste grátis e Melhorias de anúncio; Sessão 19 — pesquisa de preços e proposta de 3 planos; Sessão 18 — tour de boas-vindas e avisos de teste/conta ML redesenhados; Sessão 17 — chaves de IA cadastradas e trocadas pelo painel do administrador; Sessão 16 — textos do cadastro sem falar em cobrança; Sessão 15b — Fase 1 da troca preparada)
 
 ---
 
@@ -76,7 +76,7 @@ novas funcionalidades, segurança multi-tenant de verdade — **desenvolvido em 
   nome, tabela de medidas, dados do catálogo e a descrição inteira (até 20 mil caracteres); falha passageira ao ler a
   descrição faz a fila tentar de novo. Testar mostra "O que a IA leu deste anúncio".
   Spec: `docs/superpowers/specs/2026-10-11-modo-sempre-e-leitura-do-anuncio-design.md`.
-  **Sessão 11 (2026-10-11): Pós-venda com IA, exclusivo do plano Essencial** — menu **Pós-venda** (`/pos-venda`) que só
+  **Sessão 11 (2026-10-11): Pós-venda com IA, exclusivo do plano Essencial** (desde a Sessão 20: planos Pro e Escala e o teste grátis) — menu **Pós-venda** (`/pos-venda`) que só
   aparece para organizações com `plan = 'essencial'` (ou `admin`); caixa de entrada das mensagens de quem já comprou e um
   **agente** que lê a conversa inteira, a venda, o envio (rastreio, previsão) e o anúncio e responde sozinho quando tem certeza
   (limite de 350 caracteres do ML); assuntos delicados ficam com o vendedor (ou o agente acolhe e orienta, se a loja escolher);
@@ -125,6 +125,15 @@ novas funcionalidades, segurança multi-tenant de verdade — **desenvolvido em 
   saíram: o **teste grátis** fica num cartão no rodapé do menu lateral com um anel dos dias que faltam (menu recolhido: só o
   anel; celular: selo no topo) até o teste acabar ou a assinatura ficar ativa; a **conta do ML** vira um cartão no topo do
   conteúdo de todas as páginas, com "Conectar agora", até existir uma conta ativa.
+  **Sessão 20 (2026-10-13): planos Starter, Pro e Escala** (decididos pelo Breno): R$ 97 / 197 / 397 por mês (anual com 2
+  meses grátis: R$ 81 / 164 / 331 por mês), **500 / 1.500 / 5.000 respostas automáticas por mês**, 1 / 3 / 10 contas do ML,
+  **pós-venda a partir do Pro**, **Melhorias de anúncio** 20 (Pro) / 100 (Escala) por mês, suporte e-mail / WhatsApp /
+  prioritário. Relatórios em todos os planos; sem limite de equipe; sem excedente pago no Escala. **Teste grátis = tudo do
+  Pro** com 1 conta, 500 respostas e 3 análises. Limite de respostas conferido **antes de chamar a IA** (acabou → pergunta
+  ou conversa fica com o vendedor, `answers_limit`), avisos a partir de 80%, tela Assinatura nova com os 3 planos
+  (contratação pelo app ainda desligada: o gateway será a **AbacatePay**). Menu novo **Melhorias de anúncio** (`/melhorias`):
+  a IA lê as perguntas de cada anúncio (com as respostas) e o anúncio e sugere o que mudar, com texto pronto para colar e o
+  efeito (perguntas por semana antes × depois). Spec: `docs/superpowers/specs/2026-10-13-planos-design.md`.
 - **Marca:** **maanu** (decisão do Breno, 2026-10-11). Guia de uso, paleta e arquivos em `docs/brand/README.md`; nome,
   assinatura e slogan em `lib/config/site.ts`; logo só pelos componentes de `components/brand/logo.tsx`.
 - P0 de segurança/toggle (§8) **adiados** por decisão do Breno — revisitar antes de abrir para novos clientes.
@@ -210,7 +219,9 @@ app/
     layout.tsx                    # requireOnboardedContext + menu com cadeados (decideSectionAccess)
     actions.ts                    # completeTour
     painel/ perguntas/ resultados/ assistente/ contas/ assinatura/ configuracoes/   # cada page chama requireSection(...)
-    pos-venda/ (+ agente/)        # caixa de entrada do pós-venda e configuração do agente (só plano Essencial)
+    pos-venda/ (+ agente/)        # caixa de entrada do pós-venda e configuração do agente (Pro, Escala e teste grátis)
+    melhorias/ (+ [id]/)          # Melhorias de anúncio (Pro/Escala/teste): anúncios com mais perguntas, analisar, análise
+    melhorias/actions.ts          # analyzeListing (gasta 1 da cota), setSuggestionDone
     pos-venda/actions.ts          # sendReply (FormData com anexos), generateSuggestion, refreshFromMl, retryWithAgent,
                                   # archive/restoreConversation, syncConversations, setAgentEnabled, updateAgentSettings,
                                   # add/deleteAfterSaleExample, testAfterSaleAgent
@@ -302,8 +313,16 @@ lib/
                                   #   aviso de chave recusada (rpc ai_key_report_invalid), leitura para o painel testar
   ai/key-check.ts                 # teste real da chave (resposta mínima no mesmo modelo; registrado como key_check)
   dal/admin.ts                    # requireAdmin (admin + 2 etapas recente), leituras via rpc admin_* com a sessão do admin
-  plans/plans.ts                  # planos e o que liberam (essencial → pos_venda; admin → tudo). Espelho no banco:
-                                  #   plan_includes_after_sale(). featureAccess (admin da plataforma vê tudo)
+  plans/plans.ts                  # PLANOS (puro, testado em tests/unit/plans.test.ts): Starter/Pro/Escala (preços, limites,
+                                  #   suporte), ADMIN_PLAN, TRIAL_PLAN, resolvePlan (plano em vigor), featureAccess,
+                                  #   organizationIncludes, answersLimit, nextPlan, formatPrice. Espelho no banco: §6.1h
+  plans/usage.ts                  # período (mês de Brasília ou teste grátis), quotaStatus (ok/aviso 80%/esgotado), periodText
+  dal/plan.ts                     # countAiAnswers (rpc organization_ai_answers), answersQuotaFor (motores), getPlanUsage
+                                  #   (telas, 1 vez por requisição), countListingImprovements
+  listing-improvements/           # MELHORIAS DE ANÚNCIO: prompt (regras + JSON Schema), parse (valida a saída da IA, feitas),
+                                  #   presentation (rótulos, efeito antes × depois) — puros e testados; ai (runImprovementModel,
+                                  #   raciocínio low) e engine (cota, perguntas, anúncio, reserva, grava)
+  dal/listing-improvements.ts     # ranking de anúncios + histórico; uma análise com as perguntas antes/depois
   after-sale/                     # PÓS-VENDA (puro e testado, salvo engine/ai): text (latin1, 350 caracteres, assinatura),
                                   #   conversation (páginas do ML, pendentes, pack, não lidas, destinatário/agente do ML, erros,
                                   #   motivos de bloqueio), order (venda/envio → resumo da tela e texto da IA), decision
@@ -468,7 +487,7 @@ localmente, definir no terminal).
 
 ### 6.1d v2 — Pós-venda (migração `20261011235900_pos_venda.sql`, aditiva)
 
-- Função `plan_includes_after_sale(plan)` (`essencial`/`admin`; espelho de `lib/plans/plans.ts`) e
+- Função `plan_includes_after_sale(plan)` (desde a Sessão 20: `pro`/`escala`/`admin`/`trial`; espelho de `lib/plans/plans.ts`) e
   `current_user_after_sale_organization_ids()` (security definer): o RLS das 3 tabelas novas exige ser membro **e** o plano.
 - `ml_accounts` + `after_sale_enabled` (**começa false**), `after_sale_instructions` (≤ 4000), `after_sale_confidence_threshold`
   (0,85), `after_sale_sensitive_policy` (`review` padrão | `guide`), `after_sale_signature` (≤ 80).
@@ -540,6 +559,28 @@ localmente, definir no terminal).
 - `ai_usage_events` + `ai_key_id` (FK, `on delete set null`) e `key_source` (`panel|env`, nulo = antes da Sessão 17);
   `feature` ganhou `key_check` (teste de chave pelo painel; CHECK recriado com os mesmos valores + 1).
 - Testado em `supabase/tests/ai_keys_rls.sql` (TESTES_CHAVES_IA_OK).
+
+### 6.1h v2 — Planos e Melhorias de anúncio (migração `20261013140000_planos.sql`, Sessão 20)
+
+- `organizations` + `monthly_answers_limit` (nulo = limite do plano; acordo do administrador) e `billing_cycle`
+  (`monthly|annual`, nulo = sem assinatura).
+- Espelhos de `lib/plans/plans.ts`: `plan_includes_after_sale` (pro, escala, admin, trial), `plan_ml_accounts_limit`
+  (starter 1, pro 3, escala 10, admin 10, trial 1), `organization_plan_id(plan, status, fim do teste)` (plano cadastrado ou
+  `trial`). `current_user_after_sale_organization_ids()` usa o plano em vigor (o teste grátis vê o pós-venda).
+- Gatilhos em `organizations`: trocar o plano sem mexer no limite de contas → limite do plano novo
+  (`organizations_apply_plan_limits`); limite menor → contas ativas mais novas acima dele ficam `inactive`
+  (`organizations_enforce_active_accounts`, nada é apagado).
+- `organization_ai_answers(org, de, até)` (security invoker): perguntas `answered` com `answer_source = 'ai'` +
+  `ml_conversation_messages.source = 'ai'` no período. Índices parciais `ml_questions_org_ai_answered_idx` e
+  `ml_conversation_messages_org_ai_sent_idx`. `review_reason` (perguntas e pós-venda) ganhou `answers_limit`;
+  `ai_usage_events.feature` ganhou `listing_improvement` (CHECKs recriados com os mesmos valores + 1).
+- `listing_improvements` (1 linha por análise): conta/anúncio, título/foto/link, `status` `processing|ready`,
+  `questions_analyzed`, período das perguntas, `result` jsonb validado ({summary, suggestions}), `done_suggestions int[]`,
+  modelo, quem pediu. Índice único de `processing` por anúncio. RLS: membros leem (`current_user_organization_ids`); escrita
+  só service role. `listing_question_ranking(org, desde, conta?, limite)` (security invoker): anúncios com mais perguntas.
+- Painel admin: `admin_organization_usage(org, de, até)` (limite/ciclo + respostas e análises no período) e
+  `admin_update_organization` aceita `monthly_answers_limit` e `billing_cycle`. Grants explícitos em tudo.
+- Testado em `supabase/tests/planos_rls.sql` (TESTES_PLANOS_OK); `pos_venda_rls.sql` atualizado (B = Starter).
 
 ### 6.2 v1 — produção (✅ CONFIRMADO em 2026-10-11)
 
@@ -681,7 +722,7 @@ exportação só faz GET e a importação recusa qualquer destino que não seja 
    A "Sugestão da IA" na caixa de entrada sempre usa o modo cuidadoso.
 - Realtime no navegador: chamar `supabase.realtime.setAuth(access_token)` antes de assinar (sem isso o RLS bloqueia os eventos).
 
-### 7.0c v2 — Pós-venda (plano Essencial)
+### 7.0c v2 — Pós-venda (planos Pro e Escala e teste grátis; era "Essencial" até a Sessão 20)
 1. ML → webhook `topic=messages` (`actions` com `created`) → só contas cujo plano inclui pós-venda → 200 → `after()`:
    `GET /messages/{id}` → pack (`message_resources`) → `registerConversation` → `processConversation`.
    Também entram: "Sincronizar com o ML" e conexão da conta (`/messages/unread`), cron (fila 1/min; a cada 15 min não lidas
@@ -695,6 +736,17 @@ exportação só faz GET e a importação recusa qualquer destino que não seja 
 4. Envio manual reserva a conversa por 90 s (o agente não responde junto), relê o ML antes, aceita até 5 anexos (4 MB) e pode
    ensinar o agente (`after_sale_examples`).
 - Detalhes e limites: `docs/superpowers/specs/2026-10-11-pos-venda-design.md`.
+
+### 7.0c2 v2 — Limites do plano e Melhorias de anúncio (Sessão 20)
+1. Antes de chamar a IA, `processQuestion` e o pós-venda conferem `answersQuotaFor` (respostas da IA no mês de Brasília ou no
+   teste grátis × `monthly_answers_limit` ou o do plano). Esgotado → `needs_review` com `answers_limit` (sem IA). O layout
+   mostra o aviso a partir de 80% (`answersUsageNotice`); Painel e Assinatura mostram a barra.
+2. `/melhorias`: `listing_question_ranking` (90 dias) → "Analisar" (`analyzeListing`) → `generateListingImprovement`:
+   confere plano/cota (prontas + reservas de até 10 min), lê até 120 perguntas do anúncio com a resposta enviada, apaga reserva
+   abandonada, cria a reserva `processing`, lê o anúncio no ML (`fetchItemContext`), chama a IA (`runImprovementModel`,
+   `listing_improvement`) e grava `ready`; erro → apaga a reserva (cota não é gasta) e mostra a mensagem.
+3. `/melhorias/[id]`: resumo, sugestões (Copiar texto, "Já fiz" → `setSuggestionDone`) e efeito (perguntas/semana 30 dias
+   antes × depois, a partir de 7 dias).
 
 ### 7.0d v2 — Painel do administrador (`/admin`)
 1. Entrar normalmente em `/login` com o usuário admin → menu do usuário → **Painel do administrador** (ou abrir `/admin`).
@@ -1006,11 +1058,12 @@ Decisões de **produto** (preços, planos, textos legais, marca, WhatsApp) conti
   `knowledge_base` da v1 para "Outras informações" e os `training_examples` para respostas ensinadas.
 - ✅ **2c. Dados de cobrança no cadastro** (CPF/CNPJ + endereço) — implementado em 2026-10-11 (spec
   `2026-10-11-dados-cobranca-design.md`). Base para o sub-projeto 4 (gateway e nota fiscal leem `billing_profiles`).
-- ✅ **3a. Pós-venda com IA** (primeiro módulo do sub-projeto 3, exclusivo do plano Essencial) — implementado em 2026-10-11
+- ✅ **3a. Pós-venda com IA** (primeiro módulo do sub-projeto 3; desde a Sessão 20 nos planos Pro e Escala) — implementado em 2026-10-11
   (spec `2026-10-11-pos-venda-design.md`). Pendências: teste com conta ML real com venda; reclamações/mediações pela API de
   claims; números do pós-venda em Resultados; definir se o teste grátis inclui o pós-venda.
-- ⏭️ **Próximo (sugestão):** migração de dados v1 → v2 + plano de cutover, ou sub-projeto 4 (planos/cobrança — os planos
-  agora já têm onde morar: `lib/plans/plans.ts` + `organizations.plan`) — decidir com o Breno.
+- ✅ **3b. Melhorias de anúncio** (Pro e Escala) e ✅ **4a. Planos e limites** (Starter/Pro/Escala, teste grátis, contador de
+  respostas, avisos, Assinatura nova, painel admin) — Sessão 20 (spec `2026-10-13-planos-design.md`).
+- ⏭️ **Próximo:** **4b. Cobrança pela AbacatePay** (contratar/trocar/cancelar pelo app, webhooks atualizando a assinatura).
 - ⏳ 3. Módulos de IA/gestão · ⏳ 4. Comercial (planos, Stripe/gateway, admin).
 
 **Referências:**
@@ -1058,8 +1111,9 @@ Decisões de **produto** (preços, planos, textos legais, marca, WhatsApp) conti
   Enterprise R$ 299 (5.000, 10 contas); anual −17%.
 
 ### Pontos em aberto (decidir no design)
-- Gateway de pagamento (Stripe, como o AgilizaPRO, ou Mercado Pago/Asaas) e nota fiscal → sub-projeto 4.
-- Planos da maanu (limites por perguntas, contas ML, módulos de IA) → sub-projeto 4.
+- ~~Gateway de pagamento~~ → **AbacatePay** (decisão do Breno, Sessão 20; docs `https://docs.abacatepay.com`). Falta nota fiscal.
+- ~~Planos da maanu~~ → decididos e implementados na Sessão 20 (Starter/Pro/Escala). **Pesquisa de 2026-10-13 (Sessão 19)**
+  com 30+ concorrentes e proposta de 3 planos em `docs/v2/referencias-mercado.md` (aguardando decisão do Breno).
 - WhatsApp: obrigatório no onboarding? provedor? → sub-projetos 1/2.
 - Login com Google no cadastro? → sub-projeto 1.
 - Clientes atuais da v1 (7 usuários): como entram nos planos no cutover (ex.: período de cortesia) → sub-projeto 1.
@@ -1175,10 +1229,58 @@ webhook do ML validado, fila/reprocessamento de jobs, observabilidade, controle 
 | 2026-10-13 | Tour de boas-vindas em **duas colunas com as ilustrações do Breno**, etapas nomeadas clicáveis, "Pular" e voltar; clicar fora não fecha (Esc e "Pular" fecham e gravam como visto) | Pedido do Breno: estava idêntico ao AgilizaPRO (modal pequeno com ícone, "Passo X de 4" e bolinhas). Clicar fora sem querer pulava a apresentação. |
 | 2026-10-13 | Teste grátis sai do topo e vai para um **cartão no rodapé do menu lateral** (anel com os dias; menu recolhido = só o anel; celular = selo no topo); conta do ML vira **cartão no topo do conteúdo**; nenhum dos dois pode ser fechado | Pedido do Breno: continuar sempre visíveis, mas sem as faixas de largura total do AgilizaPRO. Menu lateral é o padrão de SaaS para "dias de teste" e fica visível em todas as páginas; a conexão do ML é o passo que trava a plataforma, então fica no conteúdo com o botão de conectar. |
 | 2026-10-13 | Aviso de conta bloqueada distingue teste encerrado, pagamento pendente e assinatura inativa | Antes dizia "Seu período de teste terminou" até para quem já tinha assinado; prepara o sub-projeto 4 (cobrança). |
+| 2026-10-13 | **Planos Starter (R$ 97), Pro (R$ 197) e Escala (R$ 397)**; anual = 10 mensalidades; 500/1.500/5.000 respostas automáticas por mês; 1/3/10 contas; pós-venda a partir do Pro; Melhorias de anúncio 20/100 por mês; suporte e-mail/WhatsApp/prioritário | Decisão do Breno sobre a proposta da Sessão 19. Riscou: usuários da equipe, excedente pago do Escala e relatório como diferencial (relatórios em todos os planos). |
+| 2026-10-13 | **Teste grátis = tudo do Pro**, com 1 conta, 500 respostas e 3 análises no período do teste (sem plano + `trialing` no prazo = plano `trial`) | Decisão da IA, seguindo a proposta da Sessão 19 (o Breno não comentou): mostrar o produto completo converte mais. Muda em `TRIAL_PLAN` + `plan_includes_after_sale`. |
+| 2026-10-13 | Limite de respostas: mês do calendário de Brasília (no teste, o teste inteiro); acabou → pergunta/conversa fica com o vendedor (`answers_limit`), sem IA; aviso a partir de 80%; conta toda resposta enviada pela IA (inclusive mensagem padrão e as pendentes ao conectar), não conta sugestão/teste/manual | Simples de explicar ("renova dia 1º") e nada se perde. Limite "mole" (sem reserva) para não complicar o motor. Contar as pendentes ao conectar: é trabalho que a IA fez. |
+| 2026-10-13 | Plano desconhecido, cortesia sem plano ou teste vencido usam o **Starter como base** | Nunca deixar a IA sem limite nem dar extras por engano; cortesia deve ganhar um plano no painel. |
+| 2026-10-13 | Baixar o limite de contas **desativa as contas ativas mais novas** acima dele (gatilho no banco) | Sem isso, quem desce de plano manteria as contas extras funcionando. Nada é apagado; o cliente reativa a que quiser dentro do limite. |
+| 2026-10-13 | Administrador pode definir um **acordo** de respostas por mês (`monthly_answers_limit`) e o ciclo (mensal/anual); escolher o plano no painel preenche contas e mensalidade | Escala sem excedente pago: casos acima de 5.000 viram acordo. MRR continua em `monthly_price` até o gateway. |
+| 2026-10-13 | **Melhorias de anúncio**: a IA lê as perguntas do anúncio **com as respostas enviadas** + o anúncio e devolve até 6 sugestões com texto pronto; 1 análise = 1 da cota; mínimo 3 perguntas; a maanu não altera o anúncio; mede o efeito (perguntas/semana antes × depois) | Ideia do Breno (perguntas mais feitas → melhorar o anúncio). As respostas são a melhor fonte do que falta; texto pronto e efeito medido mostram valor. Alterar o anúncio pela API fica para depois (risco de apagar conteúdo do vendedor). |
+| 2026-10-13 | Análise de anúncio com `gpt-6-luna` e **raciocínio `low`** (as respostas seguem sem raciocínio) | Volume baixo (até 100/mês por cliente) e a qualidade importa mais; teste real ~7 s. |
+| 2026-10-13 | Contratação pelo app só com o gateway (**AbacatePay**, decisão do Breno); até lá o botão "Assinar" aparece desativado ("em breve") e o administrador ativa o plano no painel | Não há chave nem conta de pagamento configurada ainda; o catálogo já tem preços mensal/anual para virar produtos (`externalId`). |
 
 ---
 
 ## 12. Diário de sessões (mais recente no topo)
+
+### 2026-10-13 — Sessão 20 · Planos Starter/Pro/Escala, limites e Melhorias de anúncio (IA: Claude, via app Codex)
+- Pedido do Breno: implementar os planos que ele definiu sobre a proposta da Sessão 19 (nomes Starter, Pro e Escala; Starter
+  com 500 respostas; sem "usuários da equipe"; sem excedente no Escala; relatórios não são diferencial), pós-venda a partir
+  do Pro, criar/melhorar as **sugestões de melhoria de anúncio** a partir das perguntas mais feitas e publicar na v2. Gateway
+  futuro: AbacatePay (só para conhecimento). Spec: `docs/superpowers/specs/2026-10-13-planos-design.md`.
+- Banco (produção `ookosqyfazobiwmopiix`): migração `20261013140000_planos.sql` (§6.1h) **validada antes** junto com cada um
+  dos 8 testes SQL numa transação desfeita (conferido que nada ficou), depois `db push` (dry-run antes). Tipos regenerados.
+  Os 8 testes SQL passam depois do push (`planos_rls.sql` novo; `pos_venda_rls.sql` com a organização B no Starter, porque o
+  teste grátis agora inclui o pós-venda).
+- Código: `lib/plans/plans.ts` reescrito (catálogo, plano em vigor, teste grátis, preços), `lib/plans/usage.ts`,
+  `lib/dal/plan.ts`; limite conferido em `processQuestion` e no pós-venda antes da IA (`answers_limit`); webhook, cron e OAuth do
+  pós-venda usam o plano em vigor (o teste grátis entra); `AppContext` ganhou `plan`, `createdAt`, `trialEndsAt` e
+  `monthlyAnswersLimit`; avisos de 80%/esgotado no topo; Painel, Assinatura (plano, uso e os 3 planos com Mensal/Anual),
+  Contas e Resultados atualizados; painel admin (plano preenche contas/mensalidade, ciclo, acordo de respostas, ficha com uso,
+  histórico com os campos novos). Melhorias de anúncio: `lib/listing-improvements/*`, `lib/dal/listing-improvements.ts`,
+  `/melhorias` e `/melhorias/[id]`, `components/melhorias/*`, `components/plans/*`.
+- IA real: `tests/integration/listing-improvement-live.test.ts` passou (mesa lateral com 12 perguntas: medidas com os números
+  das respostas do vendedor, montagem e material dos pés; ignorou desconto e perguntas isoladas; ~7 s). Chave lida pela API da
+  Vercel só na memória do processo.
+- QA no navegador (servidor local → banco de produção, loja temporária "Loja QA Planos" com conta ML fictícia, 41 perguntas e
+  1 análise): Painel com aviso de 82%, Assinatura (Pro/anual/Starter/teste grátis), limite esgotado, Melhorias (lista, erro
+  sem tokens sem gastar cota, análise, "Já fiz"), Starter redirecionando para Assinatura com o aviso, Resultados com o
+  rodapé, celular 390 px. Ajustes no caminho: passos e tabela no celular, contas no limite sem vermelho, textos dos planos.
+  **Tudo apagado no fim** (usuário, organização, conta, perguntas, análise; script e arquivos temporários).
+- Verificação: typecheck, 366 testes, lint 0, build ok.
+
+### 2026-10-13 — Sessão 19 · Pesquisa de preços dos concorrentes e proposta de planos (IA via app Codex)
+- Pedido do Breno: pesquisar plataformas brasileiras parecidas com a maanu (IA respondendo nos marketplaces), levantar
+  preços e planos e propor 3 níveis; ideia dele: pós-venda no plano superior e limite de perguntas por plano.
+- Lidos os sites oficiais de ~30 plataformas (preços públicos em 2026-10-13): diretos (AgilizaPRO, Zelure, Vantaro,
+  SellerChat, Ginte, LiveDesk, AnswerForMe, SmartSelling, Otto, Rednev, TrueSeller, Real Trends), SAC enterprise (GoBots,
+  Predize, Zaapi, Vechat, Atendente.AI, Promp) e gestão/ERP com IA (QuantumOps, MeliPilot, Ryzo, Fluv Hub, ADS Premium,
+  Seconds, UpSeller e outros sem preço público). Tabela e leituras em `docs/v2/referencias-mercado.md`.
+- Proposta (não decidida): Essencial R$ 97 (300 respostas, 1 conta, sem pós-venda) · Pro R$ 197 (1.500, 3 contas,
+  pós-venda) · Escala R$ 397 (5.000 + excedente, 10 contas); anual com 2 meses grátis; teste de 7 dias com o Pro.
+  Exigiria renomear o plano que libera o pós-venda (hoje `essencial`) e construir: contador/limite de respostas, cobrança
+  (sub-projeto 4), equipe, melhorias de anúncio e relatório mensal.
+- Só documentação; nada no código nem no banco.
 
 ### 2026-10-13 — Sessão 18 · Tour de boas-vindas e avisos com visual próprio (IA: Claude, via app Codex)
 - Pedido do Breno: usar as 4 imagens novas (`passo1..4.png`, colocadas na raiz) no tour do primeiro acesso, deixar o tour mais
@@ -1603,6 +1705,19 @@ webhook do ML validado, fila/reprocessamento de jobs, observabilidade, controle 
 
 ## 13. Próximos passos
 
+0e. **Breno — conferir os planos (Sessão 20) em `maanu.com.br`:** Assinatura (seu plano, uso e os 3 planos), menu Melhorias de
+   anúncio (precisa de conta ML conectada com perguntas) e, no painel admin, "Editar assinatura" (escolher o plano preenche
+   contas e mensalidade; campos Ciclo e Respostas por mês). Confirmar: (a) **teste grátis = tudo do Pro** com 1 conta, 500
+   respostas e 3 análises (decisão da IA); (b) o que acontece no limite (perguntas vão para o vendedor; sem pacote extra);
+   (c) itens de plano escondidos no menu para quem não tem (ou mostrar com cadeado como vitrine); (d) passar o **e-mail e o
+   WhatsApp de suporte** para aparecerem em Assinatura. O cliente "Descomplicasa" está em teste (vai até 20/10) e já vê
+   Pós-venda e Melhorias; a "Loja Maanu" (admin) não tem limites.
+0d. ✅ (Sessão 20) Planos decididos pelo Breno e implementados. **Próximo: cobrança pela AbacatePay** (sub-projeto 4b): criar
+   na AbacatePay os produtos com `cycle` MONTHLY/ANNUALLY e `externalId` (ex.: `pro_mensal`, `pro_anual`), chave de API
+   (variável sensível na Vercel) e webhook HTTPS com segredo (`subscription.completed/renewed/plan_changed/payment_failed/
+   cancelled` → `plan`, `billing_cycle`, `subscription_status`, `current_period_end`, `monthly_price`); botão "Assinar" da
+   Assinatura vira o checkout; troca de plano usa `/subscriptions/change-plan` (mesmo ciclo). Precisa do Breno: conta
+   AbacatePay e as chaves (dev e produção).
 0c. **Breno — conferir o tour e os avisos novos (Sessão 18) em `maanu.com.br`:** criar uma conta de teste (ou zerar o
    `tour_completed_at` do seu perfil no banco para rever o tour) e ver os 4 passos com as imagens, o cartão do teste no rodapé
    do menu (e o selo no topo, no celular) e o cartão "Conecte sua conta do Mercado Livre" no topo. Dizer se prefere o aviso do
@@ -1656,11 +1771,11 @@ webhook do ML validado, fila/reprocessamento de jobs, observabilidade, controle 
    de novo lá. (d) Quando comprar o domínio, decidir se o painel vai para `admin.<domínio>` (variável `ADMIN_HOST`,
    Preview + Production, e domínio apontado na Vercel).
 1. ✅ Infra de staging, inventário de prod, baseline, **Fundação** (sub-projeto 1) e **Respostas v2** (sub-projeto 2).
-1b. **Breno: Pós-venda (plano Essencial).** (a) No app ML de **teste** (DevCenter), conferir o tópico **`messages`** marcado
+1b. **Breno: Pós-venda (planos Pro/Escala e teste grátis desde a Sessão 20).** (a) No app ML de **teste** (DevCenter), conferir o tópico **`messages`** marcado
    e as permissões **Comunicações pré e pós-vendas** e **Venda e envios** (leitura e escrita) — sem isso o agente não recebe
    nada; se mudar permissões, reconectar a conta. (b) Para testar na staging, a organização precisa do plano: entrar com o
    login admin (a "Loja Demonstração" tem `plan='admin'` e já vê o menu) ou rodar no Supabase de **testes**
-   `update organizations set plan = 'essencial' where id = '<id da organização>';`. (c) Teste real: com uma conta ML de
+   `update organizations set plan = 'pro' where id = '<id da organização>';`. (c) Teste real: com uma conta ML de
    teste segura, fazer uma compra a partir de outra conta de teste, mandar mensagem pela compra, ligar o agente em
    `/pos-venda/agente` e ver a resposta em Pós-venda. (d) Decidir: o teste grátis inclui o pós-venda? O menu deve aparecer
    com cadeado para quem não tem o plano (vitrine) ou continuar escondido? Preço/limites do Essencial.

@@ -58,7 +58,7 @@ export async function setMlAccountStatus(
       const limit = context.organization.mlAccountsLimit
       return {
         ok: false,
-        message: `Seu plano permite ${limit} conta${limit === 1 ? "" : "s"} ativa${limit === 1 ? "" : "s"}. Desative outra conta antes.`,
+        message: `Seu plano permite ${limit} conta${limit === 1 ? "" : "s"} ativa${limit === 1 ? "" : "s"}. Desative outra conta antes ou suba de plano em Assinatura.`,
       }
     }
     throw error

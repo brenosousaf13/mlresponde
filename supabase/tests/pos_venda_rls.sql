@@ -24,10 +24,14 @@ begin
 
   select organization_id into v_org_a from public.organization_members where user_id = v_user_a;
   select organization_id into v_org_b from public.organization_members where user_id = v_user_b;
-  update public.organizations set plan = 'essencial' where id = v_org_a;
+  update public.organizations set plan = 'pro' where id = v_org_a;
+  -- B: plano sem pós-venda (o teste grátis inclui o pós-venda desde a Sessão 20).
+  update public.organizations set plan = 'starter' where id = v_org_b;
 
-  if not public.plan_includes_after_sale('Essencial') or public.plan_includes_after_sale(null)
-     or public.plan_includes_after_sale('starter') then
+  if not public.plan_includes_after_sale('Pro') or not public.plan_includes_after_sale('escala')
+     or not public.plan_includes_after_sale('trial') or not public.plan_includes_after_sale('admin')
+     or public.plan_includes_after_sale(null) or public.plan_includes_after_sale('starter')
+     or public.plan_includes_after_sale('essencial') then
     raise exception 'FALHA: plan_includes_after_sale';
   end if;
 
@@ -78,7 +82,7 @@ begin
   select count(*) into v_count from public.due_ml_conversations(50) d where d = v_conv_a;
   if v_count <> 1 then raise exception 'FALHA: lock expirado não voltou para a fila'; end if;
 
-  -- usuário A (plano Essencial) vê só o que é dele
+  -- usuário A (plano Pro) vê só o que é dele
   perform set_config('request.jwt.claims', json_build_object('sub', v_user_a, 'role', 'authenticated')::text, true);
   perform set_config('role', 'authenticated', true);
 

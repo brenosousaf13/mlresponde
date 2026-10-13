@@ -13,6 +13,7 @@ import {
   type ReviewReason,
 } from "@/lib/answers/decision"
 import type { PromptInput } from "@/lib/answers/prompt"
+import { answersQuotaFor } from "@/lib/dal/plan"
 import { MlAccountUnavailableError } from "@/lib/mercadolivre/accounts"
 import { MlApiError } from "@/lib/mercadolivre/api"
 import { summarizeItem } from "@/lib/mercadolivre/item"
@@ -31,7 +32,7 @@ type QuestionUpdate = Database["public"]["Tables"]["ml_questions"]["Update"]
 type ServiceClient = ReturnType<typeof createServiceClient>
 
 const ACCOUNT_FIELDS =
-  "id, organization_id, ml_user_id, nickname, status, token_status, auto_reply_enabled, ai_confidence_threshold, answer_tone, answer_mode, fallback_answer, answer_greeting, answer_signature, store_briefing, store_profile, organizations(name, trial_ends_at, subscription_status, current_period_end, billing_exempt)"
+  "id, organization_id, ml_user_id, nickname, status, token_status, auto_reply_enabled, ai_confidence_threshold, answer_tone, answer_mode, fallback_answer, answer_greeting, answer_signature, store_briefing, store_profile, organizations(name, plan, created_at, monthly_answers_limit, trial_ends_at, subscription_status, current_period_end, billing_exempt)"
 
 async function loadAccount(admin: ServiceClient, accountId: string) {
   const { data, error } = await admin.from("ml_accounts").select(ACCOUNT_FIELDS).eq("id", accountId).single()
@@ -182,6 +183,12 @@ export async function processQuestion(questionId: string): Promise<void> {
     const { itemFields, promptInput } = await buildPromptContext(admin, account, row, question)
     if (!account.auto_reply_enabled) {
       await save(admin, row.id, { ...base, ...itemFields, ...review("auto_reply_off") })
+      return
+    }
+    // Limite de respostas automáticas do plano: acabou → fica com o vendedor, sem gastar IA (nada se perde).
+    const quota = await answersQuotaFor(admin, row.organization_id, account.organizations)
+    if (quota.level === "reached") {
+      await save(admin, row.id, { ...base, ...itemFields, ...review("answers_limit") })
       return
     }
 
