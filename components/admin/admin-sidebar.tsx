@@ -5,6 +5,7 @@ import {
   ArrowLeftIcon,
   BotIcon,
   ChevronsUpDownIcon,
+  KeyRoundIcon,
   LayoutDashboardIcon,
   LogOutIcon,
   PanelLeftCloseIcon,
@@ -59,6 +60,7 @@ const MONITOR: Item[] = [
 
 const CONTROL: Item[] = [
   { title: "Operação", href: "/admin/operacao", icon: ActivityIcon },
+  { title: "Chaves de IA", href: "/admin/chaves-ia", icon: KeyRoundIcon },
   { title: "Auditoria", href: "/admin/auditoria", icon: ScrollTextIcon },
 ]
 

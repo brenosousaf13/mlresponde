@@ -1,6 +1,5 @@
 import "server-only"
 
-import OpenAI from "openai"
 import type { ReasoningEffort } from "openai/resources/shared"
 import { z } from "zod"
 
@@ -17,25 +16,18 @@ const resultSchema = z.object({
   reason: z.string(),
 })
 
-let client: OpenAI | null = null
-
-/** Cliente OpenAI compartilhado (perguntas e pós-venda). */
-export function getOpenAIClient() {
-  client ??= new OpenAI({ apiKey: serverEnv.openaiApiKey() })
-  return client
-}
-
 export type AiRun = { result: AiResult; model: string; tokens: number }
 
 /**
  * Chama a IA para uma pergunta. `usage` identifica quem gastou (painel do administrador) e faz a chamada respeitar a
- * pausa geral da IA; `null` só nos testes com a IA real.
+ * pausa geral da IA; `null` só nos testes com a IA real. A chave da OpenAI vem de trackedCompletion (Chaves de IA do
+ * painel → variável OPENAI_API_KEY).
  */
 export async function runAnswerModel(input: PromptInput, usage: AiUsageContext | null): Promise<AiRun> {
   const model = serverEnv.openaiModel()
   const { reasoning_effort, ...options } = answerModelOptions(model)
-  const completion = await trackedCompletion(usage, model, () =>
-    getOpenAIClient().chat.completions.create({
+  const completion = await trackedCompletion(usage, model, (client) =>
+    client.chat.completions.create({
       model,
       messages: buildMessages(input),
       ...options,

@@ -9,6 +9,7 @@ export type AiFeatureKey =
   | "after_sale_answer"
   | "after_sale_suggestion"
   | "after_sale_test"
+  | "key_check"
 
 export type AdminOrgRow = {
   organization_id: string
@@ -367,3 +368,30 @@ export type AdminOperations = {
 }
 
 export type AdminAuditList = { total: number; rows: AdminAuditRow[] }
+
+/** admin_list_ai_keys (migração 20261013012212_chaves_ia.sql). Nunca traz a chave nem o conteúdo criptografado. */
+export type AdminAiKey = {
+  id: string
+  provider: string
+  label: string
+  hint: string
+  status: "active" | "standby" | "disabled"
+  disabled_reason: string | null
+  disabled_at: string | null
+  activated_at: string | null
+  last_checked_at: string | null
+  last_check_ok: boolean | null
+  last_check_error: string | null
+  created_at: string
+  created_by_email: string | null
+  calls_30d: number
+  failed_30d: number
+  cost_30d_usd: number
+  last_used_at: string | null
+}
+
+export type AdminAiKeys = {
+  keys: AdminAiKey[]
+  env: { calls_30d: number; failed_30d: number; cost_30d_usd: number; last_used_at: string | null }
+  recent_events: { created_at: string; action: string; summary: string; actor_email: string | null }[]
+}

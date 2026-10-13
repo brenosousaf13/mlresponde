@@ -1,7 +1,7 @@
 import Link from "next/link"
 
 import { formatBrl } from "@/lib/admin/format"
-import { AUDIT_FIELDS, SUBSCRIPTION_STATUSES, auditActionLabel } from "@/lib/admin/labels"
+import { AI_KEY_STATUS, AUDIT_FIELDS, SUBSCRIPTION_STATUSES, auditActionLabel } from "@/lib/admin/labels"
 import { planName } from "@/lib/plans/plans"
 import { formatWhatsapp } from "@/lib/validation/forms"
 import type { AdminAuditRow } from "@/lib/admin/types"
@@ -16,6 +16,9 @@ function show(value: unknown, key?: string): string {
   if (key === "plan" && typeof value === "string") return planName(value) ?? value
   if (key === "subscription_status" && typeof value === "string") {
     return SUBSCRIPTION_STATUSES[value as keyof typeof SUBSCRIPTION_STATUSES] ?? value
+  }
+  if (key === "status" && typeof value === "string" && value in AI_KEY_STATUS) {
+    return AI_KEY_STATUS[value as keyof typeof AI_KEY_STATUS].label
   }
   if ((key === "monthly_price" || key === "monthly_fixed_costs_brl" || key === "usd_brl_rate") && Number.isFinite(Number(value))) {
     return formatBrl(Number(value))

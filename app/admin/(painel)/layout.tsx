@@ -23,7 +23,8 @@ export default async function AdminPanelLayout({ children }: { children: React.R
         aiPaused={aiPaused}
         appHref={appHomeHref(process.env.ADMIN_HOST, process.env.NEXT_PUBLIC_SITE_URL)}
       />
-      <SidebarInset className="bg-canvas">
+      {/* min-w-0: tabelas largas rolam dentro do próprio cartão em vez de esticar a página. */}
+      <SidebarInset className="min-w-0 bg-canvas">
         {aiPaused ? (
           <Link
             href="/admin/operacao"

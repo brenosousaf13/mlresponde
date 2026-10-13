@@ -12,6 +12,7 @@ import {
   type AdminSessionClaims,
 } from "@/lib/admin/session"
 import type {
+  AdminAiKeys,
   AdminAiUsage,
   AdminAuditList,
   AdminFinance,
@@ -20,7 +21,9 @@ import type {
   AdminOrgList,
   AdminOverview,
 } from "@/lib/admin/types"
+import { serverEnv } from "@/lib/env"
 import { periodRange } from "@/lib/results/metrics"
+import { aiKeysEncryption } from "@/lib/security/keys"
 import { createServiceClient } from "@/lib/supabase/admin"
 import { createClient } from "@/lib/supabase/server"
 
@@ -165,6 +168,27 @@ export async function getAdminOperations(): Promise<AdminOperations> {
   const { data, error } = await supabase.rpc("admin_operations")
   if (error) throw error
   return data as unknown as AdminOperations
+}
+
+export type AdminAiKeysPage = AdminAiKeys & {
+  setup: { encryption: "ok" | "missing" | "invalid"; envConfigured: boolean; model: string }
+}
+
+/** Chaves de IA do painel (sem o valor) + o que está configurado no servidor (chave-mestra, variável, modelo). */
+export async function getAdminAiKeys(): Promise<AdminAiKeysPage> {
+  await requireAdmin()
+  const supabase = await createClient()
+  const { data, error } = await supabase.rpc("admin_list_ai_keys")
+  if (error) throw error
+  const encryption = aiKeysEncryption()
+  return {
+    ...(data as unknown as AdminAiKeys),
+    setup: {
+      encryption: encryption.ok ? "ok" : encryption.reason,
+      envConfigured: Boolean(serverEnv.openaiApiKey()),
+      model: serverEnv.openaiModel(),
+    },
+  }
 }
 
 export const AUDIT_PAGE_SIZE = 50

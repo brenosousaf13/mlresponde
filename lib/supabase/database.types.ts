@@ -207,8 +207,66 @@ export type Database = {
           },
         ]
       }
+      ai_provider_keys: {
+        Row: {
+          activated_at: string | null
+          created_at: string
+          created_by: string | null
+          disabled_at: string | null
+          disabled_reason: string | null
+          id: string
+          key_ciphertext: string
+          key_fingerprint: string
+          key_hint: string
+          label: string
+          last_check_error: string | null
+          last_check_ok: boolean | null
+          last_checked_at: string | null
+          provider: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          activated_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          disabled_at?: string | null
+          disabled_reason?: string | null
+          id: string
+          key_ciphertext: string
+          key_fingerprint: string
+          key_hint: string
+          label: string
+          last_check_error?: string | null
+          last_check_ok?: boolean | null
+          last_checked_at?: string | null
+          provider?: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          activated_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          disabled_at?: string | null
+          disabled_reason?: string | null
+          id?: string
+          key_ciphertext?: string
+          key_fingerprint?: string
+          key_hint?: string
+          label?: string
+          last_check_error?: string | null
+          last_check_ok?: boolean | null
+          last_checked_at?: string | null
+          provider?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       ai_usage_events: {
         Row: {
+          ai_key_id: string | null
           cached_input_tokens: number
           conversation_id: string | null
           cost_usd: number
@@ -217,6 +275,7 @@ export type Database = {
           feature: string
           id: number
           input_tokens: number
+          key_source: string | null
           latency_ms: number | null
           ml_account_id: string | null
           model: string
@@ -228,6 +287,7 @@ export type Database = {
           total_tokens: number
         }
         Insert: {
+          ai_key_id?: string | null
           cached_input_tokens?: number
           conversation_id?: string | null
           cost_usd?: number
@@ -236,6 +296,7 @@ export type Database = {
           feature: string
           id?: never
           input_tokens?: number
+          key_source?: string | null
           latency_ms?: number | null
           ml_account_id?: string | null
           model: string
@@ -247,6 +308,7 @@ export type Database = {
           total_tokens?: number
         }
         Update: {
+          ai_key_id?: string | null
           cached_input_tokens?: number
           conversation_id?: string | null
           cost_usd?: number
@@ -255,6 +317,7 @@ export type Database = {
           feature?: string
           id?: never
           input_tokens?: number
+          key_source?: string | null
           latency_ms?: number | null
           ml_account_id?: string | null
           model?: string
@@ -266,6 +329,13 @@ export type Database = {
           total_tokens?: number
         }
         Relationships: [
+          {
+            foreignKeyName: "ai_usage_events_ai_key_id_fkey"
+            columns: ["ai_key_id"]
+            isOneToOne: false
+            referencedRelation: "ai_provider_keys"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "ai_usage_events_conversation_id_fkey"
             columns: ["conversation_id"]
@@ -1191,9 +1261,26 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      admin_add_ai_key: {
+        Args: {
+          p_activate?: boolean
+          p_ciphertext: string
+          p_context?: Json
+          p_fingerprint: string
+          p_hint: string
+          p_id: string
+          p_label: string
+        }
+        Returns: Json
+      }
       admin_ai_usage: { Args: { p_from: string; p_to: string }; Returns: Json }
       admin_assert: { Args: never; Returns: undefined }
+      admin_delete_ai_key: {
+        Args: { p_context?: Json; p_key_id: string }
+        Returns: undefined
+      }
       admin_finance: { Args: never; Returns: Json }
+      admin_list_ai_keys: { Args: never; Returns: Json }
       admin_list_audit: {
         Args: {
           p_action_prefix?: string
@@ -1301,6 +1388,19 @@ export type Database = {
         Args: { p_context?: Json; p_ml_account_id: string; p_scope: string }
         Returns: undefined
       }
+      admin_record_ai_key_check: {
+        Args: {
+          p_context?: Json
+          p_error?: string
+          p_key_id: string
+          p_ok: boolean
+        }
+        Returns: undefined
+      }
+      admin_set_ai_key_status: {
+        Args: { p_context?: Json; p_key_id: string; p_status: string }
+        Returns: Json
+      }
       admin_set_organization_notes: {
         Args: { p_context?: Json; p_notes: string; p_organization_id: string }
         Returns: undefined
@@ -1328,6 +1428,18 @@ export type Database = {
           p_target_type: string
         }
         Returns: undefined
+      }
+      ai_key_report_invalid: {
+        Args: { p_error?: string; p_key_id: string }
+        Returns: Json
+      }
+      ai_keys_promote_standby: {
+        Args: { p_except: string; p_provider: string }
+        Returns: {
+          id: string
+          key_hint: string
+          label: string
+        }[]
       }
       analytics_overview: {
         Args: {

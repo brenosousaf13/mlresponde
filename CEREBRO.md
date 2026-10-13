@@ -805,6 +805,12 @@ Projeto `ookosqyfazobiwmopiix` (vai virar a produção da v2). Conferido e corri
   vinculada a outro usuário ao conectá-la; também há risco de CSRF no fluxo de conexão.
 
 ### 🟠 P1
+- ✅ (v2, 2026-10-12, Sessão 17) **Cadastro da verificação em 2 etapas quebrava a tela** ("This page couldn't load") ao clicar
+  em "Gerar QR code": o QR que o Supabase devolve termina em quebra de linha e o `next/image` passou a recusar `src` com
+  espaço no fim. Corrigido com `trimEnd()` em `app/admin/verificacao/actions.ts` (afetava qualquer admin novo ou quem
+  refizesse o autenticador). Conferido no navegador.
+- ✅ (v2, 2026-10-12, Sessão 17) Tabelas largas do painel admin esticavam a página para fora da tela: `SidebarInset` do
+  painel com `min-w-0` (a tabela rola dentro do cartão). Conferido em 1440 e 390 px.
 - ✅ (v2, 2026-10-12, Sessão 14) **Loop de redirecionamento no login** (`ERR_TOO_MANY_REDIRECTS`): usuário apagado ou
   **bloqueado pelo painel do administrador** com sessão ainda no navegador. O `proxy.ts` só confere a assinatura do JWT
   (`getClaims`) e mandava /login → /painel, enquanto a página (`getUser`) mandava de volta para /login. Agora, nas telas
@@ -1143,10 +1149,46 @@ webhook do ML validado, fila/reprocessamento de jobs, observabilidade, controle 
 | 2026-10-12 | `ML_TOKEN_ENCRYPTION_KEY` de produção = a mesma da staging | Staging e produção usam o mesmo banco durante a semana de teste; chaves diferentes fariam um lado não conseguir ler os tokens do outro. Girar quando a staging for desligada (exige reconectar as contas). |
 | 2026-10-12 | E-mails do login em português com link `token_hash` → `/auth/confirm` (`scripts/emails-auth/gerar.mjs`, `supabase/templates/`) + avisos de senha e e-mail alterados | Funciona em qualquer navegador (o cliente costuma abrir o e-mail no celular). Só aplicáveis com SMTP próprio no plano grátis. |
 | 2026-10-12 | Noord Shop e dados de demonstração apagados do banco da v2 | Pedido do Breno (dados literalmente novos). |
+| 2026-10-12 | Chaves de IA **cadastradas no painel do administrador**, criptografadas pelo servidor com chave-mestra só na Vercel (`AI_KEYS_ENCRYPTION_KEY`, separada da do ML); painel só grava, nunca mostra; `OPENAI_API_KEY` vira último recurso | Pedido do Breno (trocar chaves sem deploy). Vazar só o banco ou só a Vercel não expõe as chaves do painel. Supabase Vault descartado: a trava e o conteúdo ficariam no mesmo lugar. Perder a chave-mestra só exige recadastrar as chaves. |
+| 2026-10-12 | Toda chave é **testada de verdade** (resposta mínima no mesmo modelo) antes de entrar em uso ou na reserva; chaves `sk-admin-` recusadas | Evita pôr em produção chave errada, sem permissão ou sem acesso ao modelo; a de administração dá poder sobre a conta inteira da OpenAI. Custo ~US$ 0,000004 por teste (registrado como `key_check`). |
+| 2026-10-12 | Reserva entra **sozinha só no 401** (chave recusada), repetindo a chamada uma vez, com no máximo 1 troca automática a cada 10 min | 401 = problema da chave; outra chave resolve. 429/5xx não: o limite é do projeto/organização, não da chave (várias chaves no mesmo projeto não aumentam capacidade). A trava impede que uma instabilidade da OpenAI queime todas as reservas. |
+| 2026-10-12 | Chave em uso fica **1 minuto** na memória de cada servidor | Evita uma consulta ao banco por pergunta; trocar no painel vale na hora no servidor que trocou e em até 1 min nos outros. |
 
 ---
 
 ## 12. Diário de sessões (mais recente no topo)
+
+### 2026-10-12 — Sessão 17 · Chaves de IA no painel do administrador (IA: Claude, via app Codex)
+- Pergunta do Breno: qual o jeito mais seguro de cadastrar os tokens da IA? Hoje são variável de ambiente e ele vai precisar
+  trocar e variar; pensou num lugar no painel admin. Resposta: dá para fazer seguro se a chave ficar criptografada com uma
+  chave-mestra fora do banco e o painel só gravar; e várias chaves não aumentam o limite da OpenAI (é por projeto). Breno:
+  "pode implementar ... na v2 direto" (produção sem usuários ainda). Spec: `docs/superpowers/specs/2026-10-12-chaves-ia-design.md`.
+- Banco (produção `ookosqyfazobiwmopiix`): migração `20261013012212_chaves_ia.sql` **validada antes** numa transação que
+  terminava em erro (migração + testes juntos, tudo desfeito; conferido que a tabela não ficou), depois `db push` (dry-run
+  antes). Ao rodar os testes de novo depois do QA, a trava de 10 min pegou a troca automática real do QA (histórico imutável)
+  → migração `20261013015035_chaves_ia_trava.sql`: o teste encurta a trava só dentro da própria transação. Os 7 testes SQL
+  passam. Tipos regenerados. §6.1g.
+- Código: `lib/ai/{keys,key-crypto,key-store,key-check}.ts`, `trackedCompletion` agora entrega o cliente OpenAI da chave
+  certa (`runAnswerModel`/`runAfterSaleModel` recebem `(client) => ...`; `getOpenAIClient` removido), registro com
+  `ai_key_id`/`key_source` e erros sem pedaços de chave; `/admin/chaves-ia` (ordem de uso painel → reserva → variável,
+  tabela com teste/uso/custo, cadastrar, ações, boas práticas, últimos eventos), item no menu, filtro "Chaves de IA" na
+  Auditoria, `OPENAI_API_KEY` opcional em `lib/env.ts`. 20 testes unitários novos (inclui a troca automática com banco e
+  OpenAI simulados).
+- Vercel: `AI_KEYS_ENCRYPTION_KEY` gerada (nunca exibida) e criada como **sensível** no projeto `maanu` (Production) e no
+  `mlresponde` (Preview + `v2`); cópia no `.env.local`. (A `OPENAI_API_KEY` do `maanu` já era sensível.)
+- QA local (servidor em `localhost:3100` com a `OPENAI_API_KEY` só no ambiente do processo, lida da Vercel em memória) com um
+  admin temporário (2 etapas cadastrada com código gerado na hora): chave falsa recusada no teste e não salva; chave real
+  testada, salva e em uso; repetida recusada; "Testar agora"; chamada real pelo `trackedCompletion` usando a chave do painel
+  sem `OPENAI_API_KEY` no processo; **troca automática de verdade** (chave falsa posta em uso direto pelo banco → 401 →
+  desativada, reserva assumiu, chamada repetida com sucesso, "por sistema" no histórico); reativar a recusada falha no teste;
+  desativar sem reserva (aviso de cair na variável); remover; Auditoria com o filtro novo; celular 390 px. Achados e
+  corrigidos: QR da 2ª etapa quebrava a tela (bug antigo, §8), página do admin mais larga que a tela (§8), espaço sumindo
+  antes de aspas no JSX (`&quot;` → aspas tipográficas), mensagem de erro duplicada no cadastro.
+- Limpeza: chaves de QA removidas pelo próprio painel (tabela vazia), admin temporário e a organização dele apagados, servidor
+  parado, arquivo de teste temporário apagado, chaves fora da memória. Ficam no banco, de propósito: o histórico do QA
+  (`admin_audit_log` é imutável: entrada no painel, 2 etapas e `ai_key.*` do usuário `qa-chaves-ia-…@example.com`) e 7
+  linhas reais de `ai_usage_events` (testes de chave e chamadas do QA, custo total US$ 0,0000142).
+- Verificação: typecheck, 331 testes, lint 0, build ok; 7 testes SQL ok.
 
 ### 2026-10-12 — Sessão 16 · Textos do cadastro sem falar em cobrança (IA: Claude, via app Codex)
 - Pedido do Breno (com print da etapa 2): quem só quer testar pode estranhar falar de cobrança no período grátis.
@@ -1515,6 +1557,14 @@ webhook do ML validado, fila/reprocessamento de jobs, observabilidade, controle 
 
 ## 13. Próximos passos
 
+0b. **Breno — Chaves de IA (Sessão 17), em `maanu.com.br/admin/chaves-ia`:** hoje **nenhuma** chave está cadastrada no
+   painel, então a IA continua com a `OPENAI_API_KEY` da Vercel (a mesma da v1). Recomendado: (a) na OpenAI, criar um
+   **projeto só da maanu** com limite de gasto mensal; (b) criar nele uma chave de projeto com **data de validade** e
+   permissão restrita (só gerar respostas / "Model capabilities"); (c) cadastrar no painel com "Usar esta chave agora";
+   (d) criar e cadastrar uma 2ª chave como **reserva**; (e) depois da v1 desligada, revogar a chave antiga da v1 e, se quiser,
+   trocar a `OPENAI_API_KEY` da Vercel por outra do projeto maanu (ou deixar só o painel). Girar a cada ~90 dias (passo a
+   passo na própria tela). Ideias não feitas: outros provedores (a coluna `provider` já existe), modelo escolhido pelo
+   painel, alerta por e-mail quando houver troca automática.
 0a. **TROCA em 2 fases (Sessões 15; executar quando o Breno der o "pode fazer").** Sem migração de dados.
    **Fase 1 — semana de teste com 1 cliente (a v1 continua no ar para os outros):**
    1. ✅ IA (15b): banco limpo; chaves novas (legadas desligadas, HS256 revogado); projeto Vercel `maanu` com production

@@ -44,7 +44,7 @@ export async function startMfaEnrollment(): Promise<MfaEnrollment> {
     console.error("[admin] cadastro 2 etapas:", enrollError?.message)
     return { ok: false, message: "Não foi possível gerar o QR code. Tente de novo em instantes." }
   }
-  return { ok: true, factorId: data.id, qrCode: data.totp.qr_code, secret: data.totp.secret }
+  return { ok: true, factorId: data.id, qrCode: data.totp.qr_code.trimEnd(), secret: data.totp.secret }
 }
 
 /** Confere o código do app autenticador (cadastro ou entrada) e libera o painel por 12 horas. */

@@ -2,6 +2,7 @@
 
 import { z } from "zod"
 
+import { normalizeOpenAIKey } from "@/lib/ai/keys"
 import { PLANS } from "@/lib/plans/plans"
 import { normalizeWhatsapp } from "@/lib/validation/forms"
 
@@ -169,4 +170,18 @@ export function parseOrgListParams(params: Record<string, string | string[] | un
     sort: (sort in ORG_SORTS ? sort : "recent") as OrgSort,
     page: Number.isFinite(page) && page > 0 ? Math.min(page, 10_000) : 1,
   }
+}
+
+/** Cadastro de chave de IA. A chave nunca volta para a tela: em caso de erro, só o nome é devolvido. */
+export function parseAiKeyForm(formData: FormData):
+  | { success: true; data: { label: string; key: string; activate: boolean } }
+  | { success: false; fieldErrors: FieldErrors; label: string } {
+  const label = String(formData.get("label") ?? "").trim().replace(/\s+/g, " ")
+  const key = normalizeOpenAIKey(formData.get("key"))
+  const fieldErrors: FieldErrors = {}
+  if (!label) fieldErrors.label = ["Dê um nome para reconhecer a chave (ex.: Produção out/2026)."]
+  else if (label.length > 80) fieldErrors.label = ["Nome muito longo (até 80 caracteres)."]
+  if (!key.ok) fieldErrors.key = [key.message]
+  if (!key.ok || Object.keys(fieldErrors).length) return { success: false, fieldErrors, label: label.slice(0, 80) }
+  return { success: true, data: { label, key: key.key, activate: formData.get("activate") === "on" } }
 }

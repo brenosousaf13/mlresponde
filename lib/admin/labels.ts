@@ -32,6 +32,13 @@ export const AI_FEATURES: Record<AiFeatureKey, { label: string; short: string }>
   after_sale_answer: { label: "Pós-venda automático", short: "Pós-venda" },
   after_sale_suggestion: { label: "Sugestões do pós-venda", short: "Sugestões PV" },
   after_sale_test: { label: "Testes do agente de pós-venda", short: "Testes PV" },
+  key_check: { label: "Testes de chave (painel do administrador)", short: "Teste de chave" },
+}
+
+export const AI_KEY_STATUS: Record<"active" | "standby" | "disabled", { label: string; tone: Tone; hint: string }> = {
+  active: { label: "Em uso", tone: "teal", hint: "Todas as chamadas à IA usam esta chave" },
+  standby: { label: "Reserva", tone: "slate", hint: "Entra sozinha se a OpenAI recusar a chave em uso" },
+  disabled: { label: "Desativada", tone: "red", hint: "Não é usada" },
 }
 
 export const STATUS_FILTERS: { value: OrgStatus; label: string }[] = (
@@ -98,6 +105,9 @@ export const AUDIT_FIELDS: Record<string, string> = {
   ai_paused_reason: "Motivo da pausa",
   usd_brl_rate: "Cotação do dólar",
   monthly_fixed_costs_brl: "Custos fixos (R$/mês)",
+  label: "Nome",
+  hint: "Chave",
+  status: "Situação",
 }
 
 export const AUDIT_ACTIONS: Record<string, string> = {
@@ -113,6 +123,13 @@ export const AUDIT_ACTIONS: Record<string, string> = {
   "platform.ai_paused": "IA geral pausada",
   "platform.ai_resumed": "IA geral retomada",
   "platform.settings": "Configurações",
+  "ai_key.add": "Chave de IA cadastrada",
+  "ai_key.activate": "Chave de IA posta em uso",
+  "ai_key.standby": "Chave de IA na reserva",
+  "ai_key.disable": "Chave de IA desativada",
+  "ai_key.check": "Chave de IA testada",
+  "ai_key.delete": "Chave de IA removida",
+  "ai_key.auto_disabled": "Chave de IA trocada automaticamente",
   "admin.export": "Exportação",
   "admin.login": "Entrada no painel",
   "admin.mfa_enrolled": "2 etapas cadastrada",
@@ -124,6 +141,7 @@ export const AUDIT_FILTERS: { value: string; label: string }[] = [
   { value: "user.", label: "Usuários" },
   { value: "ml_account.", label: "Contas ML" },
   { value: "platform.", label: "Plataforma" },
+  { value: "ai_key.", label: "Chaves de IA" },
   { value: "admin.", label: "Acessos ao painel" },
 ]
 

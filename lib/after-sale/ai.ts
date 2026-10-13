@@ -6,7 +6,6 @@ import { z } from "zod"
 import { trackedCompletion, type AiUsageContext } from "@/lib/ai/usage"
 import { AFTER_SALE_TOPICS, type AfterSaleAiResult } from "@/lib/after-sale/decision"
 import { AFTER_SALE_RESULT_SCHEMA, buildAfterSaleMessages, type AfterSalePromptInput } from "@/lib/after-sale/prompt"
-import { getOpenAIClient } from "@/lib/answers/ai"
 import { answerModelOptions } from "@/lib/answers/model"
 import { serverEnv } from "@/lib/env"
 
@@ -24,8 +23,8 @@ export type AfterSaleRun = { result: AfterSaleAiResult; model: string; tokens: n
 export async function runAfterSaleModel(input: AfterSalePromptInput, usage: AiUsageContext | null): Promise<AfterSaleRun> {
   const model = serverEnv.openaiModel()
   const { reasoning_effort, ...options } = answerModelOptions(model)
-  const completion = await trackedCompletion(usage, model, () =>
-    getOpenAIClient().chat.completions.create({
+  const completion = await trackedCompletion(usage, model, (client) =>
+    client.chat.completions.create({
       model,
       messages: buildAfterSaleMessages(input),
       ...options,
