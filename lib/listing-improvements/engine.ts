@@ -13,6 +13,7 @@ import {
 } from "@/lib/listing-improvements/prompt"
 import { MlAccountUnavailableError } from "@/lib/mercadolivre/accounts"
 import { MlApiError } from "@/lib/mercadolivre/api"
+import { mlImageUrl } from "@/lib/mercadolivre/images"
 import { summarizeItem } from "@/lib/mercadolivre/item"
 import { fetchItemContext } from "@/lib/mercadolivre/questions"
 import { hasQuotaLeft, usagePeriod } from "@/lib/plans/usage"
@@ -158,7 +159,7 @@ export async function generateListingImprovement(
         questions_to: dates.length ? new Date(Math.max(...dates)).toISOString() : null,
         item_title: item.title?.slice(0, 300) ?? latest.item_title,
         item_permalink: item.permalink?.slice(0, 500) ?? latest.item_permalink,
-        item_thumbnail: (item.secure_thumbnail ?? item.thumbnail ?? latest.item_thumbnail)?.slice(0, 500) ?? null,
+        item_thumbnail: mlImageUrl(item.secure_thumbnail ?? item.thumbnail ?? latest.item_thumbnail)?.slice(0, 500) ?? null,
         model: run.model.slice(0, 100),
       })
       .eq("id", reserved.id)

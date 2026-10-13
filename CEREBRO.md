@@ -4,7 +4,7 @@
 > inteiro antes de trabalhar e atualizá-lo ao terminar. Se algo aqui divergir do código, o código vence —
 > e este arquivo deve ser corrigido na mesma sessão.
 
-Última atualização: **2026-10-13** (Sessão 21 — v1: botão de pausar a IA funcionando, commit `bf56777` na `main`; Sessão 20b — Starter com 300 respostas e espaço nos cards dos planos; Sessão 20 — planos Starter/Pro/Escala com limites, teste grátis e Melhorias de anúncio; Sessão 19 — pesquisa de preços e proposta de 3 planos; Sessão 18 — tour de boas-vindas e avisos de teste/conta ML redesenhados; Sessão 17 — chaves de IA cadastradas e trocadas pelo painel do administrador; Sessão 16 — textos do cadastro sem falar em cobrança; Sessão 15b — Fase 1 da troca preparada)
+Última atualização: **2026-10-13** (Sessão 22 — perguntas chegando sozinhas: rotina que busca no ML a cada ~10 s + webhook respondendo na hora; foto do anúncio corrigida; Sessão 21 — v1: botão de pausar a IA funcionando, commit `bf56777` na `main`; Sessão 20b — Starter com 300 respostas e espaço nos cards dos planos; Sessão 20 — planos Starter/Pro/Escala com limites, teste grátis e Melhorias de anúncio; Sessão 19 — pesquisa de preços e proposta de 3 planos; Sessão 18 — tour de boas-vindas e avisos de teste/conta ML redesenhados; Sessão 17 — chaves de IA cadastradas e trocadas pelo painel do administrador; Sessão 16 — textos do cadastro sem falar em cobrança; Sessão 15b — Fase 1 da troca preparada)
 
 ---
 
@@ -134,6 +134,11 @@ novas funcionalidades, segurança multi-tenant de verdade — **desenvolvido em 
   (contratação pelo app ainda desligada: o gateway será a **AbacatePay**). Menu novo **Melhorias de anúncio** (`/melhorias`):
   a IA lê as perguntas de cada anúncio (com as respostas) e o anúncio e sugere o que mudar, com texto pronto para colar e o
   efeito (perguntas por semana antes × depois). Spec: `docs/superpowers/specs/2026-10-13-planos-design.md`.
+  **Sessão 22 (2026-10-13): 1º cliente real na semana de teste** (Girassol Moda Jeans, conta ML `LOJAJEANSDAMODA`). As
+  perguntas só apareciam clicando em "Sincronizar com o ML": o ML **não entregava nenhuma notificação** dessa conta ao app
+  da v2 (só ao app da v1, que o cliente ainda tem autorizado). Agora o cron de perguntas **busca as perguntas novas no ML a
+  cada ~10 s** em todas as contas (`lib/answers/poll.ts`), sem depender da notificação, e o webhook responde 200 na hora (o
+  ML pede até 500 ms). Foto do anúncio quebrada (o ML devolve `http://` e o `next/image` só aceita https) → `mlImageUrl`.
 - **Marca:** **maanu** (decisão do Breno, 2026-10-11). Guia de uso, paleta e arquivos em `docs/brand/README.md`; nome,
   assinatura e slogan em `lib/config/site.ts`; logo só pelos componentes de `components/brand/logo.tsx`.
 - P0 de segurança/toggle (§8) **adiados** por decisão do Breno — revisitar antes de abrir para novos clientes.
@@ -234,8 +239,10 @@ app/
   api/ml/oauth/start/route.ts     # inicia OAuth ML: state + PKCE S256, cookie httpOnly criptografado (10 min)
   api/auth/callback/mercadolivre/route.ts  # retorno do OAuth (URL cadastrada no app ML): valida state/usuário,
                                   # troca code+verifier, /users/me, connectMlAccount
-  api/webhook/mercadolivre/route.ts        # webhook ML: valida topic/application_id/conta, registra, 200 na hora, after()
-  api/cron/questions/route.ts   # reprocessa a fila (Vercel Cron 1/min, só em produção; Bearer CRON_SECRET)
+  api/webhook/mercadolivre/route.ts        # webhook ML: valida topic/application_id, 200 NA HORA (sem banco; o ML exige
+                                  # até 500 ms) e depois, em after(): conta, registra, processa. Loga cada pergunta/mensagem
+  api/cron/questions/route.ts   # Vercel Cron 1/min (só em produção; Bearer CRON_SECRET): runQuestionRounds = busca as
+                                # perguntas novas no ML a cada ~10 s por ~50 s + fila de novas tentativas (maxDuration 120)
   api/cron/pos-venda/route.ts   # fila do pós-venda (1/min) + a cada 15 min não lidas e conferência (Bearer CRON_SECRET)
   api/pos-venda/anexo/route.ts  # abre anexos das conversas (token do ML só no servidor; confere plano e conversa)
 components/
@@ -277,6 +284,7 @@ lib/
   mercadolivre/pkce.ts, oauth.ts, oauth-cookie.ts, api.ts, accounts.ts   # OAuth v2 + tokens (lease de refresh)
   mercadolivre/client.ts        # mlRequest(accountId, path): token válido + erros tipados (401 → token inválido)
   mercadolivre/questions.ts     # pergunta, item, descrição, perguntas respondidas do anúncio, POST /answers, sync
+  mercadolivre/images.ts        # mlImageUrl: foto do ML sempre https (o ML devolve http; o next/image só aceita https)
   mercadolivre/item.ts          # summarizeItem (tudo o que a IA lê do anúncio: condições de venda, ficha, variações,
                                 #   medidas, catálogo, descrição) + htmlToText/truncateMiddle (puro, testado)
   answers/notification.ts       # parseQuestionNotification (puro)
@@ -293,6 +301,8 @@ lib/
   answers/model.ts              # modelo padrão (gpt-6-luna) e parâmetros por modelo (puro, testado)
   answers/engine.ts             # processQuestion, processDueQuestions, reconcileQuestion, suggestAnswer, sendManualAnswer
   answers/ingest.ts             # registerQuestion, syncUnansweredQuestions
+  answers/poll.ts               # runQuestionRounds: rotina de segurança do cron (não depende da notificação do ML)
+  answers/polling.ts            # pollingOffsets (rodadas no minuto, teto ~300 consultas/min) + unknownQuestions (puro, testado)
   dal/dashboard.ts              # números do painel (question_stats) + listas Esperando você / Últimas / Anúncios
   dal/results.ts                # Resultados: rpc analytics_overview + amostra de textos (assuntos) + premissas
   results/metrics.ts            # Resultados (puro, testado): período, economia, fator de velocidade, horário comercial e
@@ -681,9 +691,14 @@ exportação só faz GET e a importação recusa qualquer destino que não seja 
   desconectar (apaga tokens, mantém histórico). O token do ML **não** sai do servidor.
 
 ### 7.0b v2 — Respostas automáticas
-1. ML → `POST /api/webhook/mercadolivre` → só aceita `topic=questions`, `application_id = ML_CLIENT_ID` e conta conhecida
-   (não desconectada) → `registerQuestion` (dedupe por `ml_question_id`) → 200 → `after()`: processa a nova (ou, se
-   repetida e em revisão, `reconcileQuestion`) + até 5 atrasadas.
+1. ML → `POST /api/webhook/mercadolivre` → só aceita `topic=questions` e `application_id = ML_CLIENT_ID` → **200 na hora**
+   (Sessão 22: nada de banco antes da resposta) → `after()`: conta conhecida (não desconectada) → `registerQuestion`
+   (dedupe por `ml_question_id`) → processa a nova (ou, se repetida e em revisão, `reconcileQuestion`) + até 5 atrasadas.
+   **Caminho 2 (Sessão 22), não depende do ML notificar:** o cron `/api/cron/questions` (1/min) roda `runQuestionRounds`:
+   a cada ~10 s durante ~50 s, `GET /my/received_questions/search?status=UNANSWERED` (50 mais recentes) de cada conta ativa,
+   com token válido e organização com acesso → registra só as que o banco não tem → `processQuestion` (até 3 juntas) →
+   fila. Com mais de 50 contas as rodadas se espaçam (teto ~300 consultas ao ML por minuto). Pergunta nova aparece em
+   segundos pela notificação ou em ~10–20 s pela rotina.
 2. `processQuestion`: `claim_ml_question` (lock 2 min) → `GET /questions/{id}` (fonte da verdade). Já respondida/apagada
    no ML → `answered_outside`/`ignored` (se o texto bate com o nosso, `answered`). Conta inativa / assinatura bloqueada /
    anúncio bloqueado / respostas pausadas → `needs_review` **sem gastar IA**. Senão: anúncio + descrição + perguntas já
@@ -695,7 +710,7 @@ exportação só faz GET e a importação recusa qualquer destino que não seja 
    nova tentativa; 404/4xx = sem descrição) + `/products/{catalog_product_id}` + `/catalog/charts/{SIZE_GRID_ID}` (opcionais).
 3. Erros: `failed` + nova tentativa em 1/2/4/8/16 min; após 5 → `needs_review` (`processing_error`). Token inválido →
    `needs_review` (`account_inactive`).
-4. Fila: webhook processa até 5 atrasadas; produção terá Vercel Cron a cada minuto. **Staging não tem cron.**
+4. Fila: webhook processa até 5 atrasadas e cada rodada do cron (a cada ~10 s) roda até 10. **Staging não tem cron.**
 5. Ao conectar/reconectar conta: sincroniza as perguntas sem resposta do ML (até 200) e processa.
 6. Painel do vendedor: **Perguntas** = caixa de entrada (filtros Para responder / Respondidas pela IA / Respondidas por
    você / Todas, busca por pergunta/anúncio/código MLB, conta, lista + conversa, responder na tela com rascunho, "Sugestão
@@ -875,6 +890,12 @@ Projeto `ookosqyfazobiwmopiix` (vai virar a produção da v2). Conferido e corri
   vinculada a outro usuário ao conectá-la; também há risco de CSRF no fluxo de conexão.
 
 ### 🟠 P1
+- ✅ (v2, 2026-10-13, Sessão 22) **Pergunta do comprador só aparecia depois de "Sincronizar com o ML"** (1º cliente real).
+  O ML não entregou ao app da v2 **nenhuma** notificação da conta do cliente (entregou ao app da v1, ainda autorizado); a
+  maanu dependia 100% da notificação. Agora o cron busca as perguntas no ML a cada ~10 s (`lib/answers/poll.ts`) e o
+  webhook responde 200 antes de tocar no banco (regra dos 500 ms do ML). Causa do lado do ML ainda não confirmada (§13 0f).
+- ✅ (v2, 2026-10-13, Sessão 22) **Foto do anúncio quebrada** em Perguntas/Painel: o ML devolve `thumbnail` com `http://` e o
+  `next/image` só aceita `https://*.mlstatic.com` (`/_next/image` → 400). `mlImageUrl` troca para https ao gravar e ao mostrar.
 - ✅ (v2, 2026-10-12, Sessão 17) **Cadastro da verificação em 2 etapas quebrava a tela** ("This page couldn't load") ao clicar
   em "Gerar QR code": o QR que o Supabase devolve termina em quebra de linha e o `next/image` passou a recusar `src` com
   espaço no fim. Corrigido com `trimEnd()` em `app/admin/verificacao/actions.ts` (afetava qualquer admin novo ou quem
@@ -1240,10 +1261,48 @@ webhook do ML validado, fila/reprocessamento de jobs, observabilidade, controle 
 | 2026-10-13 | **Melhorias de anúncio**: a IA lê as perguntas do anúncio **com as respostas enviadas** + o anúncio e devolve até 6 sugestões com texto pronto; 1 análise = 1 da cota; mínimo 3 perguntas; a maanu não altera o anúncio; mede o efeito (perguntas/semana antes × depois) | Ideia do Breno (perguntas mais feitas → melhorar o anúncio). As respostas são a melhor fonte do que falta; texto pronto e efeito medido mostram valor. Alterar o anúncio pela API fica para depois (risco de apagar conteúdo do vendedor). |
 | 2026-10-13 | Análise de anúncio com `gpt-6-luna` e **raciocínio `low`** (as respostas seguem sem raciocínio) | Volume baixo (até 100/mês por cliente) e a qualidade importa mais; teste real ~7 s. |
 | 2026-10-13 | Contratação pelo app só com o gateway (**AbacatePay**, decisão do Breno); até lá o botão "Assinar" aparece desativado ("em breve") e o administrador ativa o plano no painel | Não há chave nem conta de pagamento configurada ainda; o catálogo já tem preços mensal/anual para virar produtos (`externalId`). |
+| 2026-10-13 | Perguntas novas chegam por **dois caminhos**: notificação do ML (segundos) **e** consulta ao ML a cada ~10 s pelo cron de 1 min (rodadas durante ~50 s) | O ML não entregou nenhuma notificação da conta do 1º cliente ao app da v2 e a documentação dele admite perda/desligamento de tópicos. ~10–20 s continua "praticamente na hora" para o comprador. Custo: 1 consulta ao ML por conta por rodada (teto ~300/min; com mais de 50 contas as rodadas se espaçam) e o cron fica ~50 s ativo por minuto (Fluid compute; a função passa quase todo o tempo esperando). Cron de segundos em outro serviço ficou de fora (mais uma peça para manter). |
+| 2026-10-13 | Webhook do ML responde 200 **antes** de qualquer acesso ao banco (tudo em `after()`) | Regra do ML: 200 em até 500 ms, senão os tópicos podem ser desligados ("fall back") e é preciso se inscrever de novo. |
+| 2026-10-13 | Fotos do ML sempre em https (`mlImageUrl`), corrigidas também na hora de mostrar | O ML devolve http; corrigir na tela resolve as fotos já gravadas sem mexer no banco de produção. Endereço que não é do `mlstatic.com` vira o ícone de pacote (nunca imagem quebrada). |
 
 ---
 
 ## 12. Diário de sessões (mais recente no topo)
+
+### 2026-10-13 — Sessão 22 · Perguntas chegando sozinhas e foto do anúncio (IA: Claude, via app Codex)
+- Pedido do Breno (1º cliente real conectado para a semana de teste, "Girassol Moda Jeans", conta ML `LOJAJEANSDAMODA`,
+  `254752194`): a pergunta só aparecia na maanu depois de clicar em "Sincronizar com o ML" (tem que ser praticamente
+  instantâneo) e a foto do anúncio não aparecia.
+- Investigação (só leitura): no banco, as 2 perguntas do cliente entraram 15 s e 1,6 min depois de feitas, exatamente
+  quando o Breno clicou em sincronizar. Nos logs da Vercel, o ML mandou a notificação de pergunta nova da conta `254752194`
+  ao app da **v1** (`mlresponde.vercel.app`, app `2157906452264565`, ainda autorizado pelo cliente e pausado desde a
+  Sessão 21) às 23:18:34 e 23:21:35 UTC, e **nada** chegou em `maanu.com.br` nesses horários (nenhuma requisição, nem com
+  erro). Desde a conexão (22:30 UTC) o app da v2 não recebeu nenhuma notificação dessa conta, enquanto a v1 recebeu
+  dezenas (envios, anúncios, perguntas). Só chegaram 2 notificações em `maanu.com.br`, no momento em que a IA respondeu —
+  pelo horário e pela contagem, as da conta do Breno (`131607524`, que fez as perguntas e também está conectada). Na API do
+  ML com o token do cliente (só GET): a autorização do app da v2 existe (criada às 18:30 de Brasília, com os escopos de
+  comunicação) e a busca de perguntas funciona. Conclusão: o ML não está entregando as notificações dessa conta ao app da
+  v2; a causa exata fica do lado do ML (o `missed_feeds` só abre com o token do **dono** do app). Suspeito documentado
+  pelo ML: o webhook precisa responder 200 em até 500 ms, senão os tópicos podem ser desligados ("fall back") e é preciso
+  se inscrever de novo; o nosso consultava e gravava no banco antes de responder (medido de fora: 310–560 ms com a função
+  já aquecida; fria passa disso).
+- Foto: o ML devolveu `thumbnail` com `http://` (sem `secure_thumbnail`) e o `next/image` só aceita
+  `https://*.mlstatic.com` → `/_next/image` respondia 400 (visto nos logs). Conferido: a mesma foto com https → 200.
+- Feito:
+  - `lib/answers/poll.ts` + `lib/answers/polling.ts` (puro): o cron `/api/cron/questions` (1/min) roda **rodadas a cada
+    ~10 s durante ~50 s**; em cada uma, `GET /my/received_questions/search?status=UNANSWERED` (50 mais recentes) de todas
+    as contas ativas, com token válido e organização com acesso; registra só as que o banco não tem, já manda para a IA
+    (até 3 ao mesmo tempo) e roda a fila (`processDueQuestions(10)`). Mais de 50 contas → rodadas mais espaçadas (teto
+    ~300 consultas ao ML por minuto). Erro numa conta não para as outras; rodada que passaria de 50 s fica para o minuto
+    seguinte. `maxDuration` do cron: 120 s. A tela já atualiza sozinha (Realtime), então a pergunta aparece sem clicar.
+  - Webhook: responde 200 **antes** de tocar no banco (tudo em `after()`, também no pós-venda) e loga cada notificação de
+    pergunta/mensagem (`[webhook] pergunta X da conta ML Y (tentativa N)`) para sabermos quando o ML voltar a entregar.
+  - `lib/mercadolivre/images.ts` (`mlImageUrl`): http → https só para fotos do `mlstatic.com` (outro endereço vira o ícone
+    de pacote). Usado no `ItemThumb` (corrige as fotos já gravadas, sem mexer no banco) e ao gravar a foto em perguntas,
+    pós-venda e Melhorias de anúncio.
+  - Testes novos: `ml-images.test.ts`, `question-polling.test.ts` (rodadas, contas bloqueadas, erros, atraso) e
+    `webhook.test.ts` (200 sem banco; registro e processamento depois).
+- Consultas da rotina conferidas no banco de produção (só leitura). typecheck, testes, lint e build ok. Nada no banco.
 
 ### 2026-10-13 — Sessão 21 · v1: botão de pausar a IA funcionando (IA: Claude, via app Codex)
 - Pedido do Breno: o botão "Automação de Respostas" da v1 precisa funcionar (para pausar na v1 o cliente que vai testar a
@@ -1747,6 +1806,15 @@ webhook do ML validado, fila/reprocessamento de jobs, observabilidade, controle 
 
 ## 13. Próximos passos
 
+0f. **Breno — notificações do ML (Sessão 22):** (a) no DevCenter, abrir o app da maanu (Client ID `8693830632560554`) →
+   notificações: conferir a URL `https://maanu.com.br/api/webhook/mercadolivre` e os tópicos **questions** e **messages**
+   marcados e **salvar de novo** (o ML diz que tópico desligado por "fall back" exige nova inscrição). (b) Fazer uma pergunta
+   de teste num anúncio do cliente: deve aparecer respondida em segundos (notificação) ou em ~10–20 s (rotina). A IA confere
+   nos logs do projeto Vercel `maanu`: linha `[webhook] pergunta ...` = o ML voltou a entregar. (c) Se o ML continuar sem
+   entregar, chamado no suporte de desenvolvedores do ML; com o token do **dono** do app dá para ver
+   `/missed_feeds?app_id=8693830632560554`. (d) Mesmo risco no **pós-venda**: hoje ele confere as não lidas só a cada 15 min
+   e só com o agente ligado; se o agente for ligado para o cliente, levar a mesma rotina para lá (pedir aprovação: mais
+   consultas ao ML). (e) Com muitas contas (> 50), rever o custo da rotina (consultas ao ML e tempo do cron na Vercel).
 0e. **Breno — conferir os planos (Sessão 20) em `maanu.com.br`:** Assinatura (seu plano, uso e os 3 planos), menu Melhorias de
    anúncio (precisa de conta ML conectada com perguntas) e, no painel admin, "Editar assinatura" (escolher o plano preenche
    contas e mensalidade; campos Ciclo e Respostas por mês). Confirmar: (a) **teste grátis = tudo do Pro** com 1 conta, 300

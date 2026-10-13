@@ -22,6 +22,7 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { composeAnswer } from "@/lib/answers/compose"
 import { FALLBACK_REASON_LABELS, REVIEW_REASON_LABELS, type FallbackReason, type ReviewReason } from "@/lib/answers/decision"
 import { formatDateTime, timeAgo } from "@/lib/format"
+import { mlImageUrl } from "@/lib/mercadolivre/images"
 import { TONE_STYLES, questionTone } from "@/lib/questions/presentation"
 import { cn } from "@/lib/utils"
 
@@ -62,9 +63,11 @@ const THUMB = {
 
 export function ItemThumb({ src, size }: { src: string | null; size: keyof typeof THUMB }) {
   const thumb = THUMB[size]
-  return src ? (
+  // Fotos antigas foram gravadas com http:// (o next/image só aceita https do mlstatic): corrige na hora de mostrar.
+  const url = mlImageUrl(src)
+  return url ? (
     <Image
-      src={src}
+      src={url}
       alt=""
       width={thumb.px}
       height={thumb.px}

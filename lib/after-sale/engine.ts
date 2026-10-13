@@ -42,6 +42,7 @@ import { RETRY_LIMIT, retryDelayMs } from "@/lib/answers/decision"
 import { rankTaughtExamples } from "@/lib/answers/examples"
 import { MlAccountUnavailableError } from "@/lib/mercadolivre/accounts"
 import { MlApiError } from "@/lib/mercadolivre/api"
+import { mlImageUrl } from "@/lib/mercadolivre/images"
 import { summarizeItem, type MlItem } from "@/lib/mercadolivre/item"
 import {
   fetchConversationPages,
@@ -277,7 +278,7 @@ async function syncConversation(admin: ServiceClient, account: AfterSaleAccount,
   if (itemId && (!conversation.item_thumbnail || conversation.item_id !== itemId)) {
     try {
       item = await fetchItem(account.id, itemId)
-      columns.item_thumbnail = item.secure_thumbnail ?? item.thumbnail ?? null
+      columns.item_thumbnail = mlImageUrl(item.secure_thumbnail ?? item.thumbnail)
       columns.item_permalink = item.permalink ?? null
     } catch (error) {
       if (!isPermanent(error)) console.warn(`[pos-venda] anúncio ${itemId}:`, error instanceof Error ? error.message : error)

@@ -2,11 +2,12 @@ import { timingSafeEqual } from "node:crypto"
 
 import { NextResponse, type NextRequest } from "next/server"
 
-import { processDueQuestions } from "@/lib/answers/engine"
+import { runQuestionRounds } from "@/lib/answers/poll"
 import { serverEnv } from "@/lib/env"
 
 export const dynamic = "force-dynamic"
-export const maxDuration = 60
+// A rotina consulta o ML durante ~50 s (a cada ~10 s); a folga cobre a IA respondendo a última pergunta encontrada.
+export const maxDuration = 120
 
 function authorized(request: NextRequest) {
   const secret = serverEnv.cronSecret()
@@ -16,8 +17,11 @@ function authorized(request: NextRequest) {
   return expected.length === received.length && timingSafeEqual(expected, received)
 }
 
+/**
+ * Perguntas (Vercel Cron a cada minuto, só em produção): busca no ML as perguntas novas de todas as contas a cada ~10 s
+ * (não depende da notificação do ML chegar) e roda a fila de novas tentativas.
+ */
 export async function GET(request: NextRequest) {
   if (!authorized(request)) return NextResponse.json({ error: "unauthorized" }, { status: 401 })
-  const processed = await processDueQuestions(15)
-  return NextResponse.json({ processed })
+  return NextResponse.json(await runQuestionRounds())
 }

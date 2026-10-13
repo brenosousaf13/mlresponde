@@ -16,6 +16,7 @@ import type { PromptInput } from "@/lib/answers/prompt"
 import { answersQuotaFor } from "@/lib/dal/plan"
 import { MlAccountUnavailableError } from "@/lib/mercadolivre/accounts"
 import { MlApiError } from "@/lib/mercadolivre/api"
+import { mlImageUrl } from "@/lib/mercadolivre/images"
 import { summarizeItem } from "@/lib/mercadolivre/item"
 import {
   fetchItemAnsweredQuestions,
@@ -90,7 +91,7 @@ async function buildPromptContext(admin: ServiceClient, account: AccountRow, row
   const itemFields: QuestionUpdate = {
     item_title: item.title,
     item_permalink: item.permalink,
-    item_thumbnail: item.secure_thumbnail ?? item.thumbnail ?? null,
+    item_thumbnail: mlImageUrl(item.secure_thumbnail ?? item.thumbnail),
   }
 
   return {
