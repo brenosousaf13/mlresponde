@@ -1267,7 +1267,8 @@ webhook do ML validado, fila/reprocessamento de jobs, observabilidade, controle 
   sem tokens sem gastar cota, análise, "Já fiz"), Starter redirecionando para Assinatura com o aviso, Resultados com o
   rodapé, celular 390 px. Ajustes no caminho: passos e tabela no celular, contas no limite sem vermelho, textos dos planos.
   **Tudo apagado no fim** (usuário, organização, conta, perguntas, análise; script e arquivos temporários).
-- Verificação: typecheck, 366 testes, lint 0, build ok.
+- Verificação: typecheck, 366 testes, lint 0, build ok. Commit `6fa4741` na `v2` → deploy de produção do projeto `maanu` **READY**;
+  `maanu.com.br` conferido (login 200, `/melhorias` e `/assinatura` pedem login, webhook 200).
 
 ### 2026-10-13 — Sessão 19 · Pesquisa de preços dos concorrentes e proposta de planos (IA via app Codex)
 - Pedido do Breno: pesquisar plataformas brasileiras parecidas com a maanu (IA respondendo nos marketplaces), levantar
