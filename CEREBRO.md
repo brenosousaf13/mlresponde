@@ -1584,9 +1584,11 @@ webhook do ML validado, fila/reprocessamento de jobs, observabilidade, controle 
       publicava os DNS antigos (`a/b.auto.dns.br`) e o SMTP ainda não estava ligado no Supabase.
    5. ✅ (SMTP ligado, modelos aplicados, 30/h; cadastro e nova senha testados pelo Breno) IA, depois do SMTP: aplicar os e-mails em português (`node scripts/emails-auth/gerar.mjs`) e subir o limite de
       e-mails; testar cadastro e "esqueci minha senha" ponta a ponta em `maanu.com.br`.
-   6. ⏳ Breno, no DevCenter do **app da v2**: nome/logo maanu; redirect `https://maanu.com.br/api/auth/callback/mercadolivre`;
+   6. ✅ (Breno salvou; PKCE ainda desmarcado de propósito) Breno, no DevCenter do **app da v2**: nome/logo maanu; redirect `https://maanu.com.br/api/auth/callback/mercadolivre`;
       notificações `https://maanu.com.br/api/webhook/mercadolivre`. (A staging `mlresponde-v2.vercel.app` deixa de receber.)
-      Depois do 1º OAuth ok: marcar PKCE como obrigatório.
+      Depois do 1º OAuth ok: marcar PKCE como obrigatório. (A config do app não dá para conferir pela API do ML sem token;
+      a prova é a 1ª conexão. Conferido: `maanu.com.br/api/webhook/mercadolivre` responde 200 e `/api/ml/oauth/start` exige
+      login. Nenhuma conta ML conectada ainda ao fim da Sessão 15b.)
    7. Cliente do teste: cadastro em `maanu.com.br`, conecta a conta ML, configura o Assistente, liga a IA e **remove o app
       "Meli Fácil" dos aplicativos autorizados da conta ML** (senão a v1 continua respondendo por ele). Voltar atrás:
       reconectar na v1 e pausar a IA na v2. Admin acompanha em `maanu.com.br/admin` (o Breno precisa refazer o QR da 2ª
