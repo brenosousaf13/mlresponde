@@ -1371,6 +1371,9 @@ webhook do ML validado, fila/reprocessamento de jobs, observabilidade, controle 
   307 para `/acesso-negado`; visitante → login. Servidores e arquivos temporários do QA removidos.
 - Verificação final: `npm run typecheck`, `npm test` (**432 passando**, 36 cenários de integração pulados),
   `npm run lint` e `npm run build` ok. Sem alterações no banco, na infraestrutura ou na v1.
+- Publicado: commit `e390421` na `v2` → produção do projeto `maanu` **READY**
+  (`dpl_E1FAtatWsbWja1aW4up796omU74d`, domínio `maanu.com.br`). Conferido em produção sem sessão: login e webhook ML
+  200; `/admin/cobranca` e `/acesso-negado` pedem login (307). Fluxo autenticado validado localmente com Auth simulado.
 
 ### 2026-10-14 — Sessão 23 · Cobrança pela AbacatePay (IA: Claude, via app Codex)
 - Pedido do Breno: analisar toda a documentação da AbacatePay e preparar a maanu para a integração (ele já criou os
