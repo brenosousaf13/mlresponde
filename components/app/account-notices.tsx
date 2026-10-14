@@ -65,7 +65,7 @@ export function AccountNotices({
             </ItemDescription>
           </ItemContent>
           <ItemActions className="max-sm:w-full max-sm:pl-12.5">
-            <Link href="/perguntas" className={cn(buttonVariants({ variant: "outline", size: "sm" }))}>
+            <Link href="/perguntas?aba=responder" className={cn(buttonVariants({ variant: "outline", size: "sm" }))}>
               Ver perguntas
               <ArrowRightIcon data-icon="inline-end" />
             </Link>

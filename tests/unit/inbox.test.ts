@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest"
 
 import { dayKey, dayLabel, formatNumber, listTime, timeAgo } from "@/lib/format"
 import {
+  DEFAULT_INBOX_TAB,
   INBOX_TABS,
   inboxHref,
   pageRange,
@@ -24,8 +25,23 @@ describe("cartões do topo de Perguntas", () => {
     ])
   })
 
-  it("a tela continua abrindo em \"Para responder\"", () => {
-    expect(parseInboxTab(undefined)).toBe("responder")
+  it("a tela abre no primeiro cartão, \"Respondidas pela IA\"", () => {
+    expect(DEFAULT_INBOX_TAB).toBe("ia")
+    expect(Object.keys(INBOX_TABS)[0]).toBe(DEFAULT_INBOX_TAB)
+    expect(parseInboxTab(undefined)).toBe("ia")
+    expect(parseInboxTab("qualquer")).toBe("ia")
+  })
+
+  it("aceita as abas e os nomes antigos", () => {
+    expect(parseInboxTab("responder")).toBe("responder")
+    expect(parseInboxTab("revisar")).toBe("responder")
+    expect(parseInboxTab("respondidas")).toBe("ia")
+  })
+
+  it("link para \"Para responder\" leva a aba na URL (não é mais o padrão)", () => {
+    const state = { tab: "responder", account: null, item: null, search: "", order: "recentes", page: 1, question: null } as const
+    expect(inboxHref(state)).toBe("/perguntas?aba=responder")
+    expect(inboxHref({ ...state, tab: "ia" })).toBe("/perguntas")
   })
 })
 
@@ -68,7 +84,7 @@ describe("datas da caixa de entrada (fuso de São Paulo)", () => {
 
 describe("estado da caixa de entrada na URL", () => {
   const base: InboxState = {
-    tab: "responder",
+    tab: "ia",
     account: null,
     item: null,
     search: "",

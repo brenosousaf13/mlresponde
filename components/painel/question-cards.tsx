@@ -43,7 +43,7 @@ export function AwaitingQuestionsCard({ questions, total }: { questions: Dashboa
         <CardDescription>Perguntas que a IA deixou para você, já com rascunho</CardDescription>
         {total ? (
           <CardAction>
-            <SeeAll href="/perguntas" label={total > questions.length ? `Ver todas (${formatNumber(total)})` : "Abrir"} />
+            <SeeAll href={inboxHref({ tab: "responder", account: null, item: null, search: "", order: "recentes", page: 1, question: null })} label={total > questions.length ? `Ver todas (${formatNumber(total)})` : "Abrir"} />
           </CardAction>
         ) : null}
       </CardHeader>

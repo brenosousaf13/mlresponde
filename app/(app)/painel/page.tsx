@@ -80,7 +80,7 @@ export default async function DashboardPage() {
       hint: total ? `${aiRate}% das perguntas` : `últimos ${DAYS} dias`,
       icon: BotIcon,
     },
-    { label: "Aguardando você", value: formatNumber(awaiting), hint: "para responder", icon: InboxIcon, href: "/perguntas" },
+    { label: "Aguardando você", value: formatNumber(awaiting), hint: "para responder", icon: InboxIcon, href: "/perguntas?aba=responder" },
     {
       label: "Tempo médio da IA",
       value: formatDuration(avgAiSeconds),

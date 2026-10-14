@@ -13,6 +13,7 @@ import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { requireSection } from "@/lib/dal/app-context"
 import {
+  DEFAULT_INBOX_TAB,
   inboxHref,
   pageRange,
   parseInboxOrder,
@@ -169,7 +170,7 @@ export default async function QuestionsPage({ searchParams }: PageProps<"/pergun
   }
 
   const hidden: Record<string, string> = {}
-  if (tab !== "responder") hidden.aba = tab
+  if (tab !== DEFAULT_INBOX_TAB) hidden.aba = tab
   if (state.account) hidden.conta = state.account
   if (item) hidden.anuncio = item
   if (order !== "recentes") hidden.ordem = order

@@ -169,12 +169,12 @@ describe("apresentação das perguntas", () => {
     expect(questionTone(status, source)).toBe(tone)
   })
 
-  it("aceita as abas antigas e cai em 'Para responder'", () => {
+  it("aceita as abas antigas e cai em 'Respondidas pela IA' (padrão desde a Sessão 22)", () => {
     expect(parseInboxTab("ia")).toBe("ia")
     expect(parseInboxTab("revisar")).toBe("responder")
     expect(parseInboxTab("respondidas")).toBe("ia")
-    expect(parseInboxTab("xyz")).toBe("responder")
-    expect(parseInboxTab(undefined)).toBe("responder")
+    expect(parseInboxTab("xyz")).toBe("ia")
+    expect(parseInboxTab(undefined)).toBe("ia")
   })
 
   it("limpa a busca para o filtro do banco", () => {

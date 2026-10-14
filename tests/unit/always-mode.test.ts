@@ -111,8 +111,8 @@ describe("mensagem padrão na caixa de entrada", () => {
 
   it("o filtro \"só mensagem padrão\" só existe na aba da IA", () => {
     const base: InboxState = { tab: "ia", account: null, item: null, search: "", order: "recentes", page: 1, question: null }
-    expect(inboxHref({ ...base, fallback: true })).toBe("/perguntas?aba=ia&padrao=1")
-    expect(inboxHref({ ...base, fallback: false })).toBe("/perguntas?aba=ia")
+    expect(inboxHref({ ...base, fallback: true })).toBe("/perguntas?padrao=1")
+    expect(inboxHref({ ...base, fallback: false })).toBe("/perguntas")
     expect(inboxHref({ ...base, tab: "todas", fallback: true })).toBe("/perguntas?aba=todas")
   })
 })

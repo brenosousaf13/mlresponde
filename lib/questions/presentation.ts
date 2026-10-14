@@ -88,12 +88,15 @@ export const INBOX_TABS = {
 
 export type InboxTab = keyof typeof INBOX_TABS
 
+/** Aba em que /perguntas abre: a do primeiro cartão (pedido do Breno, Sessão 22). Links de "aguardando você" pedem `responder`. */
+export const DEFAULT_INBOX_TAB: InboxTab = "ia"
+
 const LEGACY_TABS: Record<string, InboxTab> = { revisar: "responder", respondidas: "ia" }
 
 export function parseInboxTab(value: unknown): InboxTab {
-  if (typeof value !== "string") return "responder"
+  if (typeof value !== "string") return DEFAULT_INBOX_TAB
   if (value in INBOX_TABS) return value as InboxTab
-  return LEGACY_TABS[value] ?? "responder"
+  return LEGACY_TABS[value] ?? DEFAULT_INBOX_TAB
 }
 
 /** Limpa o texto de busca para usar com segurança num filtro `or` do PostgREST. */
@@ -174,10 +177,10 @@ export type InboxState = {
   fallback?: boolean
 }
 
-/** Monta a URL de /perguntas omitindo o que é padrão (aba "Para responder", página 1, mais recentes). */
+/** Monta a URL de /perguntas omitindo o que é padrão (aba "Respondidas pela IA", página 1, mais recentes). */
 export function inboxHref(state: InboxState): string {
   const query = new URLSearchParams()
-  if (state.tab !== "responder") query.set("aba", state.tab)
+  if (state.tab !== DEFAULT_INBOX_TAB) query.set("aba", state.tab)
   if (state.account) query.set("conta", state.account)
   if (state.item) query.set("anuncio", state.item)
   if (state.fallback && state.tab === "ia") query.set("padrao", "1")

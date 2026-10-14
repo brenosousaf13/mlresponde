@@ -713,7 +713,7 @@ exportação só faz GET e a importação recusa qualquer destino que não seja 
 4. Fila: webhook processa até 5 atrasadas e cada rodada do cron (a cada ~10 s) roda até 10. **Staging não tem cron.**
 5. Ao conectar/reconectar conta: sincroniza as perguntas sem resposta do ML (até 200) e processa.
 6. Painel do vendedor: **Perguntas** = caixa de entrada (filtros em cartões, nesta ordem desde a Sessão 22: Respondidas pela
-   IA / Respondidas por você / Para responder / Todas — a tela abre em Para responder; busca por pergunta/anúncio/código MLB, conta, lista + conversa, responder na tela com rascunho, "Sugestão
+   IA / Respondidas por você / Para responder / Todas — a tela abre no 1º, Respondidas pela IA (`DEFAULT_INBOX_TAB`); os links de "aguardando você" do Painel, Resultados e avisos usam `?aba=responder`; busca por pergunta/anúncio/código MLB, conta, lista + conversa, responder na tela com rascunho, "Sugestão
    da IA", "Ensinar a IA", "Enviar e ir para a próxima", arquivar/desarquivar, "Deixar a IA tentar de novo", ao vivo via
    Realtime, sincronizar). **Escala (Sessão 6):** no computador (≥1024 px) a página ocupa a altura da tela (mínimo 44rem)
    e lista e conversa rolam cada uma por conta própria — o layout da área logada usa `has-[[data-fill-viewport]]` no
@@ -1263,6 +1263,7 @@ webhook do ML validado, fila/reprocessamento de jobs, observabilidade, controle 
 | 2026-10-13 | Contratação pelo app só com o gateway (**AbacatePay**, decisão do Breno); até lá o botão "Assinar" aparece desativado ("em breve") e o administrador ativa o plano no painel | Não há chave nem conta de pagamento configurada ainda; o catálogo já tem preços mensal/anual para virar produtos (`externalId`). |
 | 2026-10-13 | Perguntas novas chegam por **dois caminhos**: notificação do ML (segundos) **e** consulta ao ML a cada ~10 s pelo cron de 1 min (rodadas durante ~50 s) | O ML não entregou nenhuma notificação da conta do 1º cliente ao app da v2 e a documentação dele admite perda/desligamento de tópicos. ~10–20 s continua "praticamente na hora" para o comprador. Custo: 1 consulta ao ML por conta por rodada, com teto de 100/min = 1/3 do limite do app no ML (18.000/h para tudo); acima de 16 contas as rodadas se espaçam e acima de 100 contas vira rodízio (aí a notificação volta a ser o caminho principal) e o cron fica ~50 s ativo por minuto (Fluid compute; a função passa quase todo o tempo esperando). Cron de segundos em outro serviço ficou de fora (mais uma peça para manter). |
 | 2026-10-13 | Webhook do ML responde 200 **antes** de qualquer acesso ao banco (tudo em `after()`) | Regra do ML: 200 em até 500 ms, senão os tópicos podem ser desligados ("fall back") e é preciso se inscrever de novo. |
+| 2026-10-13 | Perguntas abre em **Respondidas pela IA**, o 1º cartão (ordem: IA, você, para responder, todas) | Pedido do Breno: o principal para o cliente é ver o que a IA resolveu. O que espera o vendedor continua sinalizado (ponto âmbar no cartão, contador no menu) e os atalhos de "aguardando você" abrem direto em Para responder. |
 | 2026-10-13 | Fotos do ML sempre em https (`mlImageUrl`), corrigidas também na hora de mostrar | O ML devolve http; corrigir na tela resolve as fotos já gravadas sem mexer no banco de produção. Endereço que não é do `mlstatic.com` vira o ícone de pacote (nunca imagem quebrada). |
 
 ---
@@ -1320,8 +1321,11 @@ webhook do ML validado, fila/reprocessamento de jobs, observabilidade, controle 
   Outra ("Tem na cor preto?", 23:55:51) entrou em 3 s; a IA mandou para o vendedor (não achou o estoque da cor no kit) e foi
   respondida à mão.
 - Pedido seguinte do Breno: cartões do topo de Perguntas na ordem **Respondidas pela IA, Respondidas por você, Para
-  responder, Todas** (ordem das chaves de `INBOX_TABS` em `lib/questions/presentation.ts`; teste em `inbox.test.ts`). A tela
-  continua abrindo em "Para responder" (o que espera o vendedor). Pós-venda não mudou.
+  responder, Todas** (ordem das chaves de `INBOX_TABS` em `lib/questions/presentation.ts`; teste em `inbox.test.ts`). Em
+  seguida o Breno pediu que a tela **abra no primeiro cartão** ("a principal sempre tem que ser a primeira"):
+  `DEFAULT_INBOX_TAB = "ia"` (vale para `parseInboxTab`, `inboxHref` e o campo escondido da busca); os links que significam
+  "o que espera você" (Painel: "Aguardando você" e "Esperando você", Resultados: "N aguardando você", aviso de pausa geral)
+  passaram a levar `?aba=responder`. Pós-venda não mudou.
 
 ### 2026-10-13 — Sessão 21 · v1: botão de pausar a IA funcionando (IA: Claude, via app Codex)
 - Pedido do Breno: o botão "Automação de Respostas" da v1 precisa funcionar (para pausar na v1 o cliente que vai testar a

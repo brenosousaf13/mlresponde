@@ -76,7 +76,7 @@ export function KpiCards({
       headline: `${formatNumber(answered)} respondidas no período`,
       detail:
         awaiting > 0 ? (
-          <Link href="/perguntas" className="font-medium text-amber-700 hover:underline dark:text-amber-400">
+          <Link href="/perguntas?aba=responder" className="font-medium text-amber-700 hover:underline dark:text-amber-400">
             {formatNumber(awaiting)} aguardando você
           </Link>
         ) : (
