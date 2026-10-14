@@ -78,10 +78,11 @@ export const TONE_STYLES: Record<
   },
 }
 
+/** A ordem das chaves é a ordem dos cartões no topo de /perguntas (pedido do Breno, Sessão 22). */
 export const INBOX_TABS = {
-  responder: { label: "Para responder", hint: "esperando você" },
   ia: { label: "Respondidas pela IA", hint: "sem você precisar fazer nada" },
   voce: { label: "Respondidas por você", hint: "no painel ou no Mercado Livre" },
+  responder: { label: "Para responder", hint: "esperando você" },
   todas: { label: "Todas", hint: "inclui na fila e arquivadas" },
 } as const
 

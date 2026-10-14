@@ -2,15 +2,32 @@ import { describe, expect, it } from "vitest"
 
 import { dayKey, dayLabel, formatNumber, listTime, timeAgo } from "@/lib/format"
 import {
+  INBOX_TABS,
   inboxHref,
   pageRange,
   parseInboxOrder,
+  parseInboxTab,
   parseItemFilter,
   parsePage,
   questionSummary,
   rankTopItems,
   type InboxState,
 } from "@/lib/questions/presentation"
+
+describe("cartões do topo de Perguntas", () => {
+  it("aparecem na ordem: pela IA, por você, para responder, todas", () => {
+    expect(Object.values(INBOX_TABS).map((tab) => tab.label)).toEqual([
+      "Respondidas pela IA",
+      "Respondidas por você",
+      "Para responder",
+      "Todas",
+    ])
+  })
+
+  it("a tela continua abrindo em \"Para responder\"", () => {
+    expect(parseInboxTab(undefined)).toBe("responder")
+  })
+})
 
 describe("datas da caixa de entrada (fuso de São Paulo)", () => {
   // 2026-10-11 10:00 em São Paulo (UTC-3)

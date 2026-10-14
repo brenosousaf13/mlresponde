@@ -712,8 +712,8 @@ exportação só faz GET e a importação recusa qualquer destino que não seja 
    `needs_review` (`account_inactive`).
 4. Fila: webhook processa até 5 atrasadas e cada rodada do cron (a cada ~10 s) roda até 10. **Staging não tem cron.**
 5. Ao conectar/reconectar conta: sincroniza as perguntas sem resposta do ML (até 200) e processa.
-6. Painel do vendedor: **Perguntas** = caixa de entrada (filtros Para responder / Respondidas pela IA / Respondidas por
-   você / Todas, busca por pergunta/anúncio/código MLB, conta, lista + conversa, responder na tela com rascunho, "Sugestão
+6. Painel do vendedor: **Perguntas** = caixa de entrada (filtros em cartões, nesta ordem desde a Sessão 22: Respondidas pela
+   IA / Respondidas por você / Para responder / Todas — a tela abre em Para responder; busca por pergunta/anúncio/código MLB, conta, lista + conversa, responder na tela com rascunho, "Sugestão
    da IA", "Ensinar a IA", "Enviar e ir para a próxima", arquivar/desarquivar, "Deixar a IA tentar de novo", ao vivo via
    Realtime, sincronizar). **Escala (Sessão 6):** no computador (≥1024 px) a página ocupa a altura da tela (mínimo 44rem)
    e lista e conversa rolam cada uma por conta própria — o layout da área logada usa `has-[[data-fill-viewport]]` no
@@ -1319,6 +1319,9 @@ webhook do ML validado, fila/reprocessamento de jobs, observabilidade, controle 
   00:00:16,05 UTC, registrada na maanu às 00:00:16,76 e **respondida pela IA às 00:00:21,9 (~6 s)**, com a foto já em https.
   Outra ("Tem na cor preto?", 23:55:51) entrou em 3 s; a IA mandou para o vendedor (não achou o estoque da cor no kit) e foi
   respondida à mão.
+- Pedido seguinte do Breno: cartões do topo de Perguntas na ordem **Respondidas pela IA, Respondidas por você, Para
+  responder, Todas** (ordem das chaves de `INBOX_TABS` em `lib/questions/presentation.ts`; teste em `inbox.test.ts`). A tela
+  continua abrindo em "Para responder" (o que espera o vendedor). Pós-venda não mudou.
 
 ### 2026-10-13 — Sessão 21 · v1: botão de pausar a IA funcionando (IA: Claude, via app Codex)
 - Pedido do Breno: o botão "Automação de Respostas" da v1 precisa funcionar (para pausar na v1 o cliente que vai testar a
