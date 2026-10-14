@@ -1,16 +1,29 @@
-import { InfoIcon, LightbulbIcon, MessagesSquareIcon } from "lucide-react"
+import { CircleCheckIcon, CreditCardIcon, FlaskConicalIcon, InfoIcon, LightbulbIcon, LoaderIcon, MessagesSquareIcon } from "lucide-react"
 import type { Metadata } from "next"
 
 import { AccessBadge } from "@/components/app/access-badge"
 import { PageHeader } from "@/components/app/page-header"
+import { CancelSubscriptionButton } from "@/components/plans/cancel-subscription-button"
+import { PaymentReturnRefresher } from "@/components/plans/payment-return"
 import { PlanPicker } from "@/components/plans/plan-picker"
 import { UsageMeter } from "@/components/plans/usage-meter"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import { Badge } from "@/components/ui/badge"
 import { Card, CardAction, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
+import { cancelReasonText, PAYMENT_METHOD_LABELS } from "@/lib/billing/subscription"
 import { requireSection } from "@/lib/dal/app-context"
 import { getPlanUsage } from "@/lib/dal/plan"
+import { getSubscriptionPageState, type SubscriptionPageState } from "@/lib/dal/subscription"
 import { formatDate, pluralize } from "@/lib/format"
-import { FEATURE_LABELS, requiredPlanName, sellablePlan, SUPPORT_LABELS, TRIAL_PLAN } from "@/lib/plans/plans"
+import {
+  BILLING_CYCLE_LABELS,
+  FEATURE_LABELS,
+  planName,
+  requiredPlanName,
+  sellablePlan,
+  SUPPORT_LABELS,
+  TRIAL_PLAN,
+} from "@/lib/plans/plans"
 import { periodText, quotaStatus } from "@/lib/plans/usage"
 
 export const metadata: Metadata = { title: "Assinatura" }
@@ -32,15 +45,24 @@ export default async function SubscriptionPage({ searchParams }: PageProps<"/ass
   const context = await requireSection("assinatura")
   const { access, organization, features, plan } = context
   const params = await searchParams
-  const usage = await getPlanUsage(context)
+  const [usage, billing] = await Promise.all([getPlanUsage(context), getSubscriptionPageState(context)])
   const contracted = sellablePlan(organization.plan)
   const isTrial = plan.id === TRIAL_PLAN.id
+  const periodEnd = organization.currentPeriodEnd ? formatDate(organization.currentPeriodEnd) : null
+  const cancelledButActive = access.state === "active" && organization.subscriptionStatus === "canceled" && periodEnd
 
+  const blockedText =
+    organization.subscriptionStatus === "trialing"
+      ? `Seu teste grátis terminou em ${formatDate(access.trialEndsAt)}. Assine um plano para voltar a usar todas as funcionalidades. Seus dados continuam guardados.`
+      : "Sua assinatura não está ativa. Assine um plano para voltar a usar todas as funcionalidades. Seus dados continuam guardados."
   const summary = {
-    trial: `Seu teste grátis vai até ${formatDate(access.trialEndsAt)} (${pluralize(access.trialDaysLeft, "dia restante", "dias restantes")}). Nele você conhece tudo do plano Pro, com 1 conta do Mercado Livre. Se assinar antes, você não perde os dias que faltam.`,
-    active: "Sua assinatura está ativa. Obrigado por usar a maanu!",
-    blocked: `Seu teste grátis terminou em ${formatDate(access.trialEndsAt)}. Assine um plano para voltar a usar todas as funcionalidades. Seus dados continuam guardados.`,
+    trial: `Seu teste grátis vai até ${formatDate(access.trialEndsAt)} (${pluralize(access.trialDaysLeft, "dia restante", "dias restantes")}). Nele você conhece tudo do plano Pro, com 1 conta do Mercado Livre. Ao assinar, o plano escolhido começa na hora.`,
+    active: cancelledButActive
+      ? `Sua assinatura foi cancelada e não terá novas cobranças. Você continua com acesso até ${periodEnd}.`
+      : "Sua assinatura está ativa. Obrigado por usar a maanu!",
+    blocked: blockedText,
   }[access.state]
+  const paymentReturn = params.pagamento === "concluido" ? billing.lastCheckout : null
 
   const recurso = params.recurso === "pos_venda" || params.recurso === "melhorias_anuncio" ? params.recurso : null
   const upsell = recurso && !features[recurso] ? UPSELL[recurso] : null
@@ -52,6 +74,33 @@ export default async function SubscriptionPage({ searchParams }: PageProps<"/ass
   return (
     <>
       <PageHeader title="Assinatura" description="Seu plano, o quanto você já usou e os planos disponíveis." />
+      {paymentReturn?.status === "pending" ? (
+        <Alert>
+          <LoaderIcon className="animate-spin motion-reduce:animate-none" />
+          <AlertTitle>Estamos confirmando o seu pagamento</AlertTitle>
+          <AlertDescription>
+            Assim que a AbacatePay confirmar (costuma levar alguns segundos), o plano {planName(paymentReturn.plan)} é liberado
+            e esta tela atualiza sozinha.
+          </AlertDescription>
+          <PaymentReturnRefresher />
+        </Alert>
+      ) : paymentReturn?.status === "paid" ? (
+        <Alert>
+          <CircleCheckIcon className="text-primary" />
+          <AlertTitle>Pagamento confirmado!</AlertTitle>
+          <AlertDescription>O plano {planName(paymentReturn.plan)} está ativo. Obrigado por assinar a maanu.</AlertDescription>
+        </Alert>
+      ) : null}
+      {billing.testMode ? (
+        <Alert>
+          <FlaskConicalIcon />
+          <AlertTitle>Pagamentos em modo de teste</AlertTitle>
+          <AlertDescription>
+            Nada é cobrado de verdade. Na página de pagamento, use o cartão 4242 4242 4242 4242, qualquer validade futura e
+            qualquer CVV.
+          </AlertDescription>
+        </Alert>
+      ) : null}
       {upsell ? (
         <Alert>
           <upsell.icon />
@@ -96,6 +145,10 @@ export default async function SubscriptionPage({ searchParams }: PageProps<"/ass
         </CardFooter>
       </Card>
 
+      {billing.details && billing.current ? (
+        <SubscriptionCard billing={billing} periodEnd={periodEnd} />
+      ) : null}
+
       {/* Os cards dos planos têm rodapé; sem o ajuste, o card de fora também perde o espaço de baixo (has-data-[slot=card-footer]). */}
       <Card className="has-data-[slot=card-footer]:pb-(--card-spacing)">
         <CardHeader>
@@ -106,9 +159,116 @@ export default async function SubscriptionPage({ searchParams }: PageProps<"/ass
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <PlanPicker currentPlanId={contracted?.id ?? null} active={access.state === "active"} />
+          <PlanPicker
+            currentPlanId={contracted?.id ?? null}
+            active={access.state === "active"}
+            billing={{
+              checkoutEnabled: billing.checkoutEnabled,
+              blockedReason: billing.blockedReason,
+              availability: billing.availability,
+              current: billing.current,
+              nextChargeAt: organization.currentPeriodEnd,
+            }}
+          />
         </CardContent>
       </Card>
     </>
+  )
+}
+
+function formatCents(cents: number) {
+  return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(cents / 100)
+}
+
+function Row({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="flex flex-col gap-0.5">
+      <dt className="text-xs text-muted-foreground">{label}</dt>
+      <dd className="text-sm font-medium">{children}</dd>
+    </div>
+  )
+}
+
+/** A assinatura na AbacatePay: valor, forma de pagamento, próxima cobrança, avisos e cancelar. */
+function SubscriptionCard({ billing, periodEnd }: { billing: SubscriptionPageState; periodEnd: string | null }) {
+  const current = billing.current!
+  const details = billing.details!
+  const active = current.status === "active"
+  const card =
+    details.method === "CARD" && details.cardLast4
+      ? `${details.cardBrand ? `${details.cardBrand} ` : "Cartão "}final ${details.cardLast4}`
+      : details.method
+        ? (PAYMENT_METHOD_LABELS[details.method] ?? details.method)
+        : "—"
+  const reason = cancelReasonText(details.cancelReason)
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <CreditCardIcon className="size-4 text-muted-foreground" />
+          Sua assinatura
+        </CardTitle>
+        <CardDescription>Cobrança recorrente pela AbacatePay.</CardDescription>
+        <CardAction className="flex gap-1.5">
+          {details.devMode ? <Badge variant="outline">Teste</Badge> : null}
+          {!active ? (
+            <Badge variant="secondary">Cancelada</Badge>
+          ) : current.paymentFailing ? (
+            <Badge variant="destructive">Pagamento recusado</Badge>
+          ) : (
+            <Badge>Ativa</Badge>
+          )}
+        </CardAction>
+      </CardHeader>
+      <CardContent className="flex flex-col gap-4">
+        <dl className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <Row label="Plano">
+            {planName(current.plan)} · {BILLING_CYCLE_LABELS[current.cycle]}
+          </Row>
+          <Row label="Valor">
+            {formatCents(details.amountCents)} {current.cycle === "annual" ? "por ano" : "por mês"}
+          </Row>
+          <Row label="Forma de pagamento">{card}</Row>
+          <Row label={active ? "Próxima cobrança" : "Acesso até"}>{periodEnd ?? "—"}</Row>
+        </dl>
+        {active && details.scheduledPlan ? (
+          <Alert>
+            <InfoIcon />
+            <AlertTitle>Troca de plano agendada</AlertTitle>
+            <AlertDescription>
+              A partir da próxima cobrança{periodEnd ? ` (${periodEnd})` : ""}, seu plano passa a ser o {planName(details.scheduledPlan)}.
+            </AlertDescription>
+          </Alert>
+        ) : null}
+        {current.paymentFailing ? (
+          <Alert variant="destructive">
+            <CreditCardIcon />
+            <AlertTitle>O cartão recusou a última cobrança</AlertTitle>
+            <AlertDescription>
+              A AbacatePay vai tentar de novo nos próximos dias. Se preferir, use &quot;Pagar com outro cartão&quot; no seu plano,
+              logo abaixo. Se todas as tentativas falharem, a assinatura é cancelada.
+            </AlertDescription>
+          </Alert>
+        ) : null}
+        {!active && reason ? (
+          <p className="text-sm text-muted-foreground">A assinatura foi cancelada porque {reason}.</p>
+        ) : null}
+      </CardContent>
+      <CardFooter className="flex flex-wrap items-center justify-between gap-2 border-t text-xs text-muted-foreground">
+        <span>
+          {details.lastPaymentAt ? `Último pagamento em ${formatDate(details.lastPaymentAt)}` : "Sem pagamentos ainda"}
+          {details.lastReceiptUrl ? (
+            <>
+              {" · "}
+              <a href={details.lastReceiptUrl} target="_blank" rel="noreferrer" className="underline underline-offset-3 hover:text-foreground">
+                Ver recibo
+              </a>
+            </>
+          ) : null}
+        </span>
+        {active ? <CancelSubscriptionButton planName={planName(current.plan) ?? current.plan} accessUntil={periodEnd} /> : null}
+      </CardFooter>
+    </Card>
   )
 }

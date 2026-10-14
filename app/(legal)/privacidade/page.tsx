@@ -21,7 +21,7 @@ const sections: LegalSection[] = [
     title: "Como usamos os dados",
     paragraphs: [
       "Para criar e manter sua conta, prestar o serviço contratado (incluindo a geração de respostas com inteligência artificial), dar suporte, enviar avisos importantes sobre a conta e cumprir obrigações legais.",
-      "Os dados de cobrança são usados para cobrar a assinatura, emitir nota fiscal e evitar contas duplicadas. Podem ser compartilhados com o meio de pagamento e com o emissor de notas fiscais, apenas para essas finalidades.",
+      "Os dados de cobrança são usados para cobrar a assinatura, emitir nota fiscal e evitar contas duplicadas. Podem ser compartilhados com o meio de pagamento (AbacatePay) e com o emissor de notas fiscais, apenas para essas finalidades. Os dados do cartão são digitados na página de pagamento da AbacatePay e não passam pela maanu.",
       "Não vendemos seus dados pessoais.",
     ],
   },

@@ -41,6 +41,13 @@ describe("computeAccess", () => {
     ).toBe("active")
   })
 
+  it("assinatura cancelada continua valendo até o fim do período pago", () => {
+    const canceled = { ...base, subscription_status: "canceled", trial_ends_at: inDays(-30) }
+    expect(computeAccess({ ...canceled, current_period_end: inDays(10) }, now).state).toBe("active")
+    expect(computeAccess({ ...canceled, current_period_end: inDays(-1) }, now).state).toBe("blocked")
+    expect(computeAccess({ ...canceled, subscription_status: "past_due", current_period_end: inDays(3) }, now).state).toBe("active")
+  })
+
   it("assinatura cancelada ou com pagamento pendente bloqueia após o teste", () => {
     expect(computeAccess({ ...base, subscription_status: "canceled", trial_ends_at: inDays(-1) }, now).state).toBe(
       "blocked"

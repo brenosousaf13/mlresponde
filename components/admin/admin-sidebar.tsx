@@ -5,6 +5,7 @@ import {
   ArrowLeftIcon,
   BotIcon,
   ChevronsUpDownIcon,
+  CreditCardIcon,
   KeyRoundIcon,
   LayoutDashboardIcon,
   LogOutIcon,
@@ -56,6 +57,7 @@ const MONITOR: Item[] = [
   { title: "Clientes", href: "/admin/clientes", icon: UsersIcon },
   { title: "Uso de IA", href: "/admin/uso-ia", icon: BotIcon },
   { title: "Financeiro", href: "/admin/financeiro", icon: WalletIcon },
+  { title: "Cobrança", href: "/admin/cobranca", icon: CreditCardIcon },
 ]
 
 const CONTROL: Item[] = [

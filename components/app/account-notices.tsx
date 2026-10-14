@@ -1,10 +1,10 @@
-import { ArrowRightIcon, GaugeIcon, OctagonPauseIcon, StoreIcon } from "lucide-react"
+import { ArrowRightIcon, CreditCardIcon, GaugeIcon, OctagonPauseIcon, StoreIcon } from "lucide-react"
 import Link from "next/link"
 
 import { ConnectMlDialog } from "@/components/contas/connect-ml-dialog"
 import { buttonVariants } from "@/components/ui/button"
 import { Item, ItemActions, ItemContent, ItemDescription, ItemMedia, ItemTitle } from "@/components/ui/item"
-import type { AnswersUsageNotice, MlConnectionNotice } from "@/lib/access/notices"
+import type { AnswersUsageNotice, MlConnectionNotice, PaymentNotice } from "@/lib/access/notices"
 import { cn } from "@/lib/utils"
 
 /**
@@ -16,7 +16,10 @@ export function AccountNotices({
   canManage,
   platformAiPaused = false,
   usage = null,
+  payment = null,
 }: {
+  /** Cobrança da assinatura recusada (só aparece para quem administra a loja). */
+  payment?: PaymentNotice | null
   ml: MlConnectionNotice | null
   /** Limite de respostas automáticas do plano perto do fim (80%) ou esgotado. */
   usage?: AnswersUsageNotice | null
@@ -25,9 +28,26 @@ export function AccountNotices({
   /** Pausa geral da IA ligada pela equipe maanu (painel do administrador). */
   platformAiPaused?: boolean
 }) {
-  if (!ml && !platformAiPaused && !usage) return null
+  if (!ml && !platformAiPaused && !usage && !payment) return null
   return (
     <section aria-label="Avisos da conta" className="flex flex-col gap-3">
+      {payment ? (
+        <Item variant="outline" className="bg-card shadow-xs">
+          <ItemMedia className="size-10 rounded-lg bg-destructive/10 text-destructive">
+            <CreditCardIcon className="size-5" />
+          </ItemMedia>
+          <ItemContent>
+            <ItemTitle className="line-clamp-none">{payment.title}</ItemTitle>
+            <ItemDescription className="line-clamp-none">{payment.description}</ItemDescription>
+          </ItemContent>
+          <ItemActions className="max-sm:w-full max-sm:pl-12.5">
+            <Link href="/assinatura" className={cn(buttonVariants({ size: "sm" }))}>
+              Ver assinatura
+              <ArrowRightIcon data-icon="inline-end" />
+            </Link>
+          </ItemActions>
+        </Item>
+      ) : null}
       {usage ? (
         <Item variant="outline" className="bg-card shadow-xs">
           <ItemMedia

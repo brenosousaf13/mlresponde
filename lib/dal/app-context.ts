@@ -36,6 +36,14 @@ export type AppContext = {
     trialEndsAt: string
     /** Limite de respostas automáticas definido pelo administrador (null = o do plano). */
     monthlyAnswersLimit: number | null
+    /** Fim do período já pago (assinatura) ou null. */
+    currentPeriodEnd: string | null
+    billingCycle: string | null
+    /**
+     * Assinatura na AbacatePay (só para dono/administrador: o RLS esconde dos membros comuns).
+     * `paymentFailedAt`: a última cobrança foi recusada e a AbacatePay está tentando de novo.
+     */
+    subscription: { status: string; paymentFailedAt: string | null } | null
   }
   /** Plano em vigor (cadastrado, teste grátis ou o Starter como base). */
   plan: PlanInfo
@@ -75,7 +83,7 @@ async function loadAccount(userId: string) {
     supabase
       .from("organization_members")
       .select(
-        "role, organizations(id, name, plan, trial_ends_at, subscription_status, current_period_end, billing_exempt, ml_accounts_limit, monthly_answers_limit, created_at, billing_profiles(organization_id))"
+        "role, organizations(id, name, plan, trial_ends_at, subscription_status, current_period_end, billing_exempt, billing_cycle, ml_accounts_limit, monthly_answers_limit, created_at, billing_profiles(organization_id), billing_subscriptions(status, payment_failed_at))"
       )
       .eq("user_id", userId)
       .order("created_at", { ascending: true })
@@ -172,6 +180,14 @@ export const getAppContext = cache(async (): Promise<AppContext> => {
       createdAt: organization.created_at,
       trialEndsAt: organization.trial_ends_at,
       monthlyAnswersLimit: organization.monthly_answers_limit,
+      currentPeriodEnd: organization.current_period_end,
+      billingCycle: organization.billing_cycle,
+      subscription: organization.billing_subscriptions
+        ? {
+            status: organization.billing_subscriptions.status,
+            paymentFailedAt: organization.billing_subscriptions.payment_failed_at,
+          }
+        : null,
     },
     plan,
     role,

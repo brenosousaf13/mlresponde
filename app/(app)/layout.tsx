@@ -6,7 +6,7 @@ import { AppSidebar, type SidebarNavItem } from "@/components/app/app-sidebar"
 import { WelcomeTour } from "@/components/app/welcome-tour"
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
 import { decideSectionAccess } from "@/lib/access/access"
-import { answersUsageNotice, mlConnectionNotice, trialNotice } from "@/lib/access/notices"
+import { answersUsageNotice, mlConnectionNotice, paymentNotice, trialNotice } from "@/lib/access/notices"
 import { canManageOrganization, requireOnboardedContext } from "@/lib/dal/app-context"
 import { getPlanUsage } from "@/lib/dal/plan"
 import { adminPanelHref } from "@/lib/admin/host"
@@ -67,6 +67,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const trial = trialNotice(context.access, context.organization.subscriptionStatus)
   const mlNotice = mlConnectionNotice(context.access, context.mlAccounts)
   const usageNotice = usage ? answersUsageNotice(context.access, usage.answers, periodText(usage.period)) : null
+  const payment = canManageOrganization(context.role) ? paymentNotice(context.organization.subscription) : null
 
   return (
     <SidebarProvider defaultOpen={defaultOpen}>
@@ -91,6 +92,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
             canManage={canManageOrganization(context.role)}
             platformAiPaused={platformAiPaused}
             usage={usageNotice}
+            payment={payment}
           />
           {children}
         </div>

@@ -40,8 +40,8 @@ export default async function AdminFinancePage() {
           <TriangleAlertIcon />
           <AlertTitle>{finance.paying_without_price} assinante(s) sem mensalidade cadastrada</AlertTitle>
           <AlertDescription>
-            Enquanto não houver cobrança automática, o MRR vem da mensalidade de cada cliente (Clientes → Editar
-            assinatura).
+            Quem assina pela AbacatePay tem a mensalidade preenchida sozinha. Para os demais, o MRR vem da mensalidade
+            cadastrada (Clientes → Editar assinatura).
           </AlertDescription>
         </Alert>
       ) : null}

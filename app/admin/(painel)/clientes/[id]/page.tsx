@@ -12,6 +12,7 @@ import Link from "next/link"
 import { notFound } from "next/navigation"
 
 import { AuditList } from "@/components/admin/audit-list"
+import { AdminCancelSubscriptionButton } from "@/components/admin/billing-buttons"
 import { OrgStatusBadge, StageLabel, ToneBadge } from "@/components/admin/badges"
 import { DailyChart } from "@/components/admin/daily-chart"
 import { ExtendTrialMenu } from "@/components/admin/extend-trial-menu"
@@ -28,6 +29,7 @@ import { formatBrl, formatInteger, formatShare, formatTokens, formatUsd } from "
 import { AI_FEATURES, MEMBER_ROLES, ML_ACCOUNT_STATUS, QUESTION_STATUS, SUBSCRIPTION_STATUSES } from "@/lib/admin/labels"
 import { formatDocument } from "@/lib/billing/documents"
 import { getAdminOrganization, getAdminOrganizationPlan, requireAdmin } from "@/lib/dal/admin"
+import { getAdminOrganizationBilling } from "@/lib/dal/admin-billing"
 import { formatDate, formatDateTime, timeAgo } from "@/lib/format"
 import { BILLING_CYCLE_LABELS, planName } from "@/lib/plans/plans"
 import { periodText } from "@/lib/plans/usage"
@@ -50,7 +52,8 @@ export default async function AdminClientPage({ params }: { params: Promise<{ id
   if (!detail) notFound()
 
   const org = detail.organization
-  const planUsage = await getAdminOrganizationPlan(org)
+  const [planUsage, billing] = await Promise.all([getAdminOrganizationPlan(org), getAdminOrganizationBilling(id)])
+  const subscription = billing.subscription
   const questions = detail.questions_30d
   const aiCost30d = Number(org.ai_cost_30d_usd)
   const usageDaily = detail.usage_daily.map((point) => ({ day: point.day, value: Number(point.cost_usd) }))
@@ -319,6 +322,80 @@ export default async function AdminClientPage({ params }: { params: Promise<{ id
                 <Row label="Limite de contas ML">{formatInteger(org.ml_accounts_limit)}</Row>
               </dl>
             </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Cobrança (AbacatePay)</CardTitle>
+              <CardDescription>
+                {subscription ? "Assinatura atual na AbacatePay." : "Ainda não assinou pelo app."}{" "}
+                <Link href="/admin/cobranca" className="underline underline-offset-3">
+                  Ver Cobrança
+                </Link>
+              </CardDescription>
+              {subscription?.status === "active" ? (
+                <CardAction>
+                  <AdminCancelSubscriptionButton organizationId={org.organization_id} organizationName={org.name} />
+                </CardAction>
+              ) : null}
+            </CardHeader>
+            {subscription ? (
+              <CardContent>
+                <dl className="divide-y">
+                  <Row label="Situação">
+                    {subscription.status === "cancelled" ? (
+                      <ToneBadge tone="slate">Cancelada</ToneBadge>
+                    ) : subscription.payment_failed_at ? (
+                      <ToneBadge tone="red">Cobrança recusada ({subscription.payment_failures}x)</ToneBadge>
+                    ) : (
+                      <ToneBadge tone="teal">Ativa</ToneBadge>
+                    )}
+                    {subscription.dev_mode ? <ToneBadge tone="violet" className="ml-1">Teste</ToneBadge> : null}
+                  </Row>
+                  <Row label="Plano cobrado">
+                    {planName(subscription.plan)} ·{" "}
+                    {BILLING_CYCLE_LABELS[subscription.cycle as keyof typeof BILLING_CYCLE_LABELS] ?? subscription.cycle}
+                  </Row>
+                  <Row label="Valor">{formatBrl(subscription.amount_cents / 100)}</Row>
+                  {subscription.scheduled_plan ? <Row label="Troca agendada">{planName(subscription.scheduled_plan)}</Row> : null}
+                  <Row label="Forma de pagamento">
+                    {subscription.method === "PIX"
+                      ? "PIX Automático"
+                      : subscription.card_last4
+                        ? `${subscription.card_brand ?? "Cartão"} final ${subscription.card_last4}`
+                        : (subscription.method ?? "—")}
+                  </Row>
+                  <Row label="Último pagamento">
+                    {subscription.last_payment_at ? formatDateTime(subscription.last_payment_at) : "—"}
+                  </Row>
+                  {subscription.cancelled_at ? (
+                    <Row label="Cancelada em">
+                      {formatDateTime(subscription.cancelled_at)}
+                      {subscription.cancel_reason ? (
+                        <span className="block text-xs font-normal text-muted-foreground">{subscription.cancel_reason}</span>
+                      ) : null}
+                    </Row>
+                  ) : null}
+                  <Row label="Assinatura">
+                    <code className="text-xs">{subscription.subscription_id}</code>
+                  </Row>
+                  {subscription.customer_id ? (
+                    <Row label="Cliente">
+                      <code className="text-xs">{subscription.customer_id}</code>
+                    </Row>
+                  ) : null}
+                </dl>
+              </CardContent>
+            ) : null}
+            {billing.events.length ? (
+              <CardFooter className="flex-col items-stretch gap-1 border-t text-xs text-muted-foreground">
+                {billing.events.slice(0, 5).map((event) => (
+                  <p key={event.id}>
+                    {formatDateTime(event.received_at)} · <code>{event.event}</code> · {event.note ?? event.status}
+                  </p>
+                ))}
+              </CardFooter>
+            ) : null}
           </Card>
 
           <Card>

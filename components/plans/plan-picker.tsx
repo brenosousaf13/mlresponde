@@ -3,8 +3,8 @@
 import { CheckIcon, MinusIcon } from "lucide-react"
 import { useState } from "react"
 
+import { PlanActionButton, type PlanPickerBilling } from "@/components/plans/plan-action-button"
 import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 import { formatNumber } from "@/lib/format"
@@ -41,13 +41,16 @@ function planLines(plan: SellablePlan) {
 export function PlanPicker({
   currentPlanId,
   active,
+  billing,
 }: {
   /** Plano contratado (null = teste grátis, cortesia ou sem plano). */
   currentPlanId: SellablePlanId | null
   /** A assinatura está ativa (o plano atual aparece como "seu plano"). */
   active: boolean
+  /** Contratação pela AbacatePay (botões de assinar, trocar e assinar de novo). */
+  billing: PlanPickerBilling
 }) {
-  const [cycle, setCycle] = useState<BillingCycle>("monthly")
+  const [cycle, setCycle] = useState<BillingCycle>(billing.current?.status === "active" ? billing.current.cycle : "monthly")
 
   return (
     <div className="flex flex-col gap-4">
@@ -73,7 +76,7 @@ export function PlanPicker({
             </span>
           </ToggleGroupItem>
         </ToggleGroup>
-        <p className="text-xs text-muted-foreground">Sem fidelidade no mensal. Troque de plano quando quiser.</p>
+        <p className="text-xs text-muted-foreground">Sem fidelidade. Troque de plano ou cancele quando quiser.</p>
       </div>
 
       <div className="grid items-stretch gap-4 lg:grid-cols-3">
@@ -124,12 +127,13 @@ export function PlanPicker({
                 </ul>
               </CardContent>
               <CardFooter className="flex-col items-stretch gap-1.5">
-                <Button disabled variant={plan.highlight ? "default" : "outline"} className="w-full">
-                  {isCurrent && active ? "Plano atual" : `Assinar o ${plan.name}`}
-                </Button>
-                {isCurrent && active ? null : (
-                  <p className="text-center text-xs text-muted-foreground">Contratação pelo app em breve</p>
-                )}
+                <PlanActionButton
+                  plan={plan}
+                  cycle={cycle}
+                  billing={billing}
+                  highlight={Boolean(plan.highlight)}
+                  legacyCurrent={isCurrent && active}
+                />
               </CardFooter>
             </Card>
           )

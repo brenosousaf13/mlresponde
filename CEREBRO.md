@@ -4,7 +4,7 @@
 > inteiro antes de trabalhar e atualizá-lo ao terminar. Se algo aqui divergir do código, o código vence —
 > e este arquivo deve ser corrigido na mesma sessão.
 
-Última atualização: **2026-10-13** (Sessão 22 — perguntas chegando sozinhas: rotina que busca no ML a cada ~10 s + webhook respondendo na hora; foto do anúncio corrigida; Sessão 21 — v1: botão de pausar a IA funcionando, commit `bf56777` na `main`; Sessão 20b — Starter com 300 respostas e espaço nos cards dos planos; Sessão 20 — planos Starter/Pro/Escala com limites, teste grátis e Melhorias de anúncio; Sessão 19 — pesquisa de preços e proposta de 3 planos; Sessão 18 — tour de boas-vindas e avisos de teste/conta ML redesenhados; Sessão 17 — chaves de IA cadastradas e trocadas pelo painel do administrador; Sessão 16 — textos do cadastro sem falar em cobrança; Sessão 15b — Fase 1 da troca preparada)
+Última atualização: **2026-10-14** (Sessão 23 — cobrança pela AbacatePay pronta no código e no banco: assinar, trocar, cancelar e webhooks; falta só a chave de API do Breno; Sessão 22 — perguntas chegando sozinhas: rotina que busca no ML a cada ~10 s + webhook respondendo na hora; foto do anúncio corrigida; Sessão 21 — v1: botão de pausar a IA funcionando, commit `bf56777` na `main`; Sessão 20b — Starter com 300 respostas e espaço nos cards dos planos; Sessão 20 — planos Starter/Pro/Escala com limites, teste grátis e Melhorias de anúncio; Sessão 19 — pesquisa de preços e proposta de 3 planos; Sessão 18 — tour de boas-vindas e avisos de teste/conta ML redesenhados; Sessão 17 — chaves de IA cadastradas e trocadas pelo painel do administrador; Sessão 16 — textos do cadastro sem falar em cobrança; Sessão 15b — Fase 1 da troca preparada)
 
 ---
 
@@ -139,6 +139,15 @@ novas funcionalidades, segurança multi-tenant de verdade — **desenvolvido em 
   da v2 (só ao app da v1, que o cliente ainda tem autorizado). Agora o cron de perguntas **busca as perguntas novas no ML a
   cada ~10 s** em todas as contas (`lib/answers/poll.ts`), sem depender da notificação, e o webhook responde 200 na hora (o
   ML pede até 500 ms). Foto do anúncio quebrada (o ML devolve `http://` e o `next/image` só aceita https) → `mlImageUrl`.
+  **Sessão 23 (2026-10-14): cobrança pela AbacatePay (sub-projeto 4b)** — a tela Assinatura assina pelo app (página de
+  pagamento hospedada da AbacatePay, cartão), troca de plano (subir libera na hora; descer vale na próxima cobrança), troca
+  mensal ↔ anual e "pagar com outro cartão" (assinatura nova; a antiga é cancelada sozinha) e cancela (acesso até o fim do
+  período pago). Webhook `/api/webhook/abacatepay` (formato antigo e Standard Webhooks) atualiza `organizations` (plano,
+  situação, ciclo, fim do período, mensalidade = MRR automático). Cobrança recusada vira aviso; a AbacatePay tenta 4 vezes.
+  Produtos reconhecidos sozinhos pelo nome + preço. Painel admin → **Cobrança** (configuração, produtos, webhook com botão
+  de cadastrar, assinaturas, notificações) e ficha do cliente com a assinatura e "Cancelar". Banco: §6.1i. **Desligado até o
+  Breno colocar a `ABACATEPAY_API_KEY` na Vercel** (o segredo do webhook já foi criado pela IA): até lá aparece "em breve".
+  Spec: `docs/superpowers/specs/2026-10-14-cobranca-abacatepay-design.md`. Passo a passo para ligar: §13 item 0g.
 - **Marca:** **maanu** (decisão do Breno, 2026-10-11). Guia de uso, paleta e arquivos em `docs/brand/README.md`; nome,
   assinatura e slogan em `lib/config/site.ts`; logo só pelos componentes de `components/brand/logo.tsx`.
 - P0 de segurança/toggle (§8) **adiados** por decisão do Breno — revisitar antes de abrir para novos clientes.
@@ -241,6 +250,10 @@ app/
                                   # troca code+verifier, /users/me, connectMlAccount
   api/webhook/mercadolivre/route.ts        # webhook ML: valida topic/application_id, 200 NA HORA (sem banco; o ML exige
                                   # até 500 ms) e depois, em after(): conta, registra, processa. Loga cada pergunta/mensagem
+  api/webhook/abacatepay/route.ts # webhook da AbacatePay (assinaturas): confere segredo/assinatura, processa e responde
+                                # (200 ok/repetido/ignorado, 401 origem errada, 500/503 = a AbacatePay tenta de novo)
+  (app)/assinatura/actions.ts   # subscribeToPlan (devolve a URL da página de pagamento), changePlan, cancelMySubscription
+  admin/billing-actions.ts      # registerAbacateWebhook, refreshAbacateCatalog, adminCancelSubscription; tela admin/(painel)/cobranca
   api/cron/questions/route.ts   # Vercel Cron 1/min (só em produção; Bearer CRON_SECRET): runQuestionRounds = busca as
                                 # perguntas novas no ML a cada ~10 s por ~50 s + fila de novas tentativas (maxDuration 120)
   api/cron/pos-venda/route.ts   # fila do pós-venda (1/min) + a cada 15 min não lidas e conferência (Bearer CRON_SECRET)
@@ -333,6 +346,14 @@ lib/
                                   #   presentation (rótulos, efeito antes × depois) — puros e testados; ai (runImprovementModel,
                                   #   raciocínio low) e engine (cota, perguntas, anúncio, reserva, grava)
   dal/listing-improvements.ts     # ranking de anúncios + histórico; uma análise com as perguntas antes/depois
+  billing/abacatepay/             # COBRANÇA (Sessão 23; puros testados em tests/unit/abacatepay.test.ts): config (variáveis,
+                                  #   modo de teste, canUseTestPayments), catalog (produtos × planos pelo nome + preço, plano
+                                  #   pelo valor), webhook (origem: formato antigo e Standard Webhooks; leitura tolerante),
+                                  #   decide (o que cada evento faz); client (API v2, só servidor) e catalog-store (5 min)
+  billing/engine.ts               # startCheckout, requestPlanChange, cancelOrganizationSubscription, processWebhookEvent
+  billing/subscription.ts         # planIntent (assinar/trocar/assinar de novo/atual), isUpgrade, textos (puro, testado)
+  dal/subscription.ts             # estado da tela Assinatura (assinatura, último pagamento, produtos disponíveis)
+  dal/admin-billing.ts            # painel → Cobrança (rpc admin_billing_overview/admin_organization_billing + AbacatePay)
   after-sale/                     # PÓS-VENDA (puro e testado, salvo engine/ai): text (latin1, 350 caracteres, assinatura),
                                   #   conversation (páginas do ML, pendentes, pack, não lidas, destinatário/agente do ML, erros,
                                   #   motivos de bloqueio), order (venda/envio → resumo da tela e texto da IA), decision
@@ -389,6 +410,10 @@ Novas na v2:
 | `OPENAI_MODEL` | opcional; padrão `gpt-6-luna`. Não existe na Vercel (verificado na Sessão 8). Para voltar ao modelo antigo sem mexer no código: `OPENAI_MODEL=gpt-4o-mini` (modelos `gpt-4*`/`gpt-3.5*` não recebem `reasoning_effort`). |
 | `CRON_SECRET` | protege `/api/cron/questions`. **Precisa existir em Production no cutover** (o cron só roda em produção). |
 | `AI_KEYS_ENCRYPTION_KEY` | Sessão 17. 32 bytes base64; chave-mestra que tranca as chaves de IA do painel (separada da `ML_TOKEN_ENCRYPTION_KEY` de propósito). **Sensível** na Vercel: projeto `maanu` (Production) e `mlresponde` (Preview + branch `v2`), mesma nos dois e no `.env.local` (mesmo banco). Sem ela, o painel não cadastra e a IA usa a `OPENAI_API_KEY`. Perdeu ou trocou: gere outra e **cadastre as chaves de novo** (as antigas não abrem mais; nenhum outro dado é afetado). |
+| `ABACATEPAY_API_KEY` | Sessão 23. Chave de API da AbacatePay (`abc_dev_...` = teste; `abc_prod_...` = produção). **Sensível**, só no projeto `maanu` (Production). Permissões: PRODUCT:READ, CUSTOMER:CREATE, SUBSCRIPTION:CREATE, SUBSCRIPTION:READ, SUBSCRIPTION:DELETE, WEBHOOK:CREATE, WEBHOOK:READ, STORE:READ. Sem ela a contratação pelo app fica "em breve". **Falta o Breno criar** (§13 item 0g). |
+| `ABACATEPAY_WEBHOOK_SECRET` | Sessão 23. Segredo do webhook (≥ 32 caracteres; aleatório, criado pela IA na Vercel, `maanu` Production, sensível; ninguém sabe o valor). O painel admin → Cobrança cadastra o webhook na AbacatePay com ele. Trocar = cadastrar o webhook de novo. Sem ele o webhook responde 503 (a AbacatePay tenta de novo por ~18 h). |
+| `ABACATEPAY_TEST_EMAILS` | opcional. E-mails (separados por vírgula) que podem assinar com a chave de **teste** em produção (além dos administradores da plataforma). |
+| `ABACATEPAY_SUBSCRIPTION_METHODS` | opcional. `CARD` (padrão) ou `CARD,PIX` (só se a AbacatePay liberar o PIX Automático na conta). |
 | `ADMIN_HOST` | opcional (Sessão 13). Endereço próprio do painel do administrador, ex.: `admin.maanu.com.br`. Com ele, `/admin` só abre nesse endereço (no domínio do app vira 404) e o endereço só serve o painel e o login. Sem ele, o painel fica em `/admin` do próprio app. Hoje **não** existe na Vercel (sem domínio próprio). |
 
 Obsoletas (citadas no `instructions.md`, não usadas): `ANTHROPIC_API_KEY`, `NEXT_PUBLIC_APP_URL`.
@@ -592,6 +617,27 @@ localmente, definir no terminal).
   `admin_update_organization` aceita `monthly_answers_limit` e `billing_cycle`. Grants explícitos em tudo.
 - Testado em `supabase/tests/planos_rls.sql` (TESTES_PLANOS_OK); `pos_venda_rls.sql` atualizado (B = Starter).
 
+### 6.1i v2 — Cobrança pela AbacatePay (migração `20261014120000_cobranca_abacatepay.sql`, Sessão 23)
+
+- `billing_subscriptions` (1 por organização, PK `organization_id`): `subscription_id` (`subs_...`, único), `customer_id`,
+  `checkout_id`, `status` `active|cancelled`, `plan`, `cycle` `monthly|annual`, `amount_cents`, `method` `CARD|PIX`,
+  `card_brand`/`card_last4`, `scheduled_plan`/`scheduled_at` (descer de plano na próxima cobrança), `last_payment_at`,
+  `last_receipt_url`, `payment_failed_at`/`payment_failures` (cobrança recusada; some quando uma é aprovada),
+  `cancelled_at`/`cancel_reason`, `provider_updated_at` (updatedAt da AbacatePay no último evento aplicado: evento mais
+  velho é ignorado), `dev_mode`. É sempre a assinatura **atual**: assinatura nova substitui a linha.
+- `billing_checkouts`: cada página de pagamento criada pelo app; `id` vai como `externalId` (liga o pagamento à
+  organização); `status` `creating|pending|paid|failed|cancelled`, `checkout_id` (`bill_...`, único), `url`, `product_id`,
+  `amount_cents`, `subscription_id` (preenchido quando pago), `dev_mode`, `error`.
+- `billing_events`: 1 linha por entrega de webhook (`id` = `log_...` ou cabeçalho `webhook-id`; idempotência), `event`,
+  `status` `received|processed|ignored|failed`, `note` (o que foi feito ou por que foi ignorado), `attempts`, `payload`.
+- RLS: dono/administrador **lê** `billing_subscriptions` e `billing_checkouts` (`current_user_managed_organization_ids`);
+  `billing_events` sem acesso pelo navegador; escrita só service role. Painel: `admin_billing_overview()` e
+  `admin_organization_billing(org)` (ambas com `admin_assert()`). `getAppContext` embute
+  `billing_subscriptions(status, payment_failed_at)` (aviso de cobrança recusada).
+- O que vale para o app continua em `organizations` (`plan`, `subscription_status`, `billing_cycle`, `current_period_end`,
+  `monthly_price`), atualizado pelo servidor a cada evento. Testado em `supabase/tests/cobranca_abacatepay_rls.sql`
+  (TESTES_COBRANCA_ABACATEPAY_OK).
+
 ### 6.2 v1 — produção (✅ CONFIRMADO em 2026-10-11)
 
 > Fonte: inventário só leitura de prod (`docs/db/inventario-schema.sql`, rodado pelo Breno no SQL Editor).
@@ -762,6 +808,23 @@ exportação só faz GET e a importação recusa qualquer destino que não seja 
    `listing_improvement`) e grava `ready`; erro → apaga a reserva (cota não é gasta) e mostra a mensagem.
 3. `/melhorias/[id]`: resumo, sugestões (Copiar texto, "Já fiz" → `setSuggestionDone`) e efeito (perguntas/semana 30 dias
    antes × depois, a partir de 7 dias).
+
+### 7.0c3 v2 — Cobrança pela AbacatePay (Sessão 23)
+1. Assinatura → botão do plano (`PlanActionButton`, intenção por `planIntent`): **assinar** → `subscribeToPlan` →
+   `startCheckout` confere plano/preço/catálogo/modo de teste, reaproveita página pendente de até 30 min, cria o cliente na
+   AbacatePay (CPF/CNPJ do `billing_profiles`; se recusar, segue sem), grava `billing_checkouts`, cria o checkout
+   (`externalId` = id da linha, cartão, 4 tentativas a cada 2 dias) e o navegador abre a `url`.
+2. Pagou → AbacatePay manda `subscription.completed` → rota confere a origem → `processWebhookEvent`: grava a entrega,
+   acha a organização (assinatura guardada, checkout por id/externalId/metadata ou `GET /subscriptions/get`), decide
+   (`decideBillingEvent`), confirma na API que a assinatura nova está ACTIVE, grava `billing_subscriptions` e `organizations`
+   (plano, `active`, ciclo, fim do período = pagamento + 1 mês/ano, mensalidade) e marca o checkout pago. Se havia outra
+   assinatura ativa (troca de ciclo/outro cartão), cancela a anterior na AbacatePay. A volta (`?pagamento=concluido`)
+   atualiza a tela a cada 4 s até isso acontecer.
+3. `renewed` → novo fim do período (plano pelo valor; troca agendada aplicada). `payment_failed` → aviso. `cancelled` →
+   `canceled` (acesso até o fim do período; disputa corta na hora). `plan_changed` aplicada → plano pelo valor.
+4. Trocar de plano no mesmo ciclo → `changePlan` → `POST /subscriptions/change-plan`; subir grava o plano novo na hora,
+   descer grava `scheduled_plan`. Cancelar → `cancelMySubscription` (ou a equipe na ficha do cliente) → `POST
+   /subscriptions/cancel` e o mesmo efeito do webhook.
 
 ### 7.0d v2 — Painel do administrador (`/admin`)
 1. Entrar normalmente em `/login` com o usuário admin → menu do usuário → **Painel do administrador** (ou abrir `/admin`).
@@ -1086,7 +1149,9 @@ Decisões de **produto** (preços, planos, textos legais, marca, WhatsApp) conti
   claims; números do pós-venda em Resultados; definir se o teste grátis inclui o pós-venda.
 - ✅ **3b. Melhorias de anúncio** (Pro e Escala) e ✅ **4a. Planos e limites** (Starter/Pro/Escala, teste grátis, contador de
   respostas, avisos, Assinatura nova, painel admin) — Sessão 20 (spec `2026-10-13-planos-design.md`).
-- ⏭️ **Próximo:** **4b. Cobrança pela AbacatePay** (contratar/trocar/cancelar pelo app, webhooks atualizando a assinatura).
+- ✅ **4b. Cobrança pela AbacatePay** (assinar/trocar/cancelar pelo app, webhooks, painel Cobrança) — Sessão 23 (spec
+  `2026-10-14-cobranca-abacatepay-design.md`). Falta o Breno ligar (chave de API, §13 item 0g) e o teste ponta a ponta.
+  Ideias não feitas: nota fiscal, cupons, PIX Automático (depende da AbacatePay liberar), e-mail de cobrança recusada.
 - ⏳ 3. Módulos de IA/gestão · ⏳ 4. Comercial (planos, Stripe/gateway, admin).
 
 **Referências:**
@@ -1265,10 +1330,46 @@ webhook do ML validado, fila/reprocessamento de jobs, observabilidade, controle 
 | 2026-10-13 | Webhook do ML responde 200 **antes** de qualquer acesso ao banco (tudo em `after()`) | Regra do ML: 200 em até 500 ms, senão os tópicos podem ser desligados ("fall back") e é preciso se inscrever de novo. |
 | 2026-10-13 | Perguntas abre em **Respondidas pela IA**, o 1º cartão (ordem: IA, você, para responder, todas) | Pedido do Breno: o principal para o cliente é ver o que a IA resolveu. O que espera o vendedor continua sinalizado (ponto âmbar no cartão, contador no menu) e os atalhos de "aguardando você" abrem direto em Para responder. |
 | 2026-10-13 | Fotos do ML sempre em https (`mlImageUrl`), corrigidas também na hora de mostrar | O ML devolve http; corrigir na tela resolve as fotos já gravadas sem mexer no banco de produção. Endereço que não é do `mlstatic.com` vira o ícone de pacote (nunca imagem quebrada). |
+| 2026-10-14 | Cobrança pela **página hospedada da AbacatePay** (checkout de assinatura), cartão por padrão; sem checkout transparente | O cartão nunca passa pela maanu (sem PCI) e é o caminho da documentação para assinaturas. PIX Automático fica por variável quando a AbacatePay liberar. |
+| 2026-10-14 | Produtos da AbacatePay reconhecidos **pelo nome (Starter/Pro/Escala) + recorrência + preço igual ao da maanu**; preço diferente não vende | O Breno já criou os produtos no painel (sem externalId combinado). Nunca cobrar um valor diferente do que a tela mostra. |
+| 2026-10-14 | O **webhook manda** no plano, mas assinatura nova só vale depois de confirmada na API (`GET /subscriptions/get` = ACTIVE, mesmo ambiente) | Defesa em profundidade: um webhook forjado (segredo vazado) não libera plano sem pagamento real. |
+| 2026-10-14 | Aceitar os **dois formatos de webhook** (antigo com `?webhookSecret=` + HMAC da chave pública, e Standard Webhooks com `webhook-signature`) | Os tipos oficiais (`@abacatepay/types` 4.0, 12/10/2026) mostram que endpoints novos recebem Standard Webhooks; a documentação ainda descreve o antigo. |
+| 2026-10-14 | Cancelar = cancelar **na hora** na AbacatePay e manter o acesso **até o fim do período pago** (`computeAccess`: `canceled`/`past_due` com `current_period_end` futuro = ativo) | A AbacatePay não tem "cancelar no fim do ciclo"; cancelar depois (por cron) arriscaria uma cobrança indevida. O cliente não perde o que pagou. |
+| 2026-10-14 | Cobrança recusada **não bloqueia**: aviso no topo + "Pagar com outro cartão"; a AbacatePay tenta 4 vezes a cada 2 dias e cancela | A AbacatePay já faz a régua de cobrança; bloquear no 1º erro puniria quem só teve o limite estourado. |
+| 2026-10-14 | Subir de plano libera **na hora** (valor novo na renovação); descer vale **na próxima cobrança**; mensal ↔ anual = assinatura nova e a antiga é cancelada quando a nova é paga | `change-plan` só troca no mesmo ciclo e cobra o novo valor no ciclo seguinte. Upgrade imediato vende melhor; downgrade imediato tiraria o que o cliente pagou. Nunca duas cobranças. |
+| 2026-10-14 | Chave de **teste** em produção só para administradores e `ABACATEPAY_TEST_EMAILS`; a organização interna (`admin`) não assina | Senão um cliente real "pagaria" com o cartão 4242 e ganharia o plano. A organização admin perderia o plano interno. |
+| 2026-10-14 | Webhook **cadastrado pelo painel do administrador** com o segredo que só existe na Vercel (criado pela IA, aleatório) | Ninguém precisa ver ou copiar o segredo; o botão usa a própria chave de API (WEBHOOK:CREATE). |
+| 2026-10-14 | Texto "se assinar antes, você não perde os dias que faltam" do teste grátis **retirado** | Não era verdade: ao assinar, o plano começa e a 1ª cobrança é na hora (a AbacatePay só daria dias grátis com `trialDays` no produto). |
 
 ---
 
 ## 12. Diário de sessões (mais recente no topo)
+
+### 2026-10-14 — Sessão 23 · Cobrança pela AbacatePay (IA: Claude, via app Codex)
+- Pedido do Breno: analisar toda a documentação da AbacatePay e preparar a maanu para a integração (ele já criou os
+  produtos Starter, Pro e Escala na AbacatePay). A internet dele caiu duas vezes; a sessão anterior só tinha lido a
+  documentação (nada escrito no projeto), então tudo foi feito nesta.
+- Lido: `llms-full.txt` inteiro (~13 mil linhas: assinaturas, checkout, produtos, clientes, webhooks, segurança, dev mode,
+  produção, changelog até 12/10/2026) + tipos e SDK oficiais (`@abacatepay/types` 4.0.0, `@abacatepay/sdk` 3.0.0, `rest`
+  1.1.0, só para conferir formatos; **nenhuma dependência nova**). Achado importante fora da documentação: endpoints de
+  webhook criados agora recebem **Standard Webhooks** (outro formato de assinatura); a maanu aceita os dois.
+- Banco (produção): migração `20261014120000_cobranca_abacatepay.sql` (§6.1i) **ensaiada antes** junto com o teste novo numa
+  transação desfeita (conferido que nada ficou), dry-run, `db push`; os 9 testes SQL passam depois. Tipos regenerados.
+- Código: `lib/billing/abacatepay/*`, `lib/billing/engine.ts`, `lib/billing/subscription.ts`, `lib/dal/subscription.ts`,
+  `lib/dal/admin-billing.ts`, rota `app/api/webhook/abacatepay`, ações da Assinatura e do admin, `PlanActionButton`,
+  cartão "Sua assinatura", cancelar, volta do pagamento, aviso de cobrança recusada no topo, painel admin → **Cobrança** e
+  cartão de cobrança na ficha do cliente; `computeAccess` mantém o acesso até o fim do período pago; Termos e Privacidade
+  (rascunhos) citam a AbacatePay, renovação, troca e cancelamento.
+- Testes: `tests/unit/abacatepay.test.ts` (configuração, produtos, origem nos 2 formatos, leitura, decisões, datas,
+  intenções) e `abacatepay-webhook-route.test.ts` (503/401/200/500). **Fluxo inteiro no banco real** com a API simulada
+  (`tests/integration/billing-db.test.ts`, `RUN_BILLING_DB=1`): assinar, clicar de novo, webhook, entrega repetida, subir de
+  plano, renovar, evento atrasado, cobrança recusada, descer agendado, troca aplicada, cancelar (acesso até o fim) e
+  assinatura desconhecida — loja temporária apagada no fim (conferido). QA visual da Assinatura no navegador local com uma
+  loja temporária (cobrança recusada, troca agendada, botões, diálogos, anual, volta do pagamento, modo de teste), também
+  apagada. O painel admin → Cobrança não foi visto no navegador (exige a 2ª etapa); typecheck e build ok.
+- Vercel: `ABACATEPAY_WEBHOOK_SECRET` criada no projeto `maanu` (Production, sensível, aleatória, valor não registrado).
+- Verificação: typecheck, testes, lint e build ok. Falta o Breno: chave de API + conferir produtos + cadastrar o webhook
+  pelo painel + teste com cartão 4242 (§13 item 0g).
 
 ### 2026-10-13 — Sessão 22 · Perguntas chegando sozinhas e foto do anúncio (IA: Claude, via app Codex)
 - Pedido do Breno (1º cliente real conectado para a semana de teste, "Girassol Moda Jeans", conta ML `LOJAJEANSDAMODA`,
@@ -1829,6 +1930,27 @@ webhook do ML validado, fila/reprocessamento de jobs, observabilidade, controle 
 
 ## 13. Próximos passos
 
+0g. **Breno — ligar a cobrança pela AbacatePay (Sessão 23).** O código, o banco e o segredo do webhook já estão prontos;
+   enquanto a chave não existir, os clientes veem "Contratação pelo app em breve" (nada muda para eles).
+   1. AbacatePay (Dev mode primeiro) → Integração → API Keys → **Criar chave** com as permissões PRODUCT:READ,
+      CUSTOMER:CREATE, SUBSCRIPTION:CREATE, SUBSCRIPTION:READ, SUBSCRIPTION:DELETE, WEBHOOK:CREATE, WEBHOOK:READ e STORE:READ
+      (não dá para editar depois; faltou uma = criar outra).
+   2. Produtos: cada um com **recorrência** (mensal) e o preço da maanu (Starter R$ 97, Pro R$ 197, Escala R$ 397) e
+      "Starter"/"Pro"/"Escala" no nome. Para vender o anual, criar mais 3 com recorrência **anual**: R$ 970, R$ 1.970 e
+      R$ 3.970. Produtos de Dev mode só existem no Dev mode.
+   3. Vercel → projeto `maanu` → Settings → Environment Variables → `ABACATEPAY_API_KEY` (Production, **Sensitive**) e,
+      para testar com uma conta comum, `ABACATEPAY_TEST_EMAILS` (o e-mail dessa conta). Depois, Redeploy do último deploy.
+   4. `maanu.com.br/admin/cobranca`: conferir "6 de 6 produtos" (ou 3, sem os anuais) e clicar em **Cadastrar webhook na
+      AbacatePay**. Os itens da Configuração devem ficar verdes.
+   5. Teste: com a conta comum (não a admin), Assinatura → "Assinar o Pro" → cartão 4242 4242 4242 4242, validade futura,
+      qualquer CVV → volta para a maanu e o plano aparece ativo em segundos. Testar também trocar de plano e cancelar.
+      Ver Admin → Cobrança → Notificações. Depois do teste, apagar essa assinatura de teste (cancelar) ou avisar a IA.
+   6. Produção: verificar a conta na AbacatePay (CNPJ; site com contato por e-mail e WhatsApp, termos, privacidade e **CNPJ
+      no rodapé** — hoje `maanu.com.br` não tem página pública com isso: pedir à IA uma página inicial ou um rodapé com o
+      CNPJ), criar a chave de **produção** e os produtos de produção, trocar a `ABACATEPAY_API_KEY`, apagar a
+      `ABACATEPAY_TEST_EMAILS` (opcional) e cadastrar o webhook de novo pelo painel.
+   Se algo falhar: Admin → Cobrança mostra o motivo (chave, permissões, produto com preço diferente, webhook). Logs da Vercel:
+   `[webhook abacatepay]` e `[cobrança]`.
 0f. **Notificações do ML (Sessão 22):** desde ~23:32 UTC de 2026-10-13 o ML entrega as notificações da conta do cliente
    (pergunta respondida em ~6 s). Fica a observar: (a) se parar de novo, a rotina cobre em ~10–20 s; a configuração do app
    está certa (URL e tópicos conferidos pela API do ML); se for preciso, no DevCenter abrir o app da maanu (Client ID
@@ -1847,7 +1969,8 @@ webhook do ML validado, fila/reprocessamento de jobs, observabilidade, controle 
    (c) itens de plano escondidos no menu para quem não tem (ou mostrar com cadeado como vitrine); (d) passar o **e-mail e o
    WhatsApp de suporte** para aparecerem em Assinatura. O cliente "Descomplicasa" está em teste (vai até 20/10) e já vê
    Pós-venda e Melhorias; a "Loja Maanu" (admin) não tem limites.
-0d. ✅ (Sessão 20) Planos decididos pelo Breno e implementados. **Próximo: cobrança pela AbacatePay** (sub-projeto 4b): criar
+0d. ✅ (Sessão 20) Planos decididos pelo Breno e implementados. ✅ (Sessão 23) Cobrança pela AbacatePay implementada — ligar
+   pelo item 0g. (Texto original do plano, mantido como histórico:) criar
    na AbacatePay os produtos com `cycle` MONTHLY/ANNUALLY e `externalId` (ex.: `pro_mensal`, `pro_anual`), chave de API
    (variável sensível na Vercel) e webhook HTTPS com segredo (`subscription.completed/renewed/plan_changed/payment_failed/
    cancelled` → `plan`, `billing_cycle`, `subscription_status`, `current_period_end`, `monthly_price`); botão "Assinar" da

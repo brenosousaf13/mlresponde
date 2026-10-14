@@ -28,6 +28,14 @@ export function computeAccess(
   if (organization.billing_exempt || organization.subscription_status === "active") {
     return { state: "active", ...base }
   }
+  // Assinatura cancelada (ou com pagamento pendente) continua valendo até o fim do período já pago.
+  if (
+    (organization.subscription_status === "canceled" || organization.subscription_status === "past_due") &&
+    organization.current_period_end &&
+    new Date(organization.current_period_end).getTime() > now.getTime()
+  ) {
+    return { state: "active", ...base }
+  }
   if (organization.subscription_status === "trialing" && msLeft > 0) {
     return { state: "trial", ...base }
   }

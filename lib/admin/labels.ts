@@ -133,6 +133,8 @@ export const AUDIT_ACTIONS: Record<string, string> = {
   "ai_key.check": "Chave de IA testada",
   "ai_key.delete": "Chave de IA removida",
   "ai_key.auto_disabled": "Chave de IA trocada automaticamente",
+  "billing.webhook_created": "Webhook da AbacatePay cadastrado",
+  "billing.subscription_cancelled": "Assinatura cancelada pela equipe",
   "admin.export": "Exportação",
   "admin.login": "Entrada no painel",
   "admin.mfa_enrolled": "2 etapas cadastrada",
@@ -145,6 +147,7 @@ export const AUDIT_FILTERS: { value: string; label: string }[] = [
   { value: "ml_account.", label: "Contas ML" },
   { value: "platform.", label: "Plataforma" },
   { value: "ai_key.", label: "Chaves de IA" },
+  { value: "billing.", label: "Cobrança" },
   { value: "admin.", label: "Acessos ao painel" },
 ]
 

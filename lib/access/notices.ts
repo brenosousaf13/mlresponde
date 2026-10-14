@@ -134,3 +134,18 @@ export function answersUsageNotice(access: Access, quota: Quota | null, resetTex
   }
   return null
 }
+
+/**
+ * Aviso de cobrança recusada (topo das páginas, só para quem administra a loja): a AbacatePay tenta de novo sozinha;
+ * se todas as tentativas falharem, ela cancela a assinatura. Some quando uma cobrança é aprovada.
+ */
+export type PaymentNotice = { title: string; description: string }
+
+export function paymentNotice(subscription: { status: string; paymentFailedAt: string | null } | null): PaymentNotice | null {
+  if (!subscription || subscription.status !== "active" || !subscription.paymentFailedAt) return null
+  return {
+    title: "Não conseguimos cobrar a sua assinatura",
+    description:
+      "O cartão recusou a última cobrança. Vamos tentar de novo nos próximos dias; se preferir, assine de novo com outro cartão em Assinatura. Se todas as tentativas falharem, a assinatura é cancelada.",
+  }
+}
