@@ -1306,7 +1306,19 @@ webhook do ML validado, fila/reprocessamento de jobs, observabilidade, controle 
     pós-venda e Melhorias de anúncio.
   - Testes novos: `ml-images.test.ts`, `question-polling.test.ts` (rodadas, contas bloqueadas, erros, atraso) e
     `webhook.test.ts` (200 sem banco; registro e processamento depois).
-- Consultas da rotina conferidas no banco de produção (só leitura). typecheck, testes, lint e build ok. Nada no banco.
+- Consultas da rotina conferidas no banco de produção (só leitura). typecheck, testes (393), lint e build ok. Nada no banco.
+- Ajuste depois de ler a configuração do app no ML (`max_requests_per_hour: 18000` para o app inteiro): teto da rotina
+  baixado para **100 consultas/min** (1/3 do limite) e rodízio acima de 100 contas; o webhook também loga os tópicos
+  ignorados (`[webhook] items da conta ML ... (ignorada)`), para sabermos de quais contas o ML está mandando.
+- Publicado: commits `eda766b` e `bbc79b4` na `v2` → deploys de produção do projeto `maanu` **READY**
+  (`dpl_7MxXiwW7fTXpu39H4unGYM7goK5e`, `dpl_FRpXCmARBt8ni1kJYt8SxTgsYbpg`). Webhook respondendo 200 em ~390 ms medidos do
+  Brasil (rede incluída).
+- **Resultado em produção:** a partir de ~23:32 UTC o ML passou a mandar notificações para `maanu.com.br` (antes do deploy;
+  provável atraso do lado do ML para começar a notificar uma autorização nova, ~1 h) e os logs novos confirmam a conta do
+  cliente (`items`, `shipments`, `invoices` e `questions` da `254752194`). Pergunta real "Tem na cor azul?": feita no ML às
+  00:00:16,05 UTC, registrada na maanu às 00:00:16,76 e **respondida pela IA às 00:00:21,9 (~6 s)**, com a foto já em https.
+  Outra ("Tem na cor preto?", 23:55:51) entrou em 3 s; a IA mandou para o vendedor (não achou o estoque da cor no kit) e foi
+  respondida à mão.
 
 ### 2026-10-13 — Sessão 21 · v1: botão de pausar a IA funcionando (IA: Claude, via app Codex)
 - Pedido do Breno: o botão "Automação de Respostas" da v1 precisa funcionar (para pausar na v1 o cliente que vai testar a
@@ -1810,10 +1822,11 @@ webhook do ML validado, fila/reprocessamento de jobs, observabilidade, controle 
 
 ## 13. Próximos passos
 
-0f. **Breno — notificações do ML (Sessão 22):** (a) a configuração do app está certa (URL e tópicos conferidos pela API do
-   ML); mesmo assim, no DevCenter, abrir o app da maanu (Client ID `8693830632560554`) → notificações e **salvar de novo**
-   (o ML diz que tópico desligado por "fall back" exige nova inscrição). Se continuar sem chegar notificação da conta do
-   cliente, dá para testar pedir ao cliente "Reconectar" a conta (cria a autorização de novo). (b) Fazer uma pergunta
+0f. **Notificações do ML (Sessão 22):** desde ~23:32 UTC de 2026-10-13 o ML entrega as notificações da conta do cliente
+   (pergunta respondida em ~6 s). Fica a observar: (a) se parar de novo, a rotina cobre em ~10–20 s; a configuração do app
+   está certa (URL e tópicos conferidos pela API do ML); se for preciso, no DevCenter abrir o app da maanu (Client ID
+   `8693830632560554`) → notificações e **salvar de novo** (o ML diz que tópico desligado por "fall back" exige nova
+   inscrição) ou pedir ao cliente "Reconectar" a conta. (b) Fazer uma pergunta
    de teste num anúncio do cliente: deve aparecer respondida em segundos (notificação) ou em ~10–20 s (rotina). A IA confere
    nos logs do projeto Vercel `maanu`: linha `[webhook] pergunta ...` = o ML voltou a entregar. (c) Se o ML continuar sem
    entregar, chamado no suporte de desenvolvedores do ML (`missed_feeds` estava vazio: o ML nem tenta entregar; dá para
