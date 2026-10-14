@@ -37,6 +37,9 @@ e-mails, redes sociais e materiais fora do app.
 | Soft Sage | `#DDEEE8` | `brand-sage` | Caixas de sucesso, avisos calmos, item ativo do menu (versão mais clara). |
 | Slate | `#A0AEC0` | `brand-slate`, `chart-5` | Elementos secundários (ex.: faixa de horário comercial). |
 
+| Teal aceso (página de vendas) | ≈ `#7FE3CF` | `brand-mint` | Brilhos, gradientes e destaques sobre o grafite na página de vendas (mais "vivo"). |
+| Grafite fundo (página de vendas) | ≈ `#0B1220` | `brand-night` | Painéis escuros arredondados da página de vendas (topo, segurança, calculadora). |
+
 - Os neutros da interface seguem a escala **slate** do Tailwind (o Graphite é o `slate-900`).
 - Significado das cores nas telas de Perguntas/Pós-venda: **teal = IA**, **grafite/slate = você**, **âmbar = esperando
   você**, **violeta = mensagem padrão**, **vermelho = problema**.
@@ -46,6 +49,10 @@ e-mails, redes sociais e materiais fora do app.
 
 Interface em **Geist** (já usada pelo app; combina com a logo geométrica). A logo é desenho próprio — nunca recriar
 com fonte.
+
+**Página de vendas** (`app/(site)`, desde a Sessão 25): títulos em **Funnel Display** (`font-display`, carregada só nas
+rotas do site; no app cai na Geist), texto corrido em Geist e rótulos técnicos (horários, tempos, "COMO FUNCIONA") em
+Geist Mono. Animações e efeitos em `app/(site)/site.css` (todas respeitam "reduzir movimento").
 
 ## Regenerar os arquivos
 

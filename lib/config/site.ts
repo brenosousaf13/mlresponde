@@ -6,4 +6,26 @@ export const siteConfig = {
     "Respostas automáticas com IA para marketplaces: a maanu atende os compradores dos seus anúncios no Mercado Livre em segundos, a qualquer hora.",
   trialDays: 7,
   termsVersion: "2026-10-11",
+  /** Endereço da página de vendas (o app pode ficar em outro endereço: APP_HOST, lib/site/host.ts). */
+  marketingUrl: "https://maanu.com.br",
 } as const
+
+/**
+ * Dados públicos da empresa e canais de contato (rodapé e suporte da página de vendas).
+ * null = ainda não informado: a página mostra um espaço marcado "a definir" no lugar.
+ */
+export const companyInfo: {
+  legalName: string | null
+  cnpj: string | null
+  email: string | null
+  /** WhatsApp com DDI e DDD, só números (ex.: "5511999999999"). */
+  whatsapp: string | null
+  /** Usuário do Instagram, sem @. */
+  instagram: string | null
+} = {
+  legalName: null,
+  cnpj: null,
+  email: null,
+  whatsapp: null,
+  instagram: null,
+}

@@ -2,6 +2,7 @@ import { createServerClient } from "@supabase/ssr"
 import { NextResponse, type NextRequest } from "next/server"
 
 import { adminHostRouting, normalizeHost } from "@/lib/admin/host"
+import { siteHostRouting } from "@/lib/site/host"
 
 const PUBLIC_PREFIXES = [
   "/login",
@@ -11,6 +12,8 @@ const PUBLIC_PREFIXES = [
   "/auth/confirm",
   "/termos",
   "/privacidade",
+  "/robots.txt",
+  "/sitemap.xml",
   "/api/webhook",
   "/api/cron",
 ]
@@ -33,6 +36,17 @@ export async function proxy(request: NextRequest) {
     return NextResponse.redirect(url)
   }
   const onAdminHost = Boolean(adminHost) && normalizeHost(request.headers.get("host")) === normalizeHost(adminHost)
+
+  // Página de vendas em "/" e app num endereço próprio (opcional, variável APP_HOST; regras em lib/site/host.ts).
+  const siteRoute = siteHostRouting({
+    url: request.nextUrl.toString(),
+    host: request.headers.get("host"),
+    appHost: process.env.APP_HOST,
+    adminHost,
+  })
+  // A página de vendas é estática e não usa a sessão: nem consulta o login.
+  if (siteRoute.kind === "landing") return NextResponse.next()
+  if (siteRoute.kind === "redirect") return NextResponse.redirect(siteRoute.url, 307)
 
   let response = NextResponse.next({ request })
 

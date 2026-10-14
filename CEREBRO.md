@@ -4,7 +4,7 @@
 > inteiro antes de trabalhar e atualizá-lo ao terminar. Se algo aqui divergir do código, o código vence —
 > e este arquivo deve ser corrigido na mesma sessão.
 
-Última atualização: **2026-10-14** (Sessão 24 — cliente sem permissão de administrador vê uma mensagem de acesso restrito com retorno ao painel; Sessão 23b — tela "Levando você para o pagamento seguro" antes da AbacatePay, teste de compra aprovado e dados de teste apagados, falta a chave de produção; Sessão 23 — cobrança pela AbacatePay pronta no código e no banco: assinar, trocar, cancelar e webhooks; falta só a chave de API do Breno; Sessão 22 — perguntas chegando sozinhas: rotina que busca no ML a cada ~10 s + webhook respondendo na hora; foto do anúncio corrigida; Sessão 21 — v1: botão de pausar a IA funcionando, commit `bf56777` na `main`; Sessão 20b — Starter com 300 respostas e espaço nos cards dos planos; Sessão 20 — planos Starter/Pro/Escala com limites, teste grátis e Melhorias de anúncio; Sessão 19 — pesquisa de preços e proposta de 3 planos; Sessão 18 — tour de boas-vindas e avisos de teste/conta ML redesenhados; Sessão 17 — chaves de IA cadastradas e trocadas pelo painel do administrador; Sessão 16 — textos do cadastro sem falar em cobrança; Sessão 15b — Fase 1 da troca preparada)
+Última atualização: **2026-10-14** (Sessão 25 — página de vendas em `maanu.com.br/` e app pronto para ir para `app.maanu.com.br` (variável `APP_HOST`), na branch `codex/pagina-de-vendas`, aguardando o Breno; Sessão 24 — cliente sem permissão de administrador vê uma mensagem de acesso restrito com retorno ao painel; Sessão 23b — tela "Levando você para o pagamento seguro" antes da AbacatePay, teste de compra aprovado e dados de teste apagados, falta a chave de produção; Sessão 23 — cobrança pela AbacatePay pronta no código e no banco: assinar, trocar, cancelar e webhooks; falta só a chave de API do Breno; Sessão 22 — perguntas chegando sozinhas: rotina que busca no ML a cada ~10 s + webhook respondendo na hora; foto do anúncio corrigida; Sessão 21 — v1: botão de pausar a IA funcionando, commit `bf56777` na `main`; Sessão 20b — Starter com 300 respostas e espaço nos cards dos planos; Sessão 20 — planos Starter/Pro/Escala com limites, teste grátis e Melhorias de anúncio; Sessão 19 — pesquisa de preços e proposta de 3 planos; Sessão 18 — tour de boas-vindas e avisos de teste/conta ML redesenhados; Sessão 17 — chaves de IA cadastradas e trocadas pelo painel do administrador; Sessão 16 — textos do cadastro sem falar em cobrança; Sessão 15b — Fase 1 da troca preparada)
 
 ---
 
@@ -155,6 +155,14 @@ novas funcionalidades, segurança multi-tenant de verdade — **desenvolvido em 
   **Sessão 24 (2026-10-14): acesso restrito ao admin** — cliente logado que abre uma página `/admin/*` (incluindo
   verificação e exportação CSV) vai para `/acesso-negado`: "Você não tem acesso a esta página", explicação e botão
   "Voltar ao meu painel", no padrão visual da marca. Permissões, segunda etapa e verificações do banco mantidas.
+  **Sessão 25 (2026-10-14): página de vendas** (branch **`codex/pagina-de-vendas`**, ainda **não publicada**: o Breno revisa
+  antes). `maanu.com.br/` deixa de redirecionar para o painel e vira a página de vendas (topo escuro com demonstração ao vivo
+  da IA respondendo, faixa de perguntas, "um dia de perguntas", como funciona, leitura do anúncio, certeza, recursos,
+  Resultados, calculadora de economia, planos, suporte, dúvidas, convite final e rodapé), inspirada no layout da AbacatePay
+  sem copiar. 8 espaços de imagem marcados ("IMAGEM" + o que vai ali + tamanho) e dados da empresa "a definir" (CNPJ, razão
+  social, e-mail, WhatsApp, Instagram em `companyInfo`, `lib/config/site.ts`). O app pode morar em `app.maanu.com.br` com a
+  variável **`APP_HOST`** (`lib/site/host.ts` + `proxy.ts`): sem ela nada muda além da página inicial. Passo a passo da troca
+  de endereço em §13 item 0i.
 - **Marca:** **maanu** (decisão do Breno, 2026-10-11). Guia de uso, paleta e arquivos em `docs/brand/README.md`; nome,
   assinatura e slogan em `lib/config/site.ts`; logo só pelos componentes de `components/brand/logo.tsx`.
 - P0 de segurança/toggle (§8) **adiados** por decisão do Breno — revisitar antes de abrir para novos clientes.
@@ -227,7 +235,10 @@ proxy.ts                          # renova a sessão (getClaims) e redireciona: 
                                   # Com ADMIN_HOST: /admin só abre no subdomínio do painel (lib/admin/host.ts)
 app/
   layout.tsx                      # pt-BR, Geist, TooltipProvider, Toaster (sonner), metadata da marca
-  page.tsx                        # / → /painel
+  (site)/                         # PÁGINA DE VENDAS em "/" (Sessão 25; antes app/page.tsx redirecionava para /painel):
+                                  # layout.tsx (fonte Funnel Display + site.css com as animações), page.tsx (seções, metadata,
+                                  # dados estruturados). Com APP_HOST, "/" no endereço do app vai para /painel (proxy.ts)
+  robots.ts, sitemap.ts           # buscadores: página de vendas + termos/privacidade; área logada fora
   icon.svg, favicon.ico           # favicon "m." (gerados por docs/brand/scripts/gerar.mjs)
   apple-icon.png, opengraph-image.png (+ .alt.txt)   # ícone do iPhone e imagem de links compartilhados
   (auth)/                         # telas públicas no estilo shadcn login-03 (fundo muted + card)
@@ -287,9 +298,18 @@ components/
   app/account-select.tsx          # seletor de conta (?conta=), com "Todas as contas" opcional
   billing/billing-profile-form.tsx # dados de cobrança (cadastro e Configurações): CPF/CNPJ com confirmação, CEP automático
   brand/logo.tsx (+ logo-paths.ts) # LogoWordmark ("maanu.") e LogoMark ("m.") em SVG; letras = cor do texto, ponto teal
+  site/                           # PÁGINA DE VENDAS (Sessão 25): site-header (vidro grafite ao rolar, menu Sheet no celular),
+                                  # hero + hero-demo (pergunta → leitura do anúncio → resposta, cronômetro e certeza; pausa
+                                  # fora da tela), question-ticker, problem-section + day-timeline, how-it-works,
+                                  # listing-reading, certainty-section, features-bento, results-section, savings-calculator,
+                                  # pricing-section (SELLABLE_PLANS, mensal/anual), support-section, faq-section (FAQ também
+                                  # vira dados estruturados), final-cta + time-on-page, site-footer, mobile-cta-bar,
+                                  # image-slot (espaço de imagem marcado), pending (dado "a definir"), reveal + use-in-view
   auth/ onboarding/ contas/ configuracoes/ legal/ forms/
 lib/
-  config/site.ts                  # nome da marca, dias de teste, versão dos termos
+  config/site.ts                  # nome da marca, dias de teste, versão dos termos, marketingUrl e companyInfo (CNPJ, contatos)
+  site/host.ts                    # siteHostRouting: página de vendas × endereço do app (APP_HOST) + appHref (puro, testado)
+  site/calculator.ts              # calculadora da página de vendas (mesma conta de Resultados), plano indicado, R$/dia (puro)
   env.ts                          # leitura de env obrigatória (server-only)
   access/access.ts                # computeAccess (trial/active/blocked) + decideSectionAccess (puro, testado)
   access/notices.ts               # trialNotice + mlConnectionNotice: quando e o que os avisos mostram (puro, testado)
@@ -421,6 +441,7 @@ Novas na v2:
 | `ABACATEPAY_WEBHOOK_SECRET` | Sessão 23. Segredo do webhook (≥ 32 caracteres; aleatório, criado pela IA na Vercel, `maanu` Production, sensível; ninguém sabe o valor). O painel admin → Cobrança cadastra o webhook na AbacatePay com ele. Trocar = cadastrar o webhook de novo. Sem ele o webhook responde 503 (a AbacatePay tenta de novo por ~18 h). |
 | `ABACATEPAY_TEST_EMAILS` | opcional. E-mails (separados por vírgula) que podem assinar com a chave de **teste** em produção (além dos administradores da plataforma). |
 | `ABACATEPAY_SUBSCRIPTION_METHODS` | opcional. `CARD` (padrão) ou `CARD,PIX` (só se a AbacatePay liberar o PIX Automático na conta). |
+| `APP_HOST` | opcional (Sessão 25). Endereço próprio do app, ex.: `app.maanu.com.br`. Sem ela, `maanu.com.br/` é a página de vendas e o app continua no mesmo endereço. Com ela, o domínio principal só serve a página de vendas, `/termos`, `/privacidade`, robots/sitemap e `/api/webhook/*` e `/api/cron/*`; o resto vai (307) para o mesmo caminho e busca em `APP_HOST`, e no endereço do app `/` leva a `/painel`. Junto com ela trocar `NEXT_PUBLIC_SITE_URL` e `ML_REDIRECT_URI` (§13 item 0i). Hoje **não** existe na Vercel. |
 | `ADMIN_HOST` | opcional (Sessão 13). Endereço próprio do painel do administrador, ex.: `admin.maanu.com.br`. Com ele, `/admin` só abre nesse endereço (no domínio do app vira 404) e o endereço só serve o painel e o login. Sem ele, o painel fica em `/admin` do próprio app. Hoje **não** existe na Vercel (sem domínio próprio). |
 
 Obsoletas (citadas no `instructions.md`, não usadas): `ANTHROPIC_API_KEY`, `NEXT_PUBLIC_APP_URL`.
@@ -1352,11 +1373,43 @@ webhook do ML validado, fila/reprocessamento de jobs, observabilidade, controle 
 | 2026-10-14 | Chave de **teste** em produção só para administradores e `ABACATEPAY_TEST_EMAILS`; a organização interna (`admin`) não assina | Senão um cliente real "pagaria" com o cartão 4242 e ganharia o plano. A organização admin perderia o plano interno. |
 | 2026-10-14 | Webhook **cadastrado pelo painel do administrador** com o segredo que só existe na Vercel (criado pela IA, aleatório) | Ninguém precisa ver ou copiar o segredo; o botão usa a própria chave de API (WEBHOOK:CREATE). |
 | 2026-10-14 | Texto "se assinar antes, você não perde os dias que faltam" do teste grátis **retirado** | Não era verdade: ao assinar, o plano começa e a 1ª cobrança é na hora (a AbacatePay só daria dias grátis com `trialDays` no produto). |
+| 2026-10-14 | **`maanu.com.br/` = página de vendas**; o app vai para **`app.maanu.com.br`** pela variável `APP_HOST`, com o domínio principal ainda aceitando webhooks/cron e redirecionando o resto para o mesmo caminho no app (307, busca preservada) | Pedido do Breno (Sessão 25). Recomendação da IA: é o padrão de SaaS (site de marketing × app), separa SEO/anúncios do app e deixa trocar um sem mexer no outro. Feito em 2 passos para não quebrar nada: (1) a página de vendas entra em "/" com o app no mesmo endereço; (2) com o DNS, `APP_HOST` e as URLs do ML/Supabase, o app muda de endereço. Webhooks e links antigos (e-mails, retorno do OAuth) continuam funcionando pelo redirecionamento; 307 (e não 308) para dar para voltar atrás sem cache no navegador. Login não é compartilhado entre os endereços (quem estava logado entra de novo uma vez). |
+| 2026-10-14 | Página de vendas: layout inspirado na AbacatePay (topo emoldurado e arredondado, navegação flutuante, seções alternando claro/escuro, simulador escuro, dúvidas em 2 colunas, convite final) com identidade própria: grafite + teal "aceso" (`brand-mint`, `brand-night`), títulos em **Funnel Display**, demonstrações animadas feitas em código (sem vídeo) e espaços de imagem marcados | Pedido do Breno ("mais vivo, com animações e tecnologia, nada com cara de modelo feito por IA"). Animações em CSS + IntersectionObserver (sem biblioteca nova), página estática (○ no build) e o proxy nem consulta o login em "/" (carrega rápido para quem vem do anúncio). Tudo respeita "reduzir movimento". |
+| 2026-10-14 | Sem depoimentos, números de clientes ou selos inventados na página de vendas; exemplos marcados como ilustrativos; preços e limites lidos de `SELLABLE_PLANS` | Ainda não há depoimentos reais (1 cliente em teste). Propaganda enganosa queima o anúncio e o CDC; preço em um lugar só não fica desatualizado. |
 | 2026-10-14 | Cliente sem `is_platform_admin` abre `/admin/*` → tela **`/acesso-negado`** com mensagem em português e botão de retorno ao painel (substitui o 404 da Sessão 13) | Pedido do Breno. Redirecionamento no servidor, mantendo MFA, proteção das ações e RLS. API estável do Next (`redirect`), sem habilitar `forbidden`/`authInterrupts` experimentais. |
 
 ---
 
 ## 12. Diário de sessões (mais recente no topo)
+
+### 2026-10-14 — Sessão 25 · Página de vendas e endereço do app (IA: Claude, via app Codex)
+- Pedido do Breno: criar a página de vendas para os anúncios (todo o conteúdo e copy), inspirada no layout da
+  `abacatepay.com` sem copiar e sem cara de modelo de IA, com a logo/cores da maanu "mais vivas", animações e tecnologia; onde
+  houver imagem, deixar o espaço marcado. E: `maanu.com.br` deveria ser a página de vendas e a plataforma algo como
+  `app.maanu.com.br` — dá para mudar?
+- Análise da AbacatePay (navegador, página inteira): topo verde emoldurado com navegação flutuante, selo + título em 2 linhas
+  com a 2ª colorida, print do painel saindo do topo, frase de preço enorme com ilustrações nas laterais, 3 cartões com ícones
+  3D, seções alternadas imagem/texto, simulador num painel escuro arredondado, suporte com foto do time, dúvidas em 2
+  colunas, convite final ("Você leu até aqui"), rodapé escuro com CNPJ; textos informais, microtexto repetido abaixo dos
+  botões e entrada suave ao rolar (fonte Fustat).
+- Feito (branch `codex/pagina-de-vendas`, **não publicada**): `app/(site)` + `components/site/*` (mapa no §4). Seções: topo
+  escuro "Quem responde primeiro, vende primeiro." com demonstração ao vivo (pergunta às 23:47/02:13/06:58 → lendo o
+  anúncio → resposta digitada → "Enviada ao Mercado Livre", cronômetro e certeza; pausa fora da tela); faixa de perguntas
+  correndo; "O comprador não espera" + "um dia de perguntas" (linha da maanu varrendo 24 h, âmbar → teal); 3 passos; "ela
+  lê tudo antes de responder" (raio-x do anúncio animado); "Na dúvida, ela não inventa" (barras de certeza × rigor de 75%,
+  níveis Cautelosa/Equilibrada/Ousada, Responder sempre, bloqueios, pausa); recursos (caixa de entrada, ensinar, pós-venda,
+  melhorias, várias contas); Resultados; calculadora (mesma conta de Resultados: perguntas/dia × minutos × R$/h, plano
+  indicado e R$ por resposta); planos com mensal/anual vindos de `SELLABLE_PLANS` ("R$ 3,23 por dia"); suporte; 10 dúvidas
+  ("respondidas por humanos, desta vez"); convite final com "você está nesta página há mm:ss"; rodapé com aviso de que a
+  maanu não é afiliada ao Mercado Livre; botão fixo "Testar grátis" no celular. Dados estruturados (SoftwareApplication +
+  FAQPage), canonical `maanu.com.br`, robots e sitemap.
+- Endereços: `lib/site/host.ts` + `proxy.ts` (variável `APP_HOST`, §5). Opinião dada ao Breno: vale a pena e dá para mudar
+  sem quebrar nada (passo a passo em §13 item 0i).
+- Testes novos `tests/unit/site.test.ts` (endereços e calculadora). Conferido no navegador local (1280 e 390 px: topo,
+  demo, faixa, linha do dia, passos, recursos, calculadora com teclado, planos mensal/anual, dúvidas, menu do celular) e,
+  com `next start` + `APP_HOST=app.localhost`, os redirecionamentos (login, painel, `/auth/confirm` e retorno do OAuth com a
+  busca → app; `/`, termos, sitemap, robots e webhooks ficam; no app, `/` → `/painel`). typecheck, 444 testes, lint e build
+  ok (`/` estática). Sem mudanças no banco, na Vercel, no ML ou no Supabase Auth.
 
 ### 2026-10-14 — Sessão 23b · Aviso antes do pagamento e limpeza do teste (IA: Claude, via app Codex)
 - O Breno colocou a `ABACATEPAY_API_KEY` (chave de **teste**) e a `ABACATEPAY_TEST_EMAILS`, cadastrou o webhook pelo painel e
@@ -1984,6 +2037,29 @@ webhook do ML validado, fila/reprocessamento de jobs, observabilidade, controle 
 
 ## 13. Próximos passos
 
+0i. **Breno — página de vendas (Sessão 25, branch `codex/pagina-de-vendas`, não publicada).** (a) Revisar textos e visual
+   (rodar `npm run dev` na branch e abrir `localhost:3000`, ou pedir à IA). (b) Mandar as **imagens** dos 8 espaços marcados
+   "IMAGEM" (cada um diz o que vai ali e o tamanho): 3 prints de "Como funciona" (conexão com o ML, configuração guiada,
+   caixa de entrada), print da caixa de entrada (Recursos), print de Resultados, foto do time, ilustração do convite final.
+   Prints podem ser da conta admin com dados fictícios (nunca de cliente). (c) Mandar os **dados da empresa**: razão social,
+   CNPJ, e-mail de contato, WhatsApp e Instagram (`companyInfo` em `lib/config/site.ts`; a AbacatePay exige isso no site, §13
+   0g item 6). (d) Aprovou → merge na `v2` (publica: `maanu.com.br/` vira a página de vendas; o app continua em
+   `maanu.com.br/login`, `/painel`...). Ideias não feitas: Pixel da Meta/Google (para medir os anúncios), depoimentos reais
+   quando houver, vídeo curto da maanu respondendo.
+   **Troca do app para `app.maanu.com.br` (depois da página publicada, com o "pode fazer" do Breno):**
+   1. IA: adicionar `app.maanu.com.br` ao projeto Vercel `maanu` (mostra o CNAME). Breno, no Cloudflare: `CNAME app → <valor
+      da Vercel>`, **DNS only** (nuvem cinza). Esperar o HTTPS ficar pronto.
+   2. Breno, DevCenter do ML (app `8693830632560554`): **adicionar** a URL de retorno
+      `https://app.maanu.com.br/api/auth/callback/mercadolivre` (manter a antiga). A URL de notificações pode continuar em
+      `maanu.com.br` (o domínio principal continua aceitando webhooks).
+   3. IA, Vercel `maanu` Production: `APP_HOST=app.maanu.com.br`, `NEXT_PUBLIC_SITE_URL=https://app.maanu.com.br`,
+      `ML_REDIRECT_URI=https://app.maanu.com.br/api/auth/callback/mercadolivre` → Redeploy.
+   4. IA, Supabase Auth (Management API): Site URL `https://app.maanu.com.br` e redirect `https://app.maanu.com.br/**`
+      (manter `https://maanu.com.br/**` um tempo, por causa de e-mails já enviados).
+   5. Admin → Cobrança → "Cadastrar webhook na AbacatePay" de novo (endereço novo; o antigo continua funcionando).
+   6. Testar: página de vendas em `maanu.com.br`, `maanu.com.br/login` → `app.maanu.com.br/login`, cadastro com e-mail,
+      "esqueci a senha", conectar conta do ML, Assinatura. Quem estava logado entra de novo uma vez.
+   Voltar atrás: apagar `APP_HOST` e devolver as 2 variáveis → Redeploy (o domínio principal volta a servir o app).
 0h. **Breno — conferir o aviso de acesso restrito (Sessão 24):** com um cliente comum logado, abrir
    `maanu.com.br/admin/cobranca` e conferir "Você não tem acesso a esta página" e "Voltar ao meu painel".
 0g. **Breno — ligar a cobrança pela AbacatePay (Sessão 23).** ✅ Passos 1 a 5 feitos em modo de teste (Sessão 23b; dados do

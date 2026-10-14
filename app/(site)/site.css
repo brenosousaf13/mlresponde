@@ -1,0 +1,170 @@
+/*
+ * Página de vendas (app/(site)): animações e efeitos. Carregado só nas rotas do site.
+ * Cores sempre pelos tokens da marca (globals.css). Tudo respeita "reduzir movimento" do sistema.
+ */
+
+@keyframes site-aurora {
+  0% { transform: translate3d(-6%, -4%, 0) rotate(0deg) scale(1); }
+  50% { transform: translate3d(5%, 6%, 0) rotate(8deg) scale(1.08); }
+  100% { transform: translate3d(-6%, -4%, 0) rotate(0deg) scale(1); }
+}
+
+@keyframes site-marquee {
+  from { transform: translate3d(0, 0, 0); }
+  to { transform: translate3d(-50%, 0, 0); }
+}
+
+@keyframes site-float {
+  0%, 100% { transform: translate3d(0, 0, 0); }
+  50% { transform: translate3d(0, -10px, 0); }
+}
+
+@keyframes site-shine {
+  from { background-position: 0% 50%; }
+  to { background-position: 200% 50%; }
+}
+
+@keyframes site-ping {
+  0% { transform: scale(1); opacity: 0.7; }
+  80%, 100% { transform: scale(2.6); opacity: 0; }
+}
+
+@keyframes site-caret {
+  0%, 45% { opacity: 1; }
+  50%, 100% { opacity: 0; }
+}
+
+@keyframes site-scan {
+  0% { top: 0%; opacity: 0; }
+  8% { opacity: 1; }
+  92% { opacity: 1; }
+  100% { top: 100%; opacity: 0; }
+}
+
+@keyframes site-travel {
+  from { left: 0%; }
+  to { left: 100%; }
+}
+
+@keyframes site-sweep {
+  from { left: 0%; }
+  to { left: 100%; }
+}
+
+@keyframes site-pop {
+  0% { transform: scale(0.4); opacity: 0; }
+  70% { transform: scale(1.15); opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+@keyframes site-bars {
+  from { transform: scaleY(0.15); }
+  to { transform: scaleY(1); }
+}
+
+/* Texto com gradiente teal que "corre" devagar. */
+.site-gradient-text {
+  background-image: linear-gradient(
+    100deg,
+    var(--brand-mint) 0%,
+    var(--brand-teal) 30%,
+    var(--brand-mint) 55%,
+    var(--brand-teal) 80%,
+    var(--brand-mint) 100%
+  );
+  background-size: 200% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: site-shine 7s linear infinite;
+}
+
+/* Grade fina dos painéis escuros (efeito "tecnologia"), some nas bordas. */
+.site-grid {
+  background-image:
+    linear-gradient(to right, color-mix(in oklch, white 7%, transparent) 1px, transparent 1px),
+    linear-gradient(to bottom, color-mix(in oklch, white 7%, transparent) 1px, transparent 1px);
+  background-size: 56px 56px;
+  mask-image: radial-gradient(ellipse 70% 60% at 50% 40%, black 30%, transparent 100%);
+}
+
+/* Grão leve por cima dos gradientes (tira o aspecto "plástico"). */
+.site-grain {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.5'/%3E%3C/svg%3E");
+  mix-blend-mode: overlay;
+  opacity: 0.18;
+}
+
+/* Bordas que somem nas laterais (faixas que correm). */
+.site-fade-x {
+  mask-image: linear-gradient(to right, transparent, black 8%, black 92%, transparent);
+}
+
+/* Entrada ao rolar: [data-reveal] some até ficar visível (components/site/reveal.tsx). */
+[data-reveal] {
+  opacity: 0;
+  transform: translate3d(0, 22px, 0);
+  filter: blur(6px);
+  transition:
+    opacity 0.8s cubic-bezier(0.2, 0.7, 0.2, 1),
+    transform 0.8s cubic-bezier(0.2, 0.7, 0.2, 1),
+    filter 0.8s cubic-bezier(0.2, 0.7, 0.2, 1);
+  transition-delay: var(--reveal-delay, 0ms);
+}
+
+[data-reveal][data-visible="true"] {
+  opacity: 1;
+  transform: none;
+  filter: none;
+}
+
+/* Entrada da primeira dobra (sem esperar o JavaScript). */
+.site-enter {
+  animation: site-enter 0.9s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+  animation-delay: var(--enter-delay, 0ms);
+}
+
+@keyframes site-enter {
+  from { opacity: 0; transform: translate3d(0, 18px, 0); filter: blur(8px); }
+  to { opacity: 1; transform: none; filter: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-reveal] {
+    opacity: 1;
+    transform: none;
+    filter: none;
+    transition: none;
+  }
+
+  .site-enter,
+  .site-gradient-text {
+    animation: none;
+  }
+
+  .site-motion {
+    animation: none !important;
+    transition: none !important;
+  }
+}
+
+/* Linhas do "raio-x do anúncio" acendendo em sequência. */
+@keyframes site-light {
+  0%, 6% { opacity: 0.4; }
+  12%, 86% { opacity: 1; }
+  100% { opacity: 0.4; }
+}
+
+@keyframes site-check {
+  0%, 6% { transform: scale(0.4); opacity: 0; }
+  12%, 86% { transform: scale(1); opacity: 1; }
+  100% { transform: scale(0.4); opacity: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .site-motion-static {
+    animation: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+  }
+}
