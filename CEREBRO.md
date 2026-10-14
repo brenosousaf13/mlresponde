@@ -1368,7 +1368,10 @@ webhook do ML validado, fila/reprocessamento de jobs, observabilidade, controle 
   loja temporária (cobrança recusada, troca agendada, botões, diálogos, anual, volta do pagamento, modo de teste), também
   apagada. O painel admin → Cobrança não foi visto no navegador (exige a 2ª etapa); typecheck e build ok.
 - Vercel: `ABACATEPAY_WEBHOOK_SECRET` criada no projeto `maanu` (Production, sensível, aleatória, valor não registrado).
-- Verificação: typecheck, testes, lint e build ok. Falta o Breno: chave de API + conferir produtos + cadastrar o webhook
+- Verificação: typecheck, 424 testes, lint e build ok. Publicado: commit `d691909` na `v2` → deploy de produção do projeto
+  `maanu` **READY** (`dpl_3nhqbNmUs7rE9Q3xCtrn4ufixoWC`). Conferido em `maanu.com.br`: `GET /api/webhook/abacatepay` 200,
+  POST com segredo errado 401 (o segredo já vale), login/termos 200, Assinatura e Admin → Cobrança pedem login, webhook do
+  ML recebendo normalmente, nenhum erro nos logs. Falta o Breno: chave de API + conferir produtos + cadastrar o webhook
   pelo painel + teste com cartão 4242 (§13 item 0g).
 
 ### 2026-10-13 — Sessão 22 · Perguntas chegando sozinhas e foto do anúncio (IA: Claude, via app Codex)
