@@ -1,14 +1,14 @@
 /**
  * Subdomínio do painel (puro, testado). Com ADMIN_HOST definido (ex.: "admin.maanu.com.br"):
- * - no endereço do painel só abrem o painel e o login (o resto vai para /admin);
+ * - no endereço do painel abrem o painel, o login e o aviso de acesso negado (o resto vai para /admin);
  * - em qualquer outro endereço, /admin responde 404.
  * Sem ADMIN_HOST, o painel fica em /admin no mesmo domínio do app.
  */
 
 export type AdminHostDecision = { kind: "pass" } | { kind: "not_found" } | { kind: "redirect"; pathname: string }
 
-/** Caminhos que o endereço do painel também serve (entrar, recuperar a senha e os links dos e-mails). */
-const ADMIN_HOST_ALLOWED = ["/login", "/recuperar-senha", "/redefinir-senha", "/auth/confirm"]
+/** Caminhos que o endereço do painel também serve (login, recuperação e aviso de acesso negado). */
+const ADMIN_HOST_ALLOWED = ["/login", "/recuperar-senha", "/redefinir-senha", "/auth/confirm", "/acesso-negado"]
 
 function matches(pathname: string, prefix: string) {
   return pathname === prefix || pathname.startsWith(`${prefix}/`)

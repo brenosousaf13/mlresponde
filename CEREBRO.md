@@ -4,7 +4,7 @@
 > inteiro antes de trabalhar e atualizá-lo ao terminar. Se algo aqui divergir do código, o código vence —
 > e este arquivo deve ser corrigido na mesma sessão.
 
-Última atualização: **2026-10-14** (Sessão 23 — cobrança pela AbacatePay pronta no código e no banco: assinar, trocar, cancelar e webhooks; falta só a chave de API do Breno; Sessão 22 — perguntas chegando sozinhas: rotina que busca no ML a cada ~10 s + webhook respondendo na hora; foto do anúncio corrigida; Sessão 21 — v1: botão de pausar a IA funcionando, commit `bf56777` na `main`; Sessão 20b — Starter com 300 respostas e espaço nos cards dos planos; Sessão 20 — planos Starter/Pro/Escala com limites, teste grátis e Melhorias de anúncio; Sessão 19 — pesquisa de preços e proposta de 3 planos; Sessão 18 — tour de boas-vindas e avisos de teste/conta ML redesenhados; Sessão 17 — chaves de IA cadastradas e trocadas pelo painel do administrador; Sessão 16 — textos do cadastro sem falar em cobrança; Sessão 15b — Fase 1 da troca preparada)
+Última atualização: **2026-10-14** (Sessão 24 — cliente sem permissão de administrador vê uma mensagem de acesso restrito com retorno ao painel; Sessão 23 — cobrança pela AbacatePay pronta no código e no banco: assinar, trocar, cancelar e webhooks; falta só a chave de API do Breno; Sessão 22 — perguntas chegando sozinhas: rotina que busca no ML a cada ~10 s + webhook respondendo na hora; foto do anúncio corrigida; Sessão 21 — v1: botão de pausar a IA funcionando, commit `bf56777` na `main`; Sessão 20b — Starter com 300 respostas e espaço nos cards dos planos; Sessão 20 — planos Starter/Pro/Escala com limites, teste grátis e Melhorias de anúncio; Sessão 19 — pesquisa de preços e proposta de 3 planos; Sessão 18 — tour de boas-vindas e avisos de teste/conta ML redesenhados; Sessão 17 — chaves de IA cadastradas e trocadas pelo painel do administrador; Sessão 16 — textos do cadastro sem falar em cobrança; Sessão 15b — Fase 1 da troca preparada)
 
 ---
 
@@ -87,7 +87,7 @@ novas funcionalidades, segurança multi-tenant de verdade — **desenvolvido em 
   arquivos do Breno (SVG no próprio HTML), favicon/ícones/imagem de compartilhamento novos, tema teal + grafite (neutros
   slate) em todas as telas, nome e assinatura ("Respostas automáticas com IA para marketplaces") nos textos.
   **Sessão 13 (2026-10-12): painel do administrador** (`/admin`, só `is_platform_admin` + **verificação em 2 etapas
-  (TOTP) obrigatória**, código pedido de novo a cada 12 h; quem não é admin recebe 404). Telas: Visão geral (clientes por
+  (TOTP) obrigatória**, código pedido de novo a cada 12 h; quem não é admin vê a tela de acesso restrito desde a Sessão 24). Telas: Visão geral (clientes por
   situação, cadastros, usuários ativos, MRR, custo de IA, funil de ativação, testes acabando, alertas), Clientes (busca,
   filtros, CSV) e ficha do cliente (editar assinatura/plano/mensalidade/cortesia/limite, estender teste, notas internas,
   editar usuário e e-mail, confirmar e-mail, link de senha nova, bloquear acesso, pausar a IA de uma conta), Uso de IA
@@ -148,6 +148,9 @@ novas funcionalidades, segurança multi-tenant de verdade — **desenvolvido em 
   de cadastrar, assinaturas, notificações) e ficha do cliente com a assinatura e "Cancelar". Banco: §6.1i. **Desligado até o
   Breno colocar a `ABACATEPAY_API_KEY` na Vercel** (o segredo do webhook já foi criado pela IA): até lá aparece "em breve".
   Spec: `docs/superpowers/specs/2026-10-14-cobranca-abacatepay-design.md`. Passo a passo para ligar: §13 item 0g.
+  **Sessão 24 (2026-10-14): acesso restrito ao admin** — cliente logado que abre uma página `/admin/*` (incluindo
+  verificação e exportação CSV) vai para `/acesso-negado`: "Você não tem acesso a esta página", explicação e botão
+  "Voltar ao meu painel", no padrão visual da marca. Permissões, segunda etapa e verificações do banco mantidas.
 - **Marca:** **maanu** (decisão do Breno, 2026-10-11). Guia de uso, paleta e arquivos em `docs/brand/README.md`; nome,
   assinatura e slogan em `lib/config/site.ts`; logo só pelos componentes de `components/brand/logo.tsx`.
 - P0 de segurança/toggle (§8) **adiados** por decisão do Breno — revisitar antes de abrir para novos clientes.
@@ -828,7 +831,9 @@ exportação só faz GET e a importação recusa qualquer destino que não seja 
 
 ### 7.0d v2 — Painel do administrador (`/admin`)
 1. Entrar normalmente em `/login` com o usuário admin → menu do usuário → **Painel do administrador** (ou abrir `/admin`).
-   Quem não é `is_platform_admin` recebe **404** em qualquer `/admin/*` (inclusive a exportação CSV).
+   Quem não é `is_platform_admin` vai para **`/acesso-negado`** em qualquer página `/admin/*` existente (inclusive a
+   verificação e a exportação CSV): mensagem de acesso restrito e botão para voltar ao painel. Essa tela exige login,
+   dispensa onboarding/plano/conta ML e funciona também no `ADMIN_HOST`, sem loop. Sem sessão, continua pedindo login.
 2. `/admin/verificacao`: 1º acesso = "Gerar QR code" → escanear no app autenticador (Google Authenticator, 1Password,
    Authy...) → digitar o código (o código secreto aparece para guardar). Depois, só o código de 6 números; pedido de novo a
    cada 12 h (`lib/admin/session.ts` = `admin_assert()`). 5 códigos errados em 15 min bloqueiam por 15 min. Entradas,
@@ -984,6 +989,9 @@ Projeto `ookosqyfazobiwmopiix` (vai virar a produção da v2). Conferido e corri
 - Sync de treinamento sem tratamento de rate limit (429) do ML; tokens refrescados sem lock (refresh concorrente).
 
 ### 🟡 P2
+- ✅ (v2, 2026-10-14, Sessão 24) **Cliente comum via o 404 padrão em inglês ao abrir links do administrador.**
+  `getAdminIdentity` agora redireciona para uma tela própria de acesso restrito; a exportação CSV usa `requireAdmin`
+  e segue o mesmo fluxo. Nenhum dado administrativo é consultado antes da validação da permissão.
 - (v2, visto na Sessão 18, não corrigido) Links com cara de botão `outline` montados com `className={buttonVariants(...)}`
   **sem `cn(...)`** ficam sem borda (o `cva` junta `border-transparent` e `border-border` e o primeiro vence). Aparece em 7
   lugares (Resultados, Perguntas, Pós-venda e painel admin). Correção: `className={cn(buttonVariants({ ... }))}`.
@@ -1340,10 +1348,29 @@ webhook do ML validado, fila/reprocessamento de jobs, observabilidade, controle 
 | 2026-10-14 | Chave de **teste** em produção só para administradores e `ABACATEPAY_TEST_EMAILS`; a organização interna (`admin`) não assina | Senão um cliente real "pagaria" com o cartão 4242 e ganharia o plano. A organização admin perderia o plano interno. |
 | 2026-10-14 | Webhook **cadastrado pelo painel do administrador** com o segredo que só existe na Vercel (criado pela IA, aleatório) | Ninguém precisa ver ou copiar o segredo; o botão usa a própria chave de API (WEBHOOK:CREATE). |
 | 2026-10-14 | Texto "se assinar antes, você não perde os dias que faltam" do teste grátis **retirado** | Não era verdade: ao assinar, o plano começa e a 1ª cobrança é na hora (a AbacatePay só daria dias grátis com `trialDays` no produto). |
+| 2026-10-14 | Cliente sem `is_platform_admin` abre `/admin/*` → tela **`/acesso-negado`** com mensagem em português e botão de retorno ao painel (substitui o 404 da Sessão 13) | Pedido do Breno. Redirecionamento no servidor, mantendo MFA, proteção das ações e RLS. API estável do Next (`redirect`), sem habilitar `forbidden`/`authInterrupts` experimentais. |
 
 ---
 
 ## 12. Diário de sessões (mais recente no topo)
+
+### 2026-10-14 — Sessão 24 · Mensagem de acesso restrito no admin (IA: Codex)
+- Pedido do Breno (print de `/admin/cobranca`): cliente logado sem permissão de administrador deve ver uma mensagem
+  customizada em vez do 404 padrão do Next em inglês.
+- Causa: `getAdminIdentity()` chamava `notFound()` de propósito desde a Sessão 13. Agora chama `redirect("/acesso-negado")`;
+  layout, páginas e leituras continuam barrando o cliente antes de consultar dados administrativos. Exportação CSV também
+  passa por `requireAdmin()` (antes devolvia um 404 isolado). Ações e funções do banco mantêm as mesmas permissões/MFA.
+- Tela nova `app/acesso-negado/page.tsx`: shadcn Card/Badge/Button, logo oficial, tokens da marca, título "Você não tem
+  acesso a esta página", explicação e "Voltar ao meu painel". Exige apenas login (`requireUser`), sem depender da situação
+  do plano/onboarding/conta ML. `ADMIN_HOST` permite a tela e o botão aponta ao domínio do app (sem redirecionamento em loop).
+- Regressão reproduzida antes da correção: cliente recebia `not_found` e o link de exportação devolvia 404. Testes novos
+  em `admin-access.test.ts` e `admin.test.ts`: cliente/perfil ausente negados, visitante pede login, admin exige MFA recente,
+  admin válido entra, ações recusadas, exportação negada sem consultar dados e `ADMIN_HOST` sem loop.
+- QA no navegador local com Auth/perfil simulados em localhost (sem acesso ou escrita no banco real): `/admin/cobranca`
+  abre a mensagem; layout conferido em 1280 e 390 px. HTTP: `/admin`, Cobrança, Clientes, Verificação e exportação →
+  307 para `/acesso-negado`; visitante → login. Servidores e arquivos temporários do QA removidos.
+- Verificação final: `npm run typecheck`, `npm test` (**432 passando**, 36 cenários de integração pulados),
+  `npm run lint` e `npm run build` ok. Sem alterações no banco, na infraestrutura ou na v1.
 
 ### 2026-10-14 — Sessão 23 · Cobrança pela AbacatePay (IA: Claude, via app Codex)
 - Pedido do Breno: analisar toda a documentação da AbacatePay e preparar a maanu para a integração (ele já criou os
@@ -1933,6 +1960,8 @@ webhook do ML validado, fila/reprocessamento de jobs, observabilidade, controle 
 
 ## 13. Próximos passos
 
+0h. **Breno — conferir o aviso de acesso restrito (Sessão 24):** com um cliente comum logado, abrir
+   `maanu.com.br/admin/cobranca` e conferir "Você não tem acesso a esta página" e "Voltar ao meu painel".
 0g. **Breno — ligar a cobrança pela AbacatePay (Sessão 23).** O código, o banco e o segredo do webhook já estão prontos;
    enquanto a chave não existir, os clientes veem "Contratação pelo app em breve" (nada muda para eles).
    1. AbacatePay (Dev mode primeiro) → Integração → API Keys → **Criar chave** com as permissões PRODUCT:READ,

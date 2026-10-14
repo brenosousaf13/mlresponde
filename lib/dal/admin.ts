@@ -1,7 +1,7 @@
 import "server-only"
 
 import { headers } from "next/headers"
-import { notFound, redirect } from "next/navigation"
+import { redirect } from "next/navigation"
 import { cache } from "react"
 import { z } from "zod"
 
@@ -62,11 +62,11 @@ async function loadIdentity(): Promise<AdminIdentity | null | "anonymous"> {
   }
 }
 
-/** Usuário logado e administrador da plataforma (sem exigir o código). Quem não é admin recebe 404. */
+/** Usuário logado e administrador da plataforma (sem exigir o código). Cliente vai para a tela de acesso negado. */
 export const getAdminIdentity = cache(async (): Promise<AdminIdentity> => {
   const identity = await loadIdentity()
   if (identity === "anonymous") redirect("/login?next=/admin")
-  if (!identity) notFound()
+  if (!identity) redirect("/acesso-negado")
   return identity
 })
 

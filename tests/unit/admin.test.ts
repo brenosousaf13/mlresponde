@@ -86,6 +86,10 @@ describe("subdomínio do painel (ADMIN_HOST)", () => {
     expect(route("admin.maanu.com.br", "/api/webhook/mercadolivre")).toEqual({ kind: "redirect", pathname: "/admin" })
   })
 
+  it("a tela de acesso negado abre no endereço do painel sem redirecionar de volta ao admin", () => {
+    expect(route("admin.maanu.com.br", "/acesso-negado")).toEqual({ kind: "pass" })
+  })
+
   it("monta os links entre o app e o painel", () => {
     expect(adminPanelHref("", "https://maanu.com.br")).toBe("/admin")
     expect(adminPanelHref("admin.maanu.com.br", "https://maanu.com.br")).toBe("https://admin.maanu.com.br/admin")

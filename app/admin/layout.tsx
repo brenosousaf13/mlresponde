@@ -8,7 +8,7 @@ export const metadata: Metadata = {
 }
 
 /**
- * Raiz do painel do administrador: quem não é administrador da plataforma recebe 404 (o painel "não existe").
+ * Raiz do painel do administrador: quem não é administrador da plataforma vai para a tela de acesso negado.
  * A verificação em 2 etapas é exigida pelo layout de (painel) e por cada página, ação e função do banco.
  */
 export default async function AdminRootLayout({ children }: { children: React.ReactNode }) {

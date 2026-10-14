@@ -4,7 +4,7 @@ import { toCsv } from "@/lib/admin/csv"
 import { ORG_STAGE, ORG_STATUS } from "@/lib/admin/labels"
 import { parseOrgListParams } from "@/lib/admin/schemas"
 import type { AdminOrgList } from "@/lib/admin/types"
-import { adminActionIdentity, adminRequestContext } from "@/lib/dal/admin"
+import { adminRequestContext, requireAdmin } from "@/lib/dal/admin"
 import { createClient } from "@/lib/supabase/server"
 import { formatWhatsapp } from "@/lib/validation/forms"
 
@@ -14,8 +14,7 @@ const EXPORT_LIMIT = 5000
 
 /** Exporta a lista de clientes (com os filtros da tela) em CSV. Fica registrado no histórico. */
 export async function GET(request: Request) {
-  const identity = await adminActionIdentity()
-  if (!identity) return new NextResponse("Not Found", { status: 404 })
+  await requireAdmin()
 
   const url = new URL(request.url)
   const params = parseOrgListParams(Object.fromEntries(url.searchParams.entries()))
