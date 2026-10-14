@@ -5,6 +5,7 @@ import { useEffect, useState, useTransition } from "react"
 import { toast } from "sonner"
 
 import { changePlan, subscribeToPlan } from "@/app/(app)/assinatura/actions"
+import { CheckoutRedirectDialog } from "@/components/plans/checkout-redirect-dialog"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -39,6 +40,9 @@ function priceText(plan: SellablePlan, cycle: BillingCycle) {
 
 type Confirmation = { title: string; description: string; confirm: string; run: () => void }
 
+/** Tempo mínimo da tela de espera, para o cliente conseguir ler que vai para a AbacatePay. */
+const MIN_REDIRECT_MESSAGE_MS = 1800
+
 /** Botão de cada plano na tela Assinatura: assinar, trocar de plano ou assinar de novo (outro ciclo ou outro cartão). */
 export function PlanActionButton({
   plan,
@@ -57,13 +61,13 @@ export function PlanActionButton({
   const router = useRouter()
   const [pending, startTransition] = useTransition()
   const [confirmation, setConfirmation] = useState<Confirmation | null>(null)
-  // Indo para a página de pagamento: o botão continua girando até ela abrir (e volta ao normal se o cliente voltar).
-  const [redirecting, setRedirecting] = useState(false)
+  // Indo para a página de pagamento: a tela de espera fica aberta até ela abrir (e fecha se o cliente voltar).
+  const [redirect, setRedirect] = useState<{ url: string | null } | null>(null)
   const variant = highlight ? "default" : "outline"
 
   useEffect(() => {
     const reset = (event: PageTransitionEvent) => {
-      if (event.persisted) setRedirecting(false)
+      if (event.persisted) setRedirect(null)
     }
     window.addEventListener("pageshow", reset)
     return () => window.removeEventListener("pageshow", reset)
@@ -126,16 +130,23 @@ export function PlanActionButton({
     )
   }
 
-  const goToCheckout = () =>
+  const goToCheckout = () => {
+    const startedAt = Date.now()
+    setRedirect({ url: null })
     startTransition(async () => {
       const result = await subscribeToPlan(plan.id, cycle)
       if (result.ok && result.url) {
-        setRedirecting(true)
-        window.location.assign(result.url)
+        const url = result.url
+        setRedirect({ url })
+        const remaining = MIN_REDIRECT_MESSAGE_MS - (Date.now() - startedAt)
+        if (remaining > 0) await new Promise((resolve) => setTimeout(resolve, remaining))
+        window.location.assign(url)
         return
       }
+      setRedirect(null)
       toast.error(result.message)
     })
+  }
 
   const requestChange = () =>
     startTransition(async () => {
@@ -186,13 +197,18 @@ export function PlanActionButton({
 
   return (
     <>
-      <Button variant={variant} className="w-full" disabled={pending || redirecting} onClick={onClick}>
-        {pending || redirecting ? <Spinner data-icon="inline-start" /> : null}
+      <Button variant={variant} className="w-full" disabled={pending || redirect !== null} onClick={onClick}>
+        {pending || redirect !== null ? <Spinner data-icon="inline-start" /> : null}
         {label}
       </Button>
       <p className="text-center text-xs text-muted-foreground">
-        {intent === "change_plan" ? "Sem nova página de pagamento" : "Pagamento seguro pela AbacatePay"}
+        {intent === "change_plan" ? "Sem nova página de pagamento" : "Você vai para a página segura da AbacatePay"}
       </p>
+      <CheckoutRedirectDialog
+        open={redirect !== null}
+        url={redirect?.url ?? null}
+        summary={`Plano ${plan.name} · ${priceText(plan, cycle)}`}
+      />
       <AlertDialog open={confirmation !== null} onOpenChange={(open) => (open ? null : setConfirmation(null))}>
         <AlertDialogContent>
           <AlertDialogHeader>

@@ -4,7 +4,7 @@
 > inteiro antes de trabalhar e atualizá-lo ao terminar. Se algo aqui divergir do código, o código vence —
 > e este arquivo deve ser corrigido na mesma sessão.
 
-Última atualização: **2026-10-14** (Sessão 24 — cliente sem permissão de administrador vê uma mensagem de acesso restrito com retorno ao painel; Sessão 23 — cobrança pela AbacatePay pronta no código e no banco: assinar, trocar, cancelar e webhooks; falta só a chave de API do Breno; Sessão 22 — perguntas chegando sozinhas: rotina que busca no ML a cada ~10 s + webhook respondendo na hora; foto do anúncio corrigida; Sessão 21 — v1: botão de pausar a IA funcionando, commit `bf56777` na `main`; Sessão 20b — Starter com 300 respostas e espaço nos cards dos planos; Sessão 20 — planos Starter/Pro/Escala com limites, teste grátis e Melhorias de anúncio; Sessão 19 — pesquisa de preços e proposta de 3 planos; Sessão 18 — tour de boas-vindas e avisos de teste/conta ML redesenhados; Sessão 17 — chaves de IA cadastradas e trocadas pelo painel do administrador; Sessão 16 — textos do cadastro sem falar em cobrança; Sessão 15b — Fase 1 da troca preparada)
+Última atualização: **2026-10-14** (Sessão 24 — cliente sem permissão de administrador vê uma mensagem de acesso restrito com retorno ao painel; Sessão 23b — tela "Levando você para o pagamento seguro" antes da AbacatePay, teste de compra aprovado e dados de teste apagados, falta a chave de produção; Sessão 23 — cobrança pela AbacatePay pronta no código e no banco: assinar, trocar, cancelar e webhooks; falta só a chave de API do Breno; Sessão 22 — perguntas chegando sozinhas: rotina que busca no ML a cada ~10 s + webhook respondendo na hora; foto do anúncio corrigida; Sessão 21 — v1: botão de pausar a IA funcionando, commit `bf56777` na `main`; Sessão 20b — Starter com 300 respostas e espaço nos cards dos planos; Sessão 20 — planos Starter/Pro/Escala com limites, teste grátis e Melhorias de anúncio; Sessão 19 — pesquisa de preços e proposta de 3 planos; Sessão 18 — tour de boas-vindas e avisos de teste/conta ML redesenhados; Sessão 17 — chaves de IA cadastradas e trocadas pelo painel do administrador; Sessão 16 — textos do cadastro sem falar em cobrança; Sessão 15b — Fase 1 da troca preparada)
 
 ---
 
@@ -147,6 +147,10 @@ novas funcionalidades, segurança multi-tenant de verdade — **desenvolvido em 
   Produtos reconhecidos sozinhos pelo nome + preço. Painel admin → **Cobrança** (configuração, produtos, webhook com botão
   de cadastrar, assinaturas, notificações) e ficha do cliente com a assinatura e "Cancelar". Banco: §6.1i. **Desligado até o
   Breno colocar a `ABACATEPAY_API_KEY` na Vercel** (o segredo do webhook já foi criado pela IA): até lá aparece "em breve".
+  **Sessão 23b:** o Breno colocou a chave de **teste**, cadastrou o webhook e assinou o Pro com o cartão 4242: funcionou de
+  ponta a ponta. Os dados desse teste foram apagados e a variável de e-mails de teste removida, então hoje (chave de teste,
+  sem e-mails liberados) os clientes veem "Contratação pelo app em breve" até a chave de **produção**. Antes de ir para a
+  AbacatePay, o cliente vê a tela "Levando você para o pagamento seguro" (`components/plans/checkout-redirect-dialog.tsx`).
   Spec: `docs/superpowers/specs/2026-10-14-cobranca-abacatepay-design.md`. Passo a passo para ligar: §13 item 0g.
   **Sessão 24 (2026-10-14): acesso restrito ao admin** — cliente logado que abre uma página `/admin/*` (incluindo
   verificação e exportação CSV) vai para `/acesso-negado`: "Você não tem acesso a esta página", explicação e botão
@@ -1354,6 +1358,23 @@ webhook do ML validado, fila/reprocessamento de jobs, observabilidade, controle 
 
 ## 12. Diário de sessões (mais recente no topo)
 
+### 2026-10-14 — Sessão 23b · Aviso antes do pagamento e limpeza do teste (IA: Claude, via app Codex)
+- O Breno colocou a `ABACATEPAY_API_KEY` (chave de **teste**) e a `ABACATEPAY_TEST_EMAILS`, cadastrou o webhook pelo painel e
+  assinou o Pro com o cartão 4242: webhook `subscription.completed` aplicado, Assinatura mostrando "Pro ativa, VISA final 4242,
+  próxima cobrança 14/11". Perguntou se dava para fazer a compra inteira dentro da maanu (checkout transparente): dá só para
+  cobranças avulsas (cartão via `abacatepay.js` + `cardToken`); a recorrência teria de ser feita pela maanu (cron,
+  tentativas, troca de cartão, risco de cobrança dupla). **Decisão do Breno: manter a página da AbacatePay por enquanto.**
+- Pedido: avisar que o cliente vai para o gateway e uma tela de carregamento. Feito `CheckoutRedirectDialog` (Dialog do
+  shadcn, sem fechar por Esc/clique fora): "Levando você para o pagamento seguro", plano e valor, 3 garantias (ambiente
+  seguro; dados do cartão só na AbacatePay; volta para a maanu com o plano liberado), "Preparando…" → "Abrindo…", fica pelo
+  menos 1,8 s para dar tempo de ler e mostra "Clique aqui para continuar" se a página não abrir em 8 s. Abaixo do botão:
+  "Você vai para a página segura da AbacatePay". Visto no navegador (página temporária local, apagada).
+- **Limpeza do teste (pedido do Breno, "remover tudo isso de teste"):** o teste foi feito na organização **Girassol Moda
+  Jeans** (o cliente real da semana de teste). Apagados só os registros `dev_mode` (1 assinatura, 1 página de pagamento,
+  1 notificação) e a loja voltou ao estado de antes: teste grátis até 20/10, sem plano, limite de 1 conta do ML (a conta
+  ativa dela continua). `ABACATEPAY_TEST_EMAILS` removida da Vercel. Na AbacatePay (Dev mode) a assinatura de teste continua
+  existindo: se ela mandar alguma notificação, é ignorada (não está mais ligada a nenhuma loja).
+
 ### 2026-10-14 — Sessão 24 · Mensagem de acesso restrito no admin (IA: Codex)
 - Pedido do Breno (print de `/admin/cobranca`): cliente logado sem permissão de administrador deve ver uma mensagem
   customizada em vez do 404 padrão do Next em inglês.
@@ -1965,8 +1986,11 @@ webhook do ML validado, fila/reprocessamento de jobs, observabilidade, controle 
 
 0h. **Breno — conferir o aviso de acesso restrito (Sessão 24):** com um cliente comum logado, abrir
    `maanu.com.br/admin/cobranca` e conferir "Você não tem acesso a esta página" e "Voltar ao meu painel".
-0g. **Breno — ligar a cobrança pela AbacatePay (Sessão 23).** O código, o banco e o segredo do webhook já estão prontos;
-   enquanto a chave não existir, os clientes veem "Contratação pelo app em breve" (nada muda para eles).
+0g. **Breno — ligar a cobrança pela AbacatePay (Sessão 23).** ✅ Passos 1 a 5 feitos em modo de teste (Sessão 23b; dados do
+   teste apagados). **Falta só o passo 6 (produção).** Hoje a chave em uso é a de teste e não há e-mails liberados, então os
+   clientes veem "Contratação pelo app em breve" até a troca. Ao trocar: chave de produção com as mesmas permissões, produtos
+   recriados no modo de produção, `ABACATEPAY_API_KEY` trocada na Vercel + Redeploy e "Cadastrar webhook na AbacatePay" de
+   novo no painel (o aviso "Pagamentos em modo de teste" some sozinho com a chave de produção).
    1. AbacatePay (Dev mode primeiro) → Integração → API Keys → **Criar chave** com as permissões PRODUCT:READ,
       CUSTOMER:CREATE, SUBSCRIPTION:CREATE, SUBSCRIPTION:READ, SUBSCRIPTION:DELETE, WEBHOOK:CREATE, WEBHOOK:READ e STORE:READ
       (não dá para editar depois; faltou uma = criar outra).
