@@ -13,7 +13,7 @@ export function PreviewWindow({ screen, children, className }: { screen: string;
   return (
     <div
       className={cn(
-        "overflow-hidden rounded-2xl border border-border bg-white text-brand-graphite shadow-[0_30px_70px_-40px] shadow-slate-900/40",
+        "site-clip rounded-2xl border border-border bg-white text-brand-graphite shadow-[0_30px_70px_-40px] shadow-slate-900/40",
         className
       )}
     >

@@ -174,3 +174,18 @@
   from { transform: scaleX(0); }
   to { transform: scaleX(1); }
 }
+
+/*
+ * Recorta o conteúdo SEM virar área de rolagem. Com overflow: hidden, o brilho do fundo (que passa da borda) deixava o
+ * painel "rolável por dentro": buscar texto, focar um campo ou um scrollIntoView rolava o painel e o conteúdo subia,
+ * deixando um vão no fim. overflow: clip não pode ser rolado; navegadores antigos ficam com hidden.
+ */
+.site-clip {
+  overflow: hidden;
+}
+
+@supports (overflow: clip) {
+  .site-clip {
+    overflow: clip;
+  }
+}

@@ -87,7 +87,7 @@ function CertaintyCard({ item, index }: { item: (typeof CASES)[number]; index: n
 export function CertaintySection() {
   return (
     <section aria-labelledby="certeza-title" className="px-3 sm:px-4">
-      <div className="relative isolate overflow-hidden rounded-[2rem] bg-brand-night py-20 text-white sm:rounded-[2.75rem] sm:py-28">
+      <div className="relative isolate site-clip rounded-[2rem] bg-brand-night py-20 text-white sm:rounded-[2.75rem] sm:py-28">
         <div aria-hidden className="pointer-events-none absolute inset-0 -z-10">
           <div className="absolute -top-40 right-0 h-[30rem] w-[40rem] rounded-full bg-[radial-gradient(closest-side,color-mix(in_oklch,var(--brand-teal)_30%,transparent),transparent)] blur-2xl" />
           <div className="site-grid absolute inset-0 opacity-70" />

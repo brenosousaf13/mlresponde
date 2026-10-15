@@ -15,7 +15,7 @@ export function SiteFooter({ signupHref, loginHref }: { signupHref: string; logi
   const { legalName, cnpj, email, whatsapp, instagram } = companyInfo
   return (
     <footer className="px-3 pt-3 pb-3 sm:px-4 sm:pt-4 sm:pb-4">
-      <div className="overflow-hidden rounded-[2rem] bg-brand-graphite text-white sm:rounded-[2.75rem]">
+      <div className="site-clip rounded-[2rem] bg-brand-graphite text-white sm:rounded-[2.75rem]">
         <Container className="py-16 sm:py-20">
           <div className="flex flex-col gap-8 border-b border-white/10 pb-12 lg:flex-row lg:items-end lg:justify-between">
             <div>

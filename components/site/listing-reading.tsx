@@ -34,7 +34,7 @@ function ListingScan() {
   return (
     <div aria-hidden className="relative">
       <div className="absolute -inset-6 rounded-[2.5rem] bg-[radial-gradient(closest-side,color-mix(in_oklch,var(--brand-teal)_22%,transparent),transparent)] blur-2xl" />
-      <div className="relative overflow-hidden rounded-[1.75rem] border border-border bg-white p-5 shadow-[0_30px_80px_-40px] shadow-slate-900/30 sm:p-6">
+      <div className="relative site-clip rounded-[1.75rem] border border-border bg-white p-5 shadow-[0_30px_80px_-40px] shadow-slate-900/30 sm:p-6">
         <div className="flex items-center gap-4">
           <span className="grid size-16 shrink-0 place-items-center rounded-2xl bg-slate-100 text-slate-400">
             <Package className="size-7" />

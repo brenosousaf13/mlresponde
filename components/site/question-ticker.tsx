@@ -35,7 +35,7 @@ function Row({ items, reverse, seed }: { items: readonly string[]; reverse?: boo
   // A lista aparece duas vezes para a faixa correr sem emenda (a 2ª cópia é só decorativa).
   const loop = [...items, ...items]
   return (
-    <div className="site-fade-x flex overflow-hidden">
+    <div className="site-fade-x flex site-clip">
       <ul
         className={cn(
           "site-motion flex w-max shrink-0 gap-3 pr-3 hover:[animation-play-state:paused]",

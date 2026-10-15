@@ -18,7 +18,7 @@ const STATS = [
 export function Hero({ signupHref }: { signupHref: string }) {
   return (
     <section id="topo" aria-labelledby="hero-title" className="relative px-3 pt-3 sm:px-4 sm:pt-4">
-      <div className="relative isolate overflow-hidden rounded-[2rem] bg-brand-night text-white sm:rounded-[2.75rem]">
+      <div className="relative isolate site-clip rounded-[2rem] bg-brand-night text-white sm:rounded-[2.75rem]">
         {/* Atmosfera: auroras teal que se mexem devagar, grade fina e grão. */}
         <div aria-hidden className="pointer-events-none absolute inset-0 -z-10">
           <div className="site-motion absolute -top-1/3 -left-1/4 h-[80%] w-[70%] animate-[site-aurora_18s_ease-in-out_infinite] rounded-full bg-[radial-gradient(closest-side,color-mix(in_oklch,var(--brand-teal)_55%,transparent),transparent)] blur-2xl" />

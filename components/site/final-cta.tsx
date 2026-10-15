@@ -10,7 +10,7 @@ import { TimeOnPage } from "./time-on-page"
 export function FinalCta({ signupHref }: { signupHref: string }) {
   return (
     <section id="cta-final" aria-labelledby="cta-final-title" className="px-3 pt-4 sm:px-4">
-      <div className="relative isolate overflow-hidden rounded-[2rem] bg-[linear-gradient(180deg,var(--brand-offwhite),var(--brand-sage))] py-20 sm:rounded-[2.75rem] sm:py-28">
+      <div className="relative isolate site-clip rounded-[2rem] bg-[linear-gradient(180deg,var(--brand-offwhite),var(--brand-sage))] py-20 sm:rounded-[2.75rem] sm:py-28">
         <div aria-hidden className="pointer-events-none absolute inset-0 -z-10">
           <div className="site-motion absolute -bottom-1/3 left-1/2 h-[80%] w-[90%] -translate-x-1/2 animate-[site-aurora_24s_ease-in-out_infinite] rounded-full bg-[radial-gradient(closest-side,color-mix(in_oklch,var(--brand-teal)_32%,transparent),transparent)] blur-2xl" />
         </div>

@@ -1437,6 +1437,10 @@ webhook do ML validado, fila/reprocessamento de jobs, observabilidade, controle 
   celular a barra do topo não tem mais "Testar grátis" (já existe a barra fixa de baixo); tirado o texto à direita do título
   "No dia a dia"; a **calculadora não indica plano** (pedido do Breno: ver um plano caro poderia afastar a pessoa do teste
   grátis) — no lugar, perguntas por mês e horas por semana que voltam para a pessoa.
+- Correção: o painel escuro da calculadora ficava com um vão grande embaixo (conteúdo subia). Causa: os painéis usavam
+  `overflow: hidden` e o brilho do fundo passa da borda, então o painel virava área rolável por dentro (buscar texto, focar o
+  controle ou um `scrollIntoView` rolava o painel). Agora os painéis usam `.site-clip` (`overflow: clip`, que não rola;
+  navegador antigo fica com hidden). Exceção: o abre/fecha de "No dia a dia" continua com hidden (precisa para a animação).
 
 ### 2026-10-14 — Sessão 23b · Aviso antes do pagamento e limpeza do teste (IA: Claude, via app Codex)
 - O Breno colocou a `ABACATEPAY_API_KEY` (chave de **teste**) e a `ABACATEPAY_TEST_EMAILS`, cadastrou o webhook pelo painel e
