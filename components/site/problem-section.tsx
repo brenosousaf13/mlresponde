@@ -1,10 +1,10 @@
-import { DayTimeline } from "./day-timeline"
+import { BuyerRace } from "./buyer-race"
 import { Container, Eyebrow, SectionTitle } from "./primitives"
 import { Reveal } from "./reveal"
 
 export function ProblemSection() {
   return (
-    <section id="problema" aria-labelledby="problema-title" className="pt-10 pb-20 sm:pt-14 sm:pb-28">
+    <section id="problema" aria-labelledby="problema-title" className="pt-10 pb-12 sm:pt-14 sm:pb-16">
       <Container>
         <Reveal className="mx-auto max-w-4xl text-center">
           <Eyebrow>O problema</Eyebrow>
@@ -23,8 +23,8 @@ export function ProblemSection() {
           </p>
         </Reveal>
 
-        <Reveal delay={120} className="mx-auto mt-14 max-w-5xl">
-          <DayTimeline />
+        <Reveal delay={120} className="mx-auto mt-14 max-w-6xl">
+          <BuyerRace />
         </Reveal>
       </Container>
     </section>

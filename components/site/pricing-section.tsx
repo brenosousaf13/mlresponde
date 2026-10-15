@@ -45,7 +45,7 @@ export function PricingSection({ signupHref }: { signupHref: string }) {
   const cheapest = SELLABLE_PLANS[0]
 
   return (
-    <section id="planos" aria-labelledby="planos-title" className="scroll-mt-24 py-20 sm:py-28">
+    <section id="planos" aria-labelledby="planos-title" className="scroll-mt-24 pt-20 pb-4 sm:pt-28 sm:pb-6">
       <Container>
         <Reveal className="mx-auto max-w-4xl text-center">
           <Eyebrow>Planos</Eyebrow>
@@ -153,21 +153,6 @@ export function PricingSection({ signupHref }: { signupHref: string }) {
             )
           })}
         </div>
-
-        <Reveal className="mx-auto mt-10 grid max-w-4xl gap-3 text-sm text-muted-foreground sm:grid-cols-3">
-          <p className="rounded-2xl border border-border p-4">
-            <span className="block font-medium text-foreground">Acabou o limite do mês?</span>
-            Nada se perde: as novas perguntas ficam com você e o limite renova no dia 1º.
-          </p>
-          <p className="rounded-2xl border border-border p-4">
-            <span className="block font-medium text-foreground">Mudou de ideia?</span>
-            Troque de plano ou cancele pelo próprio app, quando quiser, sem multa.
-          </p>
-          <p className="rounded-2xl border border-border p-4">
-            <span className="block font-medium text-foreground">Pagamento seguro</span>
-            Cartão de crédito processado pela AbacatePay. O cartão não passa pela maanu.
-          </p>
-        </Reveal>
       </Container>
     </section>
   )

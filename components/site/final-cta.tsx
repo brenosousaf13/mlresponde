@@ -1,8 +1,7 @@
-import { Check, Timer } from "lucide-react"
+import { Timer } from "lucide-react"
 
 import { siteConfig } from "@/lib/config/site"
 
-import { ImageSlot } from "./image-slot"
 import { Container } from "./primitives"
 import { Reveal } from "./reveal"
 import { SiteButton } from "./site-button"
@@ -11,7 +10,7 @@ import { TimeOnPage } from "./time-on-page"
 export function FinalCta({ signupHref }: { signupHref: string }) {
   return (
     <section id="cta-final" aria-labelledby="cta-final-title" className="px-3 pt-4 sm:px-4">
-      <div className="relative isolate overflow-hidden rounded-[2rem] bg-[linear-gradient(180deg,var(--brand-offwhite),var(--brand-sage))] pt-20 sm:rounded-[2.75rem] sm:pt-28">
+      <div className="relative isolate overflow-hidden rounded-[2rem] bg-[linear-gradient(180deg,var(--brand-offwhite),var(--brand-sage))] py-20 sm:rounded-[2.75rem] sm:py-28">
         <div aria-hidden className="pointer-events-none absolute inset-0 -z-10">
           <div className="site-motion absolute -bottom-1/3 left-1/2 h-[80%] w-[90%] -translate-x-1/2 animate-[site-aurora_24s_ease-in-out_infinite] rounded-full bg-[radial-gradient(closest-side,color-mix(in_oklch,var(--brand-teal)_32%,transparent),transparent)] blur-2xl" />
         </div>
@@ -31,27 +30,11 @@ export function FinalCta({ signupHref }: { signupHref: string }) {
             <p className="mx-auto mt-6 max-w-2xl text-lg leading-relaxed text-pretty text-muted-foreground">
               Crie sua conta em poucos minutos, conecte o Mercado Livre e deixe a próxima pergunta com a {siteConfig.name}.
             </p>
-            <div className="mt-9 flex flex-col items-center gap-4">
+            <div className="mt-9 flex justify-center">
               <SiteButton href={signupHref} size="lg">
                 Quero testar {siteConfig.trialDays} dias grátis
               </SiteButton>
-              <p className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
-                {["Sem cartão de crédito", "Sem fidelidade", "Cancele quando quiser"].map((item) => (
-                  <span key={item} className="inline-flex items-center gap-1.5">
-                    <Check className="size-4 text-brand-teal-ink" aria-hidden />
-                    {item}
-                  </span>
-                ))}
-              </p>
             </div>
-          </Reveal>
-
-          <Reveal delay={120} className="mx-auto mt-14 max-w-5xl">
-            <ImageSlot
-              label="Ilustração de encerramento: a maanu de plantão (celular aceso à noite, respondendo um comprador)"
-              hint="Recomendado: 2000 × 800 px, com fundo transparente na parte de baixo"
-              className="aspect-[5/2] w-full rounded-b-none border-b-0"
-            />
           </Reveal>
         </Container>
       </div>

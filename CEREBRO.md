@@ -157,9 +157,9 @@ novas funcionalidades, segurança multi-tenant de verdade — **desenvolvido em 
   "Voltar ao meu painel", no padrão visual da marca. Permissões, segunda etapa e verificações do banco mantidas.
   **Sessão 25 (2026-10-14): página de vendas** (branch **`codex/pagina-de-vendas`**, ainda **não publicada**: o Breno revisa
   antes). `maanu.com.br/` deixa de redirecionar para o painel e vira a página de vendas (topo escuro com demonstração ao vivo
-  da IA respondendo, faixa de perguntas, "um dia de perguntas", como funciona, leitura do anúncio, certeza, "no dia a
+  da IA respondendo, faixa de perguntas, "a mesma pergunta em três lojas", como funciona, leitura do anúncio, certeza, "no dia a
   dia", calculadora de economia, planos, dúvidas, convite final e rodapé), inspirada no layout da AbacatePay sem copiar.
-  1 espaço de imagem marcado ("IMAGEM" + o que vai ali + tamanho) e dados da empresa "a definir" (CNPJ, razão
+  Sem espaços de imagem (tudo desenhado em código) e com dados da empresa "a definir" (CNPJ, razão
   social, e-mail, WhatsApp, Instagram em `companyInfo`, `lib/config/site.ts`). O app pode morar em `app.maanu.com.br` com a
   variável **`APP_HOST`** (`lib/site/host.ts` + `proxy.ts`): sem ela nada muda além da página inicial. Passo a passo da troca
   de endereço em §13 item 0i.
@@ -300,12 +300,12 @@ components/
   brand/logo.tsx (+ logo-paths.ts) # LogoWordmark ("maanu.") e LogoMark ("m.") em SVG; letras = cor do texto, ponto teal
   site/                           # PÁGINA DE VENDAS (Sessão 25): site-header (vidro grafite ao rolar, menu Sheet no celular),
                                   # hero + hero-demo (pergunta → leitura do anúncio → resposta, cronômetro e certeza; pausa
-                                  # fora da tela), question-ticker, problem-section + day-timeline, how-it-works,
+                                  # fora da tela), question-ticker, problem-section + buyer-race, how-it-works,
                                   # listing-reading, certainty-section, daily-routine + routine-previews ("no dia a dia":
                                   # lista com abas do shadcn que avança sozinha + telas da maanu desenhadas em código),
                                   # savings-calculator, pricing-section (SELLABLE_PLANS, mensal/anual), faq-section (FAQ também
                                   # vira dados estruturados), final-cta + time-on-page, site-footer, mobile-cta-bar,
-                                  # image-slot (espaço de imagem marcado), pending (dado "a definir"), reveal + use-in-view,
+                                  # pending (dado "a definir"), reveal + use-in-view,
                                   # site-button (TODOS os botões da página: mesmas medidas, espaço igual dos 2 lados da seta)
   auth/ onboarding/ contas/ configuracoes/ legal/ forms/
 lib/
@@ -1426,6 +1426,12 @@ webhook do ML validado, fila/reprocessamento de jobs, observabilidade, controle 
   mostra à direita uma tela da maanu desenhada em código (dados de exemplo), passando sozinho a cada 7 s (para ao passar o
   mouse, fora da tela, com "reduzir movimento" ou depois de um clique); no celular, cada item com a sua tela. Removidas as
   seções Resultados e Suporte (o contato fica no rodapé).
+- 3ª rodada: o gráfico "um dia de perguntas" (linha do dia com bolinhas) não se entendia; virou **"A mesma pergunta, em três
+  lojas"** (`buyer-race.tsx`): às 22:14 o comprador pergunta "Esse tênis tem no 42?" em 3 lojas; com um relógio correndo,
+  "Sua loja, com a maanu" responde em 6 s e vende às 22:16, a concorrente responde 44 min depois e a outra só às 7:30 do dia
+  seguinte ("Tarde: ele já tinha comprado"). Roda uma vez ao aparecer, com "Ver de novo". Removidos os 3 avisos abaixo dos
+  planos, a lista de garantias e o espaço de imagem do convite final (componente `image-slot` apagado: a página não tem mais
+  espaços de imagem).
 
 ### 2026-10-14 — Sessão 23b · Aviso antes do pagamento e limpeza do teste (IA: Claude, via app Codex)
 - O Breno colocou a `ABACATEPAY_API_KEY` (chave de **teste**) e a `ABACATEPAY_TEST_EMAILS`, cadastrou o webhook pelo painel e
@@ -2054,8 +2060,8 @@ webhook do ML validado, fila/reprocessamento de jobs, observabilidade, controle 
 ## 13. Próximos passos
 
 0i. **Breno — página de vendas (Sessão 25, branch `codex/pagina-de-vendas`, não publicada).** (a) Revisar textos e visual
-   (rodar `npm run dev` na branch e abrir `localhost:3000`, ou pedir à IA). (b) Mandar a **imagem** do espaço marcado
-   "IMAGEM" que sobrou: ilustração do convite final (o espaço diz o que vai ali e o tamanho).
+   (rodar `npm run dev` na branch e abrir `localhost:3000`, ou pedir à IA). (b) Imagens: nenhuma pendente (todas as telas são
+   desenhadas em código; se quiser fotos/prints reais depois, é só pedir).
    Prints podem ser da conta admin com dados fictícios (nunca de cliente). (c) Mandar os **dados da empresa**: razão social,
    CNPJ, e-mail de contato, WhatsApp e Instagram (`companyInfo` em `lib/config/site.ts`; a AbacatePay exige isso no site, §13
    0g item 6). (d) Aprovou → merge na `v2` (publica: `maanu.com.br/` vira a página de vendas; o app continua em
