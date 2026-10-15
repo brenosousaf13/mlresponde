@@ -15,8 +15,8 @@ import { SavingsCalculator } from "@/components/site/savings-calculator"
 import { SiteFooter } from "@/components/site/site-footer"
 import { SiteHeader } from "@/components/site/site-header"
 import { siteConfig } from "@/lib/config/site"
-import { appHref } from "@/lib/site/host"
-import { SEO_DESCRIPTION, SEO_IMAGE, SEO_TITLE, structuredDataJson } from "@/lib/site/seo"
+import { SALES_PAGE_PATH, appHref } from "@/lib/site/host"
+import { SALES_PAGE_INDEXABLE, SEO_DESCRIPTION, SEO_IMAGE, SEO_TITLE, structuredDataJson } from "@/lib/site/seo"
 
 /** Verificação do Google Search Console e do Bing Webmaster Tools por meta tag (opcional; o DNS também serve). */
 const verification = {
@@ -29,17 +29,24 @@ export const metadata: Metadata = {
   description: SEO_DESCRIPTION,
   applicationName: siteConfig.name,
   category: "business",
-  alternates: { canonical: "/", languages: { "pt-BR": "/", "x-default": "/" } },
+  alternates: { canonical: SALES_PAGE_PATH, languages: { "pt-BR": SALES_PAGE_PATH, "x-default": SALES_PAGE_PATH } },
+  // Fora do Google enquanto está em revisão em /institucional (SALES_PAGE_INDEXABLE, lib/site/seo.ts).
   robots: {
-    index: true,
+    index: SALES_PAGE_INDEXABLE,
     follow: true,
-    googleBot: { index: true, follow: true, "max-snippet": -1, "max-image-preview": "large", "max-video-preview": -1 },
+    googleBot: {
+      index: SALES_PAGE_INDEXABLE,
+      follow: true,
+      "max-snippet": -1,
+      "max-image-preview": "large",
+      "max-video-preview": -1,
+    },
   },
   openGraph: {
     type: "website",
     locale: "pt_BR",
     siteName: siteConfig.name,
-    url: "/",
+    url: SALES_PAGE_PATH,
     title: SEO_TITLE,
     description: SEO_DESCRIPTION,
     images: [{ ...SEO_IMAGE, type: "image/jpeg" }],

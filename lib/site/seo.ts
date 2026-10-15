@@ -8,11 +8,19 @@ import { companyInfo, siteConfig } from "@/lib/config/site"
 import { FEATURE_LABELS, SELLABLE_PLANS, SUPPORT_LABELS, formatPrice, monthlyPrice } from "@/lib/plans/plans"
 
 import { FAQ } from "./faq"
+import { SALES_PAGE_PATH } from "./host"
 
 /** Data da última mudança de conteúdo da página de vendas (sitemap e dados estruturados). Atualize ao mudar o texto. */
 export const SITE_CONTENT_UPDATED = "2026-10-15"
 
 export const SITE_URL = siteConfig.marketingUrl
+
+/**
+ * A página de vendas entra no Google e nas buscas das IAs? **false enquanto estiver em /institucional para revisão**
+ * (meta robots "noindex" e fora do sitemap; o link funciona normalmente e a prévia no WhatsApp também). Virar true
+ * quando ela for para "/" com o app em app.maanu.com.br (CEREBRO.md §13 item 0i).
+ */
+export const SALES_PAGE_INDEXABLE = false
 
 /** ≤ 60 caracteres: aparece inteiro no Google. Palavras que o vendedor procura primeiro. */
 export const SEO_TITLE = "Respostas automáticas com IA para o Mercado Livre | maanu"
@@ -79,6 +87,14 @@ function absolute(path: string) {
   return new URL(path, `${SITE_URL}/`).toString()
 }
 
+/** Endereço completo da página de vendas (hoje https://maanu.com.br/institucional). */
+export const SALES_PAGE_URL = absolute(SALES_PAGE_PATH)
+
+/** Seção da página de vendas (ex.: "planos" → https://maanu.com.br/institucional#planos). */
+function section(id: string) {
+  return `${SALES_PAGE_URL}#${id}`
+}
+
 function digits(value: string) {
   return value.replace(/\D/g, "")
 }
@@ -101,7 +117,7 @@ const FEATURES = [
 export function buildStructuredData() {
   const organizationId = absolute("/#organizacao")
   const websiteId = absolute("/#site")
-  const softwareId = absolute("/#software")
+  const softwareId = section("software")
   const sameAs = companyInfo.instagram ? [`https://www.instagram.com/${companyInfo.instagram}`] : undefined
   const contactPoint =
     companyInfo.email || companyInfo.whatsapp
@@ -124,7 +140,7 @@ export function buildStructuredData() {
         "@type": "Organization",
         "@id": organizationId,
         name: siteConfig.name,
-        url: absolute("/"),
+        url: SALES_PAGE_URL,
         slogan: siteConfig.slogan,
         description: siteConfig.description,
         logo: { "@type": "ImageObject", url: absolute("/brand/maanu-icone-512.png"), width: 512, height: 512 },
@@ -145,8 +161,8 @@ export function buildStructuredData() {
       },
       {
         "@type": "WebPage",
-        "@id": absolute("/#pagina"),
-        url: absolute("/"),
+        "@id": section("pagina"),
+        url: SALES_PAGE_URL,
         name: SEO_TITLE,
         description: SEO_DESCRIPTION,
         inLanguage: "pt-BR",
@@ -159,7 +175,7 @@ export function buildStructuredData() {
         "@type": "SoftwareApplication",
         "@id": softwareId,
         name: siteConfig.name,
-        url: absolute("/"),
+        url: SALES_PAGE_URL,
         description: siteConfig.description,
         applicationCategory: "BusinessApplication",
         applicationSubCategory: "Atendimento automático com IA para vendedores do Mercado Livre",
@@ -173,7 +189,7 @@ export function buildStructuredData() {
           "@type": "Offer",
           name: `Plano ${plan.name}`,
           description: plan.tagline,
-          url: absolute("/#planos"),
+          url: section("planos"),
           price: plan.priceMonthly,
           priceCurrency: "BRL",
           availability: "https://schema.org/InStock",
@@ -189,8 +205,8 @@ export function buildStructuredData() {
       },
       {
         "@type": "FAQPage",
-        "@id": absolute("/#duvidas"),
-        url: absolute("/"),
+        "@id": section("duvidas"),
+        url: SALES_PAGE_URL,
         inLanguage: "pt-BR",
         mainEntity: FAQ.map((item) => ({
           "@type": "Question",
@@ -229,7 +245,7 @@ export function buildLlmsTxt(links: { signup: string; login: string }): string {
     "",
     `> A ${siteConfig.name} é uma plataforma brasileira (SaaS) de respostas automáticas com inteligência artificial para vendedores do Mercado Livre. Ela lê o anúncio e as regras da loja e responde as perguntas dos compradores em segundos, 24 horas por dia. Teste grátis de ${siteConfig.trialDays} dias, sem cartão de crédito.`,
     "",
-    `- Site: ${absolute("/")}`,
+    `- Site: ${SALES_PAGE_URL}`,
     `- Empresa: ${siteConfig.name}, CNPJ ${companyInfo.cnpj} (Brasil)`,
     "- Idioma: português do Brasil",
     `- Atualizado em: ${SITE_CONTENT_UPDATED}`,
@@ -259,8 +275,8 @@ export function buildLlmsTxt(links: { signup: string; login: string }): string {
     ...FAQ.flatMap((item) => [`### ${item.question}`, "", item.answer, ""]),
     "## Links",
     "",
-    `- [Página de vendas](${absolute("/")}): o que a maanu faz, planos e perguntas frequentes`,
-    `- [Planos e preços](${absolute("/#planos")})`,
+    `- [Página de vendas](${SALES_PAGE_URL}): o que a maanu faz, planos e perguntas frequentes`,
+    `- [Planos e preços](${section("planos")})`,
     `- [Criar conta grátis](${links.signup})`,
     `- [Entrar](${links.login})`,
     `- [Termos de Uso](${absolute("/termos")})`,

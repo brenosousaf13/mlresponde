@@ -1,9 +1,10 @@
 /**
- * Endereços do site (puro, testado em tests/unit/site-host.test.ts).
+ * Endereços do site (puro, testado em tests/unit/site.test.ts).
  *
- * maanu.com.br é a página de vendas. O app pode morar num endereço próprio, definido pela variável APP_HOST
- * (ex.: "app.maanu.com.br"):
- *  - sem APP_HOST (hoje e no computador local): "/" mostra a página de vendas e o resto do app continua no mesmo endereço;
+ * maanu.com.br é a página de vendas (no caminho SALES_PAGE_PATH). O app pode morar num endereço próprio, definido pela
+ * variável APP_HOST (ex.: "app.maanu.com.br"):
+ *  - sem APP_HOST (hoje e no computador local): a página de vendas abre sem login e o resto do app continua no mesmo
+ *    endereço ("/" leva ao painel enquanto a página de vendas estiver em /institucional);
  *  - com APP_HOST, no endereço do app: "/" leva ao painel e todo o resto funciona como sempre;
  *  - com APP_HOST, nos outros endereços (o domínio principal): ficam a página de vendas, as páginas legais, robots/sitemap
  *    e as rotas chamadas por servidores (webhooks do Mercado Livre e da AbacatePay, crons da Vercel), para nada quebrar
@@ -13,6 +14,14 @@
  */
 import { normalizeHost } from "@/lib/admin/host"
 import { siteConfig } from "@/lib/config/site"
+
+/**
+ * Caminho da página de vendas. Por enquanto "/institucional" (publicada para revisão do Breno e do sócio com o app
+ * ainda em "/"). Precisa bater com a pasta da rota: app/(site)/institucional/page.tsx. Na troca do app para
+ * app.maanu.com.br ela vai para "/" (CEREBRO.md §13 item 0i): mover a página para app/(site)/page.tsx, apagar
+ * app/page.tsx, trocar aqui para "/" e redirecionar /institucional para "/" (next.config.ts).
+ */
+export const SALES_PAGE_PATH = "/institucional"
 
 export type SiteHostDecision =
   /** Página de vendas: não precisa de sessão (o proxy nem consulta o login). */
@@ -78,7 +87,7 @@ export function siteHostRouting(input: {
     return { kind: "redirect", url: target.toString() }
   }
 
-  if (pathname === "/") return { kind: "landing" }
+  if (pathname === SALES_PAGE_PATH) return { kind: "landing" }
   if (!appHost) return { kind: "pass" }
   if (SITE_HOST_PATHS.some((prefix) => matches(pathname, prefix))) return { kind: "pass" }
   return { kind: "redirect", url: appHostUrl(input.url, appHost) }

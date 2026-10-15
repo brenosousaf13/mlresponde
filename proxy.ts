@@ -38,7 +38,8 @@ export async function proxy(request: NextRequest) {
   }
   const onAdminHost = Boolean(adminHost) && normalizeHost(request.headers.get("host")) === normalizeHost(adminHost)
 
-  // Página de vendas em "/" e app num endereço próprio (opcional, variável APP_HOST; regras em lib/site/host.ts).
+  // Página de vendas (SALES_PAGE_PATH, hoje /institucional) e app num endereço próprio (opcional, variável APP_HOST;
+  // regras em lib/site/host.ts).
   const siteRoute = siteHostRouting({
     url: request.nextUrl.toString(),
     host: request.headers.get("host"),

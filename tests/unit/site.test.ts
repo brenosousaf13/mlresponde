@@ -8,23 +8,31 @@ import {
   formatInteger,
   pricePerDay,
 } from "@/lib/site/calculator"
-import { appHostUrl, appHref, isLocalHost, siteHostRouting } from "@/lib/site/host"
+import { SALES_PAGE_PATH, appHostUrl, appHref, isLocalHost, siteHostRouting } from "@/lib/site/host"
 import { SELLABLE_PLANS } from "@/lib/plans/plans"
 
 describe("endereços do site (página de vendas × app)", () => {
   const route = (url: string, appHost?: string, adminHost?: string) =>
     siteHostRouting({ url, host: new URL(url).host, appHost, adminHost })
 
-  it("sem APP_HOST: '/' é a página de vendas e o resto do app segue no mesmo endereço", () => {
-    expect(route("https://maanu.com.br/")).toEqual({ kind: "landing" })
+  it("a página de vendas está em /institucional por enquanto (revisão), com o app ainda em '/'", () => {
+    expect(SALES_PAGE_PATH).toBe("/institucional")
+  })
+
+  it("sem APP_HOST: a página de vendas abre sem login e o resto do app segue no mesmo endereço", () => {
+    expect(route("https://maanu.com.br/institucional")).toEqual({ kind: "landing" })
+    expect(route("https://maanu.com.br/institucional?utm_source=instagram")).toEqual({ kind: "landing" })
+    expect(route("http://localhost:3000/institucional")).toEqual({ kind: "landing" })
+    // "/" continua sendo o app (leva ao painel ou ao login), como antes da página de vendas.
+    expect(route("https://maanu.com.br/")).toEqual({ kind: "pass" })
     expect(route("https://maanu.com.br/login")).toEqual({ kind: "pass" })
     expect(route("https://maanu.com.br/painel?x=1")).toEqual({ kind: "pass" })
-    expect(route("http://localhost:3000/")).toEqual({ kind: "landing" })
+    expect(route("https://maanu.com.br/institucional-extra")).toEqual({ kind: "pass" })
   })
 
   it("com APP_HOST, o domínio principal mantém a página de vendas, as páginas legais e as rotas de servidores", () => {
     const app = "app.maanu.com.br"
-    expect(route("https://maanu.com.br/", app)).toEqual({ kind: "landing" })
+    expect(route("https://maanu.com.br/institucional", app)).toEqual({ kind: "landing" })
     expect(route("https://maanu.com.br/termos", app)).toEqual({ kind: "pass" })
     expect(route("https://maanu.com.br/privacidade", app)).toEqual({ kind: "pass" })
     expect(route("https://maanu.com.br/sitemap.xml", app)).toEqual({ kind: "pass" })

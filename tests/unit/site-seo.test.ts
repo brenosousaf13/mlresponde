@@ -3,9 +3,10 @@ import { describe, expect, it } from "vitest"
 import { companyInfo, siteConfig } from "@/lib/config/site"
 import { SELLABLE_PLANS } from "@/lib/plans/plans"
 import { FAQ } from "@/lib/site/faq"
-import { isIndexableHost } from "@/lib/site/host"
+import { SALES_PAGE_PATH, isIndexableHost } from "@/lib/site/host"
 import {
   PRIVATE_PATHS,
+  SALES_PAGE_URL,
   SEARCH_AND_AI_CRAWLERS,
   SEO_DESCRIPTION,
   SEO_TITLE,
@@ -39,6 +40,13 @@ describe("dados estruturados (schema.org)", () => {
       "FAQPage",
     ])
     expect(() => JSON.parse(structuredDataJson())).not.toThrow()
+  })
+
+  it("página, software e dúvidas apontam para o endereço da página de vendas", () => {
+    expect(SALES_PAGE_URL).toBe(`${siteConfig.marketingUrl}${SALES_PAGE_PATH}`)
+    for (const type of ["WebPage", "SoftwareApplication", "FAQPage"]) expect(node(type).url).toBe(SALES_PAGE_URL)
+    const offers = node("SoftwareApplication").offers as { url: string }[]
+    expect(offers.every((offer) => offer.url === `${SALES_PAGE_URL}#planos`)).toBe(true)
   })
 
   it("preços iguais aos planos vendidos e URLs absolutas no domínio oficial", () => {
@@ -80,7 +88,11 @@ describe("robôs e endereços", () => {
     expect(PRIVATE_PATHS).toContain("/painel")
     expect(PRIVATE_PATHS).toContain("/admin")
     const paths: readonly string[] = PRIVATE_PATHS
-    expect(paths.some((path) => path === "/" || path.startsWith("/termos") || path.startsWith("/privacidade"))).toBe(false)
+    expect(
+      paths.some(
+        (path) => path === "/" || path.startsWith("/institucional") || path.startsWith("/termos") || path.startsWith("/privacidade")
+      )
+    ).toBe(false)
   })
 
   it("só o endereço oficial entra nos buscadores", () => {
@@ -110,5 +122,6 @@ describe("/llms.txt", () => {
     expect(text).toContain(companyInfo.cnpj)
     for (const item of FAQ) expect(text).toContain(`### ${item.question}`)
     expect(text).toContain("https://maanu.com.br/cadastro")
+    expect(text).toContain(`- Site: ${SALES_PAGE_URL}`)
   })
 })
