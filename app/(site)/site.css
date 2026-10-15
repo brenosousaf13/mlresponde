@@ -168,3 +168,9 @@
     transform: none !important;
   }
 }
+
+/* Linha de progresso do "No dia a dia" (passa sozinho para o próximo item quando termina). */
+@keyframes site-grow {
+  from { transform: scaleX(0); }
+  to { transform: scaleX(1); }
+}

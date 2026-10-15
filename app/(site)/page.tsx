@@ -1,8 +1,8 @@
 import type { Metadata } from "next"
 
 import { CertaintySection } from "@/components/site/certainty-section"
+import { DailyRoutine } from "@/components/site/daily-routine"
 import { FaqSection, FAQ } from "@/components/site/faq-section"
-import { FeaturesBento } from "@/components/site/features-bento"
 import { FinalCta } from "@/components/site/final-cta"
 import { Hero } from "@/components/site/hero"
 import { HowItWorks } from "@/components/site/how-it-works"
@@ -11,11 +11,9 @@ import { MobileCtaBar } from "@/components/site/mobile-cta-bar"
 import { PricingSection } from "@/components/site/pricing-section"
 import { ProblemSection } from "@/components/site/problem-section"
 import { QuestionTicker } from "@/components/site/question-ticker"
-import { ResultsSection } from "@/components/site/results-section"
 import { SavingsCalculator } from "@/components/site/savings-calculator"
 import { SiteFooter } from "@/components/site/site-footer"
 import { SiteHeader } from "@/components/site/site-header"
-import { SupportSection } from "@/components/site/support-section"
 import { siteConfig } from "@/lib/config/site"
 import { SELLABLE_PLANS } from "@/lib/plans/plans"
 import { appHref } from "@/lib/site/host"
@@ -78,11 +76,9 @@ export default function SalesPage() {
         <HowItWorks />
         <ListingReading />
         <CertaintySection />
-        <FeaturesBento />
-        <ResultsSection signupHref={signupHref} />
+        <DailyRoutine />
         <SavingsCalculator signupHref={signupHref} />
         <PricingSection signupHref={signupHref} />
-        <SupportSection />
         <FaqSection signupHref={signupHref} />
         <FinalCta signupHref={signupHref} />
       </main>
