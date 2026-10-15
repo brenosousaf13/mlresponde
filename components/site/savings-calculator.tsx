@@ -1,9 +1,8 @@
 "use client"
 
-import { ArrowRight, Calculator, MessageCircle } from "lucide-react"
+import { Calculator, MessageCircle } from "lucide-react"
 import { useState } from "react"
 
-import { buttonVariants } from "@/components/ui/button"
 import { Slider } from "@/components/ui/slider"
 import {
   CALCULATOR_DEFAULTS,
@@ -15,10 +14,10 @@ import {
   type SavingsInput,
 } from "@/lib/site/calculator"
 import { formatPrice } from "@/lib/plans/plans"
-import { cn } from "@/lib/utils"
 
 import { Container, Eyebrow, SectionTitle } from "./primitives"
 import { Reveal } from "./reveal"
+import { SiteButton } from "./site-button"
 
 type Field = keyof SavingsInput
 
@@ -142,16 +141,9 @@ export function SavingsCalculator({ signupHref }: { signupHref: string }) {
                 </div>
               )}
 
-              <a
-                href={signupHref}
-                className={cn(
-                  buttonVariants(),
-                  "group mt-auto h-12 rounded-full bg-brand-graphite text-base font-semibold text-white hover:bg-brand-graphite/90"
-                )}
-              >
+              <SiteButton href={signupHref} block className="mt-auto">
                 Começar meu teste grátis
-                <ArrowRight data-icon="inline-end" aria-hidden className="text-brand-mint transition-transform group-hover:translate-x-0.5" />
-              </a>
+              </SiteButton>
             </div>
           </Reveal>
         </Container>

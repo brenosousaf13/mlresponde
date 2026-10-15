@@ -255,14 +255,14 @@ export function HeroDemo() {
           <div className="mt-4 flex items-center justify-between gap-3 border-t border-border pt-3.5 text-xs">
             <span
               className={cn(
-                "inline-flex items-center gap-1.5 font-medium transition-colors",
+                "inline-flex min-w-0 items-center gap-1.5 font-medium whitespace-nowrap transition-colors",
                 sent ? "text-brand-teal-ink" : "text-muted-foreground"
               )}
             >
               <CheckCheck className="size-4" />
               {sent ? "Enviada ao Mercado Livre" : answering ? "Escrevendo a resposta…" : "Entendendo a pergunta…"}
             </span>
-            <span className="inline-flex items-center gap-3 font-mono text-muted-foreground tabular-nums">
+            <span className="inline-flex shrink-0 items-center gap-3 font-mono whitespace-nowrap text-muted-foreground tabular-nums">
               <span
                 title="Certeza da resposta"
                 className={cn("inline-flex items-center gap-1 transition-opacity duration-500", answering ? "opacity-100" : "opacity-0")}
@@ -284,9 +284,8 @@ export function HeroDemo() {
                 </svg>
                 {scenario.certainty}%
               </span>
-              <span className="inline-flex items-center gap-1">
+              <span className="inline-flex items-center gap-1" title="Tempo até a resposta">
                 <Timer className="size-3.5" />
-                {sent ? <span className="hidden sm:inline">respondida em</span> : null}
                 {seconds(stopwatch)}
               </span>
             </span>

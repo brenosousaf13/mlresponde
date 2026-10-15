@@ -1,4 +1,4 @@
-import { Ban, CircleCheck, CirclePause, Hand, MessageSquareQuote, PenLine, Sparkles } from "lucide-react"
+import { CircleCheck, Hand, PenLine } from "lucide-react"
 import type { CSSProperties } from "react"
 
 import { cn } from "@/lib/utils"
@@ -25,17 +25,6 @@ const CASES = [
     outcome: "Ficou com você, com sugestão pronta",
     text: "Sugestão: Olá! O valor do anúncio já é o nosso melhor preço, e no Pix você aproveita…",
   },
-] as const
-
-const CONTROLS = [
-  { icon: Sparkles, title: "Três níveis de rigor", text: "Cautelosa, Equilibrada ou Ousada. Você escolhe o quanto ela pode arriscar." },
-  {
-    icon: MessageSquareQuote,
-    title: "Modo “Responder sempre”",
-    text: "Se faltar informação, ela envia a sua mensagem padrão em vez de deixar o comprador sem resposta.",
-  },
-  { icon: Ban, title: "Anúncios bloqueados", text: "Escolha os anúncios que só você responde." },
-  { icon: CirclePause, title: "Pausa com um clique", text: "Desligou, parou. Na hora, sem ligar para ninguém." },
 ] as const
 
 function CertaintyCard({ item, index }: { item: (typeof CASES)[number]; index: number }) {
@@ -104,7 +93,7 @@ export function CertaintySection() {
           <div className="site-grid absolute inset-0 opacity-70" />
         </div>
 
-        <Container className="grid gap-14 lg:grid-cols-[0.95fr_1.05fr] lg:gap-16">
+        <Container className="grid items-center gap-14 lg:grid-cols-[0.95fr_1.05fr] lg:gap-16">
           <Reveal>
             <Eyebrow tone="dark">Segurança</Eyebrow>
             <SectionTitle id="certeza-title" className="mt-5">
@@ -114,16 +103,6 @@ export function CertaintySection() {
               Toda resposta tem um nível de certeza. Se a maanu não tiver segurança, ela não chuta: a pergunta fica com você,
               com uma sugestão de resposta pronta para revisar e enviar.
             </p>
-
-            <ul className="mt-10 grid gap-6 sm:grid-cols-2">
-              {CONTROLS.map(({ icon: Icon, title, text }) => (
-                <li key={title}>
-                  <Icon className="size-5 text-brand-mint" aria-hidden />
-                  <p className="mt-3 font-medium">{title}</p>
-                  <p className="mt-1 text-sm leading-relaxed text-white/60">{text}</p>
-                </li>
-              ))}
-            </ul>
           </Reveal>
 
           <Reveal delay={120} className="flex flex-col justify-center gap-4">

@@ -1,9 +1,8 @@
 "use client"
 
-import { ArrowRight, Check, Minus } from "lucide-react"
+import { Check, Minus } from "lucide-react"
 import { useState } from "react"
 
-import { buttonVariants } from "@/components/ui/button"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 import { siteConfig } from "@/lib/config/site"
 import { formatBRL, formatInteger, pricePerDay } from "@/lib/site/calculator"
@@ -20,6 +19,7 @@ import { cn } from "@/lib/utils"
 
 import { Container, Eyebrow, SectionTitle } from "./primitives"
 import { Reveal } from "./reveal"
+import { SiteButton } from "./site-button"
 
 type Line = { text: string; included: boolean }
 
@@ -120,19 +120,9 @@ export function PricingSection({ signupHref }: { signupHref: string }) {
                     {cycle === "annual" ? `${formatPrice(plan.priceAnnual)} cobrados uma vez por ano` : "cobrado todo mês"}
                   </p>
 
-                  <a
-                    href={signupHref}
-                    className={cn(
-                      buttonVariants(),
-                      "group mt-7 h-12 rounded-full text-base font-semibold",
-                      highlight
-                        ? "bg-brand-teal text-brand-graphite hover:bg-brand-mint"
-                        : "bg-brand-graphite text-white hover:bg-brand-graphite/90"
-                    )}
-                  >
+                  <SiteButton href={signupHref} variant={highlight ? "teal" : "graphite"} block className="mt-7">
                     Testar grátis por {siteConfig.trialDays} dias
-                    <ArrowRight data-icon="inline-end" aria-hidden className="transition-transform group-hover:translate-x-0.5" />
-                  </a>
+                  </SiteButton>
 
                   <ul className="mt-8 flex flex-col gap-3 text-sm">
                     {planLines(plan).map((line) => (

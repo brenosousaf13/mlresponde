@@ -1,13 +1,12 @@
-import { ArrowRight, Headset, Mail, MessageCircle, Rocket } from "lucide-react"
+import { Mail, MessageCircle, Rocket } from "lucide-react"
 
-import { buttonVariants } from "@/components/ui/button"
 import { companyInfo } from "@/lib/config/site"
-import { cn } from "@/lib/utils"
 
 import { ImageSlot } from "./image-slot"
 import { Pending, whatsappUrl } from "./pending"
 import { Container, Eyebrow, SectionTitle } from "./primitives"
 import { Reveal } from "./reveal"
+import { SiteButton } from "./site-button"
 
 const CHANNELS = [
   { icon: Mail, title: "E-mail", text: "Em todos os planos." },
@@ -43,19 +42,15 @@ export function SupportSection() {
             ))}
           </ul>
           {whatsapp ? (
-            <a
+            <SiteButton
               href={whatsappUrl(whatsapp, "Oi! Quero saber mais sobre a maanu.")}
               target="_blank"
               rel="noopener noreferrer"
-              className={cn(
-                buttonVariants({ variant: "outline" }),
-                "group mt-9 h-12 rounded-full border-brand-graphite/15 bg-white px-6 text-base font-semibold"
-              )}
+              variant="outline-light"
+              className="mt-9"
             >
-              <Headset data-icon="inline-start" aria-hidden />
               Falar com a gente
-              <ArrowRight data-icon="inline-end" aria-hidden className="transition-transform group-hover:translate-x-0.5" />
-            </a>
+            </SiteButton>
           ) : (
             <p className="mt-9 text-sm text-muted-foreground">
               Botão “Falar com a gente” aparece aqui com o <Pending>WhatsApp de atendimento</Pending>

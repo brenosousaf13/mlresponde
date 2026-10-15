@@ -1,12 +1,11 @@
-import { ArrowRight, AtSign, Mail, MessageCircle } from "lucide-react"
+import { AtSign, Mail, MessageCircle } from "lucide-react"
 
 import { LogoWordmark } from "@/components/brand/logo"
-import { buttonVariants } from "@/components/ui/button"
 import { companyInfo, siteConfig } from "@/lib/config/site"
-import { cn } from "@/lib/utils"
 
 import { Pending, whatsappUrl } from "./pending"
 import { Container } from "./primitives"
+import { SiteButton } from "./site-button"
 
 const YEAR = new Date().getFullYear()
 
@@ -23,16 +22,9 @@ export function SiteFooter({ signupHref, loginHref }: { signupHref: string; logi
               <LogoWordmark label={siteConfig.name} className="h-9 text-white" />
               <p className="mt-4 max-w-sm text-white/60">{siteConfig.slogan}</p>
             </div>
-            <a
-              href={signupHref}
-              className={cn(
-                buttonVariants(),
-                "group h-12 w-fit rounded-full bg-brand-teal px-6 text-base font-semibold text-brand-graphite hover:bg-brand-mint"
-              )}
-            >
+            <SiteButton href={signupHref} variant="teal" className="shadow-none">
               Testar grátis por {siteConfig.trialDays} dias
-              <ArrowRight data-icon="inline-end" aria-hidden className="transition-transform group-hover:translate-x-0.5" />
-            </a>
+            </SiteButton>
           </div>
 
           <div className="grid gap-10 py-12 sm:grid-cols-2 lg:grid-cols-4">

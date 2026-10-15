@@ -1,6 +1,6 @@
 "use client"
 
-import { ArrowRight, Menu } from "lucide-react"
+import { Menu } from "lucide-react"
 import { useState, useSyncExternalStore } from "react"
 
 import { LogoWordmark } from "@/components/brand/logo"
@@ -8,6 +8,8 @@ import { buttonVariants } from "@/components/ui/button"
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet"
 import { siteConfig } from "@/lib/config/site"
 import { cn } from "@/lib/utils"
+
+import { SiteButton } from "./site-button"
 
 export const SITE_NAV = [
   { href: "#como-funciona", label: "Como funciona" },
@@ -60,16 +62,9 @@ export function SiteHeader({ signupHref, loginHref }: { signupHref: string; logi
           >
             Entrar
           </a>
-          <a
-            href={signupHref}
-            className={cn(
-              buttonVariants(),
-              "h-10 rounded-full bg-brand-teal px-4 text-[0.9rem] font-semibold text-brand-graphite hover:bg-brand-mint"
-            )}
-          >
+          <SiteButton href={signupHref} variant="teal" size="sm" className="shadow-none">
             Testar grátis
-            <ArrowRight data-icon="inline-end" aria-hidden className="hidden sm:block" />
-          </a>
+          </SiteButton>
 
           <Sheet open={menuOpen} onOpenChange={setMenuOpen}>
             <SheetTrigger
@@ -102,24 +97,12 @@ export function SiteHeader({ signupHref, loginHref }: { signupHref: string; logi
                 ))}
               </nav>
               <div className="mt-auto flex flex-col gap-2 p-4">
-                <a
-                  href={signupHref}
-                  className={cn(
-                    buttonVariants(),
-                    "h-12 rounded-full bg-brand-teal text-base font-semibold text-brand-graphite hover:bg-brand-mint"
-                  )}
-                >
+                <SiteButton href={signupHref} variant="teal" block>
                   Testar grátis por {siteConfig.trialDays} dias
-                </a>
-                <a
-                  href={loginHref}
-                  className={cn(
-                    buttonVariants({ variant: "outline" }),
-                    "h-12 rounded-full border-white/15 bg-transparent text-base text-white hover:bg-white/10 hover:text-white"
-                  )}
-                >
+                </SiteButton>
+                <SiteButton href={loginHref} variant="outline-dark" icon={null} block>
                   Já tenho conta
-                </a>
+                </SiteButton>
               </div>
             </SheetContent>
           </Sheet>

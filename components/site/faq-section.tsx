@@ -1,12 +1,9 @@
-import { ArrowRight } from "lucide-react"
-
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"
-import { buttonVariants } from "@/components/ui/button"
 import { siteConfig } from "@/lib/config/site"
-import { cn } from "@/lib/utils"
 
 import { Container, Eyebrow, SectionTitle } from "./primitives"
 import { Reveal } from "./reveal"
+import { SiteButton } from "./site-button"
 
 export const FAQ = [
   {
@@ -80,16 +77,9 @@ export function FaqSection({ signupHref }: { signupHref: string }) {
             Separamos o que mais perguntam antes de começar. Ficou alguma? O teste é grátis: dá para ver tudo funcionando na
             sua loja.
           </p>
-          <a
-            href={signupHref}
-            className={cn(
-              buttonVariants(),
-              "group mt-9 h-12 rounded-full bg-brand-graphite px-6 text-base font-semibold text-white hover:bg-brand-graphite/90"
-            )}
-          >
+          <SiteButton href={signupHref} className="mt-9">
             Testar grátis por {siteConfig.trialDays} dias
-            <ArrowRight data-icon="inline-end" aria-hidden className="text-brand-mint transition-transform group-hover:translate-x-0.5" />
-          </a>
+          </SiteButton>
         </Reveal>
 
         <Reveal delay={100}>

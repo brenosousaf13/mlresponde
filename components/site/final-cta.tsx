@@ -1,12 +1,11 @@
-import { ArrowRight, Check, Timer } from "lucide-react"
+import { Check, Timer } from "lucide-react"
 
-import { buttonVariants } from "@/components/ui/button"
 import { siteConfig } from "@/lib/config/site"
-import { cn } from "@/lib/utils"
 
 import { ImageSlot } from "./image-slot"
 import { Container } from "./primitives"
 import { Reveal } from "./reveal"
+import { SiteButton } from "./site-button"
 import { TimeOnPage } from "./time-on-page"
 
 export function FinalCta({ signupHref }: { signupHref: string }) {
@@ -33,16 +32,9 @@ export function FinalCta({ signupHref }: { signupHref: string }) {
               Crie sua conta em poucos minutos, conecte o Mercado Livre e deixe a próxima pergunta com a {siteConfig.name}.
             </p>
             <div className="mt-9 flex flex-col items-center gap-4">
-              <a
-                href={signupHref}
-                className={cn(
-                  buttonVariants(),
-                  "group h-14 rounded-full bg-brand-graphite px-8 text-lg font-semibold text-white shadow-[0_20px_50px_-20px] shadow-brand-graphite/60 hover:bg-brand-graphite/90"
-                )}
-              >
+              <SiteButton href={signupHref} size="lg">
                 Quero testar {siteConfig.trialDays} dias grátis
-                <ArrowRight data-icon="inline-end" aria-hidden className="text-brand-mint transition-transform group-hover:translate-x-0.5" />
-              </a>
+              </SiteButton>
               <p className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
                 {["Sem cartão de crédito", "Sem fidelidade", "Cancele quando quiser"].map((item) => (
                   <span key={item} className="inline-flex items-center gap-1.5">

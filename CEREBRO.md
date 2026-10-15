@@ -159,7 +159,7 @@ novas funcionalidades, segurança multi-tenant de verdade — **desenvolvido em 
   antes). `maanu.com.br/` deixa de redirecionar para o painel e vira a página de vendas (topo escuro com demonstração ao vivo
   da IA respondendo, faixa de perguntas, "um dia de perguntas", como funciona, leitura do anúncio, certeza, recursos,
   Resultados, calculadora de economia, planos, suporte, dúvidas, convite final e rodapé), inspirada no layout da AbacatePay
-  sem copiar. 8 espaços de imagem marcados ("IMAGEM" + o que vai ali + tamanho) e dados da empresa "a definir" (CNPJ, razão
+  sem copiar. 4 espaços de imagem marcados ("IMAGEM" + o que vai ali + tamanho) e dados da empresa "a definir" (CNPJ, razão
   social, e-mail, WhatsApp, Instagram em `companyInfo`, `lib/config/site.ts`). O app pode morar em `app.maanu.com.br` com a
   variável **`APP_HOST`** (`lib/site/host.ts` + `proxy.ts`): sem ela nada muda além da página inicial. Passo a passo da troca
   de endereço em §13 item 0i.
@@ -304,7 +304,8 @@ components/
                                   # listing-reading, certainty-section, features-bento, results-section, savings-calculator,
                                   # pricing-section (SELLABLE_PLANS, mensal/anual), support-section, faq-section (FAQ também
                                   # vira dados estruturados), final-cta + time-on-page, site-footer, mobile-cta-bar,
-                                  # image-slot (espaço de imagem marcado), pending (dado "a definir"), reveal + use-in-view
+                                  # image-slot (espaço de imagem marcado), pending (dado "a definir"), reveal + use-in-view,
+                                  # site-button (TODOS os botões da página: mesmas medidas, espaço igual dos 2 lados da seta)
   auth/ onboarding/ contas/ configuracoes/ legal/ forms/
 lib/
   config/site.ts                  # nome da marca, dias de teste, versão dos termos, marketingUrl e companyInfo (CNPJ, contatos)
@@ -1410,6 +1411,14 @@ webhook do ML validado, fila/reprocessamento de jobs, observabilidade, controle 
   com `next start` + `APP_HOST=app.localhost`, os redirecionamentos (login, painel, `/auth/confirm` e retorno do OAuth com a
   busca → app; `/`, termos, sitemap, robots e webhooks ficam; no app, `/` → `/painel`). typecheck, 444 testes, lint e build
   ok (`/` estática). Sem mudanças no banco, na Vercel, no ML ou no Supabase Auth.
+- Ajustes pedidos pelo Breno (mesma sessão, com prints): tirados o selo acima do título, a lista "sem cartão / cancele /
+  pronto em minutos" abaixo dos botões do topo, os ícones da faixa do topo, o texto à direita de "Como funciona" e as 3
+  imagens dos passos (a linha que liga os passos agora vai até o fim da seção) e a lista de controles de "Na dúvida, ela não
+  inventa". Botões com a seta mais perto da borda: o `buttonVariants` do shadcn diminui o espaço do lado do ícone
+  (`has-data-[icon=inline-end]:pr-2`); todos os botões da página passaram para `components/site/site-button.tsx` (alturas
+  10/12/14, mesmo espaço dos dois lados e a folga interna da seta compensada). Medido no navegador: diferença de 0,2–0,4 px
+  entre os lados em todos os botões. Título do topo menor entre 1024 e 1280 px (cabia mal) e rodapé da demonstração sem
+  quebra de linha.
 
 ### 2026-10-14 — Sessão 23b · Aviso antes do pagamento e limpeza do teste (IA: Claude, via app Codex)
 - O Breno colocou a `ABACATEPAY_API_KEY` (chave de **teste**) e a `ABACATEPAY_TEST_EMAILS`, cadastrou o webhook pelo painel e
@@ -2038,9 +2047,9 @@ webhook do ML validado, fila/reprocessamento de jobs, observabilidade, controle 
 ## 13. Próximos passos
 
 0i. **Breno — página de vendas (Sessão 25, branch `codex/pagina-de-vendas`, não publicada).** (a) Revisar textos e visual
-   (rodar `npm run dev` na branch e abrir `localhost:3000`, ou pedir à IA). (b) Mandar as **imagens** dos 8 espaços marcados
-   "IMAGEM" (cada um diz o que vai ali e o tamanho): 3 prints de "Como funciona" (conexão com o ML, configuração guiada,
-   caixa de entrada), print da caixa de entrada (Recursos), print de Resultados, foto do time, ilustração do convite final.
+   (rodar `npm run dev` na branch e abrir `localhost:3000`, ou pedir à IA). (b) Mandar as **imagens** dos 4 espaços marcados
+   "IMAGEM" (cada um diz o que vai ali e o tamanho): print da caixa de entrada (Recursos), print de Resultados, foto do time,
+   ilustração do convite final.
    Prints podem ser da conta admin com dados fictícios (nunca de cliente). (c) Mandar os **dados da empresa**: razão social,
    CNPJ, e-mail de contato, WhatsApp e Instagram (`companyInfo` em `lib/config/site.ts`; a AbacatePay exige isso no site, §13
    0g item 6). (d) Aprovou → merge na `v2` (publica: `maanu.com.br/` vira a página de vendas; o app continua em

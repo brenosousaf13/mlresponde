@@ -1,11 +1,9 @@
-import { ArrowRight, ChartColumn, Clock3, PiggyBank, Timer } from "lucide-react"
-
-import { buttonVariants } from "@/components/ui/button"
-import { cn } from "@/lib/utils"
+import { ChartColumn, Clock3, PiggyBank, Timer } from "lucide-react"
 
 import { ImageSlot } from "./image-slot"
 import { Container, Eyebrow, SectionTitle } from "./primitives"
 import { Reveal } from "./reveal"
+import { SiteButton } from "./site-button"
 
 const ITEMS = [
   { icon: PiggyBank, text: "Economia do mês em reais e em horas" },
@@ -35,16 +33,9 @@ export function ResultsSection({ signupHref }: { signupHref: string }) {
               </li>
             ))}
           </ul>
-          <a
-            href={signupHref}
-            className={cn(
-              buttonVariants(),
-              "group mt-9 h-12 rounded-full bg-brand-graphite px-6 text-base font-semibold text-white hover:bg-brand-graphite/90"
-            )}
-          >
+          <SiteButton href={signupHref} className="mt-9">
             Quero ver os meus números
-            <ArrowRight data-icon="inline-end" aria-hidden className="text-brand-mint transition-transform group-hover:translate-x-0.5" />
-          </a>
+          </SiteButton>
         </Reveal>
 
         <Reveal delay={120} className="relative lg:-mr-24">

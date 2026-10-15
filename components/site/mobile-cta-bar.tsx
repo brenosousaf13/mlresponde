@@ -1,11 +1,11 @@
 "use client"
 
-import { ArrowRight } from "lucide-react"
 import { useSyncExternalStore } from "react"
 
-import { buttonVariants } from "@/components/ui/button"
 import { siteConfig } from "@/lib/config/site"
 import { cn } from "@/lib/utils"
+
+import { SiteButton } from "./site-button"
 
 function subscribe(callback: () => void) {
   window.addEventListener("scroll", callback, { passive: true })
@@ -36,17 +36,9 @@ export function MobileCtaBar({ signupHref }: { signupHref: string }) {
     >
       <div className="flex items-center gap-3 rounded-full border border-white/10 bg-brand-graphite/90 p-1.5 pl-5 text-white shadow-2xl backdrop-blur-xl">
         <span className="min-w-0 flex-1 truncate text-sm text-white/75">{siteConfig.trialDays} dias grátis, sem cartão</span>
-        <a
-          href={signupHref}
-          tabIndex={visible ? undefined : -1}
-          className={cn(
-            buttonVariants(),
-            "h-11 rounded-full bg-brand-teal px-5 text-sm font-semibold text-brand-graphite hover:bg-brand-mint"
-          )}
-        >
+        <SiteButton href={signupHref} tabIndex={visible ? undefined : -1} variant="teal" size="sm" className="shadow-none">
           Testar grátis
-          <ArrowRight data-icon="inline-end" aria-hidden />
-        </a>
+        </SiteButton>
       </div>
     </div>
   )
