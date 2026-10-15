@@ -1,9 +1,10 @@
 /**
- * Calculadora da página de vendas (puro, testado em tests/unit/site-calculator.test.ts).
+ * Calculadora da página de vendas (puro, testado em tests/unit/site.test.ts).
  * A conta é a mesma da tela Resultados: respostas × minutos por resposta ÷ 60 × custo da hora
  * (padrões 3 min e R$ 20/h, iguais às premissas de organizations.analytics_*).
+ * De propósito, NÃO indica plano: ver um plano caro poderia afastar a pessoa do teste grátis (pedido do Breno).
  */
-import { SELLABLE_PLANS, type SellablePlan } from "@/lib/plans/plans"
+import type { SellablePlan } from "@/lib/plans/plans"
 
 export const DAYS_PER_MONTH = 30
 
@@ -21,20 +22,11 @@ export type SavingsEstimate = {
   questionsPerMonth: number
   hoursPerMonth: number
   moneyPerMonth: number
-  /** Menor plano cujo limite mensal cobre as perguntas; null = acima do maior plano (conversar com a equipe). */
-  plan: SellablePlan | null
-  /** Mensalidade do plano indicado ÷ perguntas do mês. */
-  costPerAnswer: number | null
 }
 
 function clamp(value: number, min: number, max: number) {
   if (!Number.isFinite(value)) return min
   return Math.min(max, Math.max(min, value))
-}
-
-export function suggestPlan(questionsPerMonth: number, plans: readonly SellablePlan[] = SELLABLE_PLANS): SellablePlan | null {
-  const sorted = [...plans].sort((a, b) => (a.limits.answersPerMonth ?? Infinity) - (b.limits.answersPerMonth ?? Infinity))
-  return sorted.find((plan) => (plan.limits.answersPerMonth ?? Infinity) >= questionsPerMonth) ?? null
 }
 
 export function estimateSavings(input: SavingsInput): SavingsEstimate {
@@ -48,15 +40,7 @@ export function estimateSavings(input: SavingsInput): SavingsEstimate {
 
   const questionsPerMonth = questionsPerDay * DAYS_PER_MONTH
   const hoursPerMonth = (questionsPerMonth * minutes) / 60
-  const moneyPerMonth = hoursPerMonth * hourlyCost
-  const plan = suggestPlan(questionsPerMonth)
-  return {
-    questionsPerMonth,
-    hoursPerMonth,
-    moneyPerMonth,
-    plan,
-    costPerAnswer: plan ? plan.priceMonthly / questionsPerMonth : null,
-  }
+  return { questionsPerMonth, hoursPerMonth, moneyPerMonth: hoursPerMonth * hourlyCost }
 }
 
 /** Mensalidade ÷ 30 dias (o "R$ 3,23 por dia" da página). */

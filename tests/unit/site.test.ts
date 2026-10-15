@@ -7,7 +7,6 @@ import {
   formatBRLWhole,
   formatInteger,
   pricePerDay,
-  suggestPlan,
 } from "@/lib/site/calculator"
 import { appHostUrl, appHref, isLocalHost, siteHostRouting } from "@/lib/site/host"
 import { SELLABLE_PLANS } from "@/lib/plans/plans"
@@ -90,24 +89,12 @@ describe("calculadora da página de vendas", () => {
     expect(estimate.questionsPerMonth).toBe(600)
     expect(estimate.hoursPerMonth).toBe(30)
     expect(estimate.moneyPerMonth).toBe(600)
-    expect(estimate.plan?.id).toBe("pro")
-    expect(estimate.costPerAnswer).toBeCloseTo(197 / 600)
   })
 
-  it("indica o menor plano que cobre as perguntas do mês", () => {
-    expect(suggestPlan(1)?.id).toBe("starter")
-    expect(suggestPlan(300)?.id).toBe("starter")
-    expect(suggestPlan(301)?.id).toBe("pro")
-    expect(suggestPlan(1500)?.id).toBe("pro")
-    expect(suggestPlan(5000)?.id).toBe("escala")
-    expect(suggestPlan(5001)).toBeNull()
-  })
-
-  it("acima do maior plano não indica plano nem custo por resposta", () => {
+  it("não indica plano (de propósito: não afastar ninguém do teste grátis)", () => {
     const estimate = estimateSavings({ questionsPerDay: 200, minutesPerAnswer: 3, hourlyCost: 20 })
     expect(estimate.questionsPerMonth).toBe(6000)
-    expect(estimate.plan).toBeNull()
-    expect(estimate.costPerAnswer).toBeNull()
+    expect(Object.keys(estimate).sort()).toEqual(["hoursPerMonth", "moneyPerMonth", "questionsPerMonth"])
   })
 
   it("mantém os valores dentro dos limites dos controles", () => {

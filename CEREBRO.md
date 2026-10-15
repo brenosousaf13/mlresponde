@@ -311,7 +311,7 @@ components/
 lib/
   config/site.ts                  # nome da marca, dias de teste, versão dos termos, marketingUrl e companyInfo (CNPJ, contatos)
   site/host.ts                    # siteHostRouting: página de vendas × endereço do app (APP_HOST) + appHref (puro, testado)
-  site/calculator.ts              # calculadora da página de vendas (mesma conta de Resultados), plano indicado, R$/dia (puro)
+  site/calculator.ts              # calculadora da página de vendas (mesma conta de Resultados) e R$/dia (puro; não indica plano)
   env.ts                          # leitura de env obrigatória (server-only)
   access/access.ts                # computeAccess (trial/active/blocked) + decideSectionAccess (puro, testado)
   access/notices.ts               # trialNotice + mlConnectionNotice: quando e o que os avisos mostram (puro, testado)
@@ -1377,6 +1377,7 @@ webhook do ML validado, fila/reprocessamento de jobs, observabilidade, controle 
 | 2026-10-14 | Texto "se assinar antes, você não perde os dias que faltam" do teste grátis **retirado** | Não era verdade: ao assinar, o plano começa e a 1ª cobrança é na hora (a AbacatePay só daria dias grátis com `trialDays` no produto). |
 | 2026-10-14 | **`maanu.com.br/` = página de vendas**; o app vai para **`app.maanu.com.br`** pela variável `APP_HOST`, com o domínio principal ainda aceitando webhooks/cron e redirecionando o resto para o mesmo caminho no app (307, busca preservada) | Pedido do Breno (Sessão 25). Recomendação da IA: é o padrão de SaaS (site de marketing × app), separa SEO/anúncios do app e deixa trocar um sem mexer no outro. Feito em 2 passos para não quebrar nada: (1) a página de vendas entra em "/" com o app no mesmo endereço; (2) com o DNS, `APP_HOST` e as URLs do ML/Supabase, o app muda de endereço. Webhooks e links antigos (e-mails, retorno do OAuth) continuam funcionando pelo redirecionamento; 307 (e não 308) para dar para voltar atrás sem cache no navegador. Login não é compartilhado entre os endereços (quem estava logado entra de novo uma vez). |
 | 2026-10-14 | Página de vendas: layout inspirado na AbacatePay (topo emoldurado e arredondado, navegação flutuante, seções alternando claro/escuro, simulador escuro, dúvidas em 2 colunas, convite final) com identidade própria: grafite + teal "aceso" (`brand-mint`, `brand-night`), títulos em **Funnel Display**, demonstrações animadas feitas em código (sem vídeo) e espaços de imagem marcados | Pedido do Breno ("mais vivo, com animações e tecnologia, nada com cara de modelo feito por IA"). Animações em CSS + IntersectionObserver (sem biblioteca nova), página estática (○ no build) e o proxy nem consulta o login em "/" (carrega rápido para quem vem do anúncio). Tudo respeita "reduzir movimento". |
+| 2026-10-14 | Calculadora da página de vendas **sem indicar plano** | Breno: quem visse que precisaria do plano mais caro poderia desistir antes do teste grátis. A escolha do plano fica para depois do teste, dentro do app. |
 | 2026-10-14 | Sem depoimentos, números de clientes ou selos inventados na página de vendas; exemplos marcados como ilustrativos; preços e limites lidos de `SELLABLE_PLANS` | Ainda não há depoimentos reais (1 cliente em teste). Propaganda enganosa queima o anúncio e o CDC; preço em um lugar só não fica desatualizado. |
 | 2026-10-14 | Cliente sem `is_platform_admin` abre `/admin/*` → tela **`/acesso-negado`** com mensagem em português e botão de retorno ao painel (substitui o 404 da Sessão 13) | Pedido do Breno. Redirecionamento no servidor, mantendo MFA, proteção das ações e RLS. API estável do Next (`redirect`), sem habilitar `forbidden`/`authInterrupts` experimentais. |
 
@@ -1432,6 +1433,10 @@ webhook do ML validado, fila/reprocessamento de jobs, observabilidade, controle 
   seguinte ("Tarde: ele já tinha comprado"). Roda uma vez ao aparecer, com "Ver de novo". Removidos os 3 avisos abaixo dos
   planos, a lista de garantias e o espaço de imagem do convite final (componente `image-slot` apagado: a página não tem mais
   espaços de imagem).
+- 4ª rodada: links do menu centralizados na barra (computador, a partir de 1024 px; abaixo disso ficam no menu ☰); no
+  celular a barra do topo não tem mais "Testar grátis" (já existe a barra fixa de baixo); tirado o texto à direita do título
+  "No dia a dia"; a **calculadora não indica plano** (pedido do Breno: ver um plano caro poderia afastar a pessoa do teste
+  grátis) — no lugar, perguntas por mês e horas por semana que voltam para a pessoa.
 
 ### 2026-10-14 — Sessão 23b · Aviso antes do pagamento e limpeza do teste (IA: Claude, via app Codex)
 - O Breno colocou a `ABACATEPAY_API_KEY` (chave de **teste**) e a `ABACATEPAY_TEST_EMAILS`, cadastrou o webhook pelo painel e

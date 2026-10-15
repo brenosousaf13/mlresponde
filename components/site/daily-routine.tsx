@@ -104,17 +104,11 @@ export function DailyRoutine() {
   return (
     <section id="no-dia-a-dia" aria-labelledby="no-dia-a-dia-title" className="scroll-mt-24 py-20 sm:py-28">
       <Container>
-        <Reveal className="grid gap-6 lg:grid-cols-[1.15fr_0.85fr] lg:items-end lg:gap-16">
-          <div>
-            <Eyebrow>No dia a dia</Eyebrow>
-            <SectionTitle id="no-dia-a-dia-title" className="mt-5">
-              Do seu lado da tela, <span className="text-muted-foreground">tudo fica mais leve.</span>
-            </SectionTitle>
-          </div>
-          <p className="text-lg leading-relaxed text-pretty text-muted-foreground">
-            A IA responde os compradores. Para você, a maanu vira o lugar de acompanhar, corrigir, atender quem já comprou e
-            deixar os anúncios melhores.
-          </p>
+        <Reveal className="max-w-2xl">
+          <Eyebrow>No dia a dia</Eyebrow>
+          <SectionTitle id="no-dia-a-dia-title" className="mt-5">
+            Do seu lado da tela, <span className="text-muted-foreground">tudo fica mais leve.</span>
+          </SectionTitle>
         </Reveal>
 
         {/* Computador: lista à esquerda e a tela correspondente à direita. */}

@@ -1,6 +1,6 @@
 "use client"
 
-import { Calculator, MessageCircle } from "lucide-react"
+import { Calculator } from "lucide-react"
 import { useState } from "react"
 
 import { Slider } from "@/components/ui/slider"
@@ -8,12 +8,10 @@ import {
   CALCULATOR_DEFAULTS,
   CALCULATOR_LIMITS,
   estimateSavings,
-  formatBRL,
   formatBRLWhole,
   formatInteger,
   type SavingsInput,
 } from "@/lib/site/calculator"
-import { formatPrice } from "@/lib/plans/plans"
 
 import { Container, Eyebrow, SectionTitle } from "./primitives"
 import { Reveal } from "./reveal"
@@ -26,6 +24,9 @@ const FIELDS: { key: Field; label: string; format: (value: number) => string }[]
   { key: "minutesPerAnswer", label: "Minutos para ler, conferir e responder cada uma", format: (v) => `${v} min` },
   { key: "hourlyCost", label: "Quanto vale uma hora do seu tempo", format: (v) => `${formatBRLWhole(v)}/h` },
 ]
+
+/** Semanas num mês de 30 dias. */
+const WEEKS_PER_MONTH = 30 / 7
 
 function formatHours(hours: number) {
   return hours < 10 ? hours.toLocaleString("pt-BR", { maximumFractionDigits: 1 }) : formatInteger(hours)
@@ -114,32 +115,22 @@ export function SavingsCalculator({ signupHref }: { signupHref: string }) {
 
               <div className="my-7 h-px bg-border" />
 
-              {estimate.plan ? (
-                <div className="mb-7 rounded-2xl bg-brand-sage/60 p-4">
-                  <p className="text-sm text-brand-teal-ink">
-                    Para cerca de {formatInteger(estimate.questionsPerMonth)} perguntas por mês
-                  </p>
-                  <p className="mt-1 flex flex-wrap items-baseline gap-x-2 font-display text-2xl font-semibold tracking-tight">
-                    Plano {estimate.plan.name}
-                    <span className="text-base font-medium text-muted-foreground">
-                      {formatPrice(estimate.plan.priceMonthly)}/mês
-                    </span>
-                  </p>
-                  {estimate.costPerAnswer !== null ? (
-                    <p className="mt-1 text-sm text-muted-foreground">
-                      Sai por {formatBRL(estimate.costPerAnswer)} por pergunta respondida.
-                    </p>
-                  ) : null}
+              <dl className="mb-7 grid grid-cols-2 gap-3">
+                <div className="rounded-2xl bg-brand-offwhite p-4">
+                  <dt className="text-sm text-muted-foreground">Perguntas que saem da sua mão</dt>
+                  <dd className="mt-1 font-display text-3xl font-semibold tracking-tight tabular-nums">
+                    {formatInteger(estimate.questionsPerMonth)}
+                    <span className="block text-sm font-medium text-muted-foreground sm:ml-1 sm:inline sm:text-base">por mês</span>
+                  </dd>
                 </div>
-              ) : (
-                <div className="mb-7 rounded-2xl bg-amber-50 p-4">
-                  <p className="text-sm text-amber-800">Mais de {formatInteger(5000)} perguntas por mês?</p>
-                  <p className="mt-1 flex items-center gap-2 font-display text-2xl font-semibold tracking-tight">
-                    <MessageCircle className="size-5" aria-hidden /> Vamos montar um plano juntos
-                  </p>
-                  <p className="mt-1 text-sm text-muted-foreground">Comece pelo teste grátis e fale com a gente.</p>
+                <div className="rounded-2xl bg-brand-offwhite p-4">
+                  <dt className="text-sm text-muted-foreground">Tempo que volta para você</dt>
+                  <dd className="mt-1 font-display text-3xl font-semibold tracking-tight tabular-nums">
+                    {formatHours(estimate.hoursPerMonth / WEEKS_PER_MONTH)} h
+                    <span className="block text-sm font-medium text-muted-foreground sm:ml-1 sm:inline sm:text-base">por semana</span>
+                  </dd>
                 </div>
-              )}
+              </dl>
 
               <SiteButton href={signupHref} block className="mt-auto">
                 Começar meu teste grátis

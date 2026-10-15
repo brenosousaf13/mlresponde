@@ -33,7 +33,7 @@ export function SiteHeader({ signupHref, loginHref }: { signupHref: string; logi
     <header className="fixed inset-x-0 top-0 z-50 px-3 pt-3 sm:px-4 sm:pt-4">
       <div
         className={cn(
-          "mx-auto flex h-14 max-w-6xl items-center gap-2 rounded-full border pr-2 pl-5 transition-[background-color,border-color,box-shadow] duration-300",
+          "relative mx-auto flex h-14 max-w-6xl items-center gap-2 rounded-full border pr-2 pl-5 transition-[background-color,border-color,box-shadow] duration-300",
           scrolled
             ? "border-white/10 bg-brand-graphite/90 shadow-[0_18px_50px_-20px] shadow-brand-graphite/60 backdrop-blur-xl"
             : "border-transparent bg-transparent"
@@ -43,7 +43,11 @@ export function SiteHeader({ signupHref, loginHref }: { signupHref: string; logi
           <LogoWordmark label="" className="h-[1.35rem] text-white" />
         </a>
 
-        <nav aria-label="Seções da página" className="ml-6 hidden items-center gap-0.5 md:flex">
+        {/* Links no centro da barra (só no computador; em telas menores ficam no menu). */}
+        <nav
+          aria-label="Seções da página"
+          className="absolute top-1/2 left-1/2 hidden -translate-x-1/2 -translate-y-1/2 items-center gap-0.5 lg:flex"
+        >
           {SITE_NAV.map((item) => (
             <a
               key={item.href}
@@ -62,7 +66,8 @@ export function SiteHeader({ signupHref, loginHref }: { signupHref: string; logi
           >
             Entrar
           </a>
-          <SiteButton href={signupHref} variant="teal" size="sm" className="shadow-none">
+          {/* No celular o botão fica na barra fixa de baixo (mobile-cta-bar). */}
+          <SiteButton href={signupHref} variant="teal" size="sm" className="hidden shadow-none md:inline-flex">
             Testar grátis
           </SiteButton>
 
@@ -71,7 +76,7 @@ export function SiteHeader({ signupHref, loginHref }: { signupHref: string; logi
               aria-label="Abrir menu"
               className={cn(
                 buttonVariants({ variant: "ghost", size: "icon-lg" }),
-                "rounded-full text-white hover:bg-white/10 hover:text-white md:hidden"
+                "rounded-full text-white hover:bg-white/10 hover:text-white lg:hidden"
               )}
             >
               <Menu aria-hidden />
