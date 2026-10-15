@@ -12,7 +12,7 @@ const YEAR = new Date().getFullYear()
 const linkClass = "text-white/60 transition-colors hover:text-white"
 
 export function SiteFooter({ signupHref, loginHref }: { signupHref: string; loginHref: string }) {
-  const { legalName, cnpj, email, whatsapp, instagram } = companyInfo
+  const { cnpj, email, whatsapp, instagram } = companyInfo
   return (
     <footer className="px-3 pt-3 pb-3 sm:px-4 sm:pt-4 sm:pb-4">
       <div className="site-clip rounded-[2rem] bg-brand-graphite text-white sm:rounded-[2.75rem]">
@@ -91,10 +91,7 @@ export function SiteFooter({ signupHref, loginHref }: { signupHref: string; logi
             <p className="flex flex-wrap items-center gap-x-2 gap-y-1">
               <span>© {YEAR} {siteConfig.name}</span>
               <span aria-hidden>·</span>
-              {legalName ? <span>{legalName}</span> : <Pending tone="dark">razão social</Pending>}
-              <span aria-hidden>·</span>
-              <span>CNPJ</span>
-              {cnpj ? <span>{cnpj}</span> : <Pending tone="dark">00.000.000/0000-00</Pending>}
+              <span>CNPJ {cnpj}</span>
             </p>
             <p className="max-w-3xl">
               A {siteConfig.name} não é afiliada nem patrocinada pelo Mercado Livre. Mercado Livre é marca de seus respectivos

@@ -159,8 +159,8 @@ novas funcionalidades, segurança multi-tenant de verdade — **desenvolvido em 
   antes). `maanu.com.br/` deixa de redirecionar para o painel e vira a página de vendas (topo escuro com demonstração ao vivo
   da IA respondendo, faixa de perguntas, "a mesma pergunta em três lojas", como funciona, leitura do anúncio, certeza, "no dia a
   dia", calculadora de economia, planos, dúvidas, convite final e rodapé), inspirada no layout da AbacatePay sem copiar.
-  Sem espaços de imagem (tudo desenhado em código) e com dados da empresa "a definir" (CNPJ, razão
-  social, e-mail, WhatsApp, Instagram em `companyInfo`, `lib/config/site.ts`). O app pode morar em `app.maanu.com.br` com a
+  Sem espaços de imagem (tudo desenhado em código); rodapé com o **CNPJ 65.771.781/0001-63** (sem razão social, pedido do
+  Breno) e contatos "a definir" (e-mail, WhatsApp, Instagram em `companyInfo`, `lib/config/site.ts`). O app pode morar em `app.maanu.com.br` com a
   variável **`APP_HOST`** (`lib/site/host.ts` + `proxy.ts`): sem ela nada muda além da página inicial. Passo a passo da troca
   de endereço em §13 item 0i.
 - **Marca:** **maanu** (decisão do Breno, 2026-10-11). Guia de uso, paleta e arquivos em `docs/brand/README.md`; nome,
@@ -1441,6 +1441,7 @@ webhook do ML validado, fila/reprocessamento de jobs, observabilidade, controle 
   `overflow: hidden` e o brilho do fundo passa da borda, então o painel virava área rolável por dentro (buscar texto, focar o
   controle ou um `scrollIntoView` rolava o painel). Agora os painéis usam `.site-clip` (`overflow: clip`, que não rola;
   navegador antigo fica com hidden). Exceção: o abre/fecha de "No dia a dia" continua com hidden (precisa para a animação).
+- CNPJ do Breno no rodapé (`companyInfo.cnpj`); a razão social saiu do rodapé e do `companyInfo` (pedido dele).
 
 ### 2026-10-14 — Sessão 23b · Aviso antes do pagamento e limpeza do teste (IA: Claude, via app Codex)
 - O Breno colocou a `ABACATEPAY_API_KEY` (chave de **teste**) e a `ABACATEPAY_TEST_EMAILS`, cadastrou o webhook pelo painel e
@@ -2071,8 +2072,8 @@ webhook do ML validado, fila/reprocessamento de jobs, observabilidade, controle 
 0i. **Breno — página de vendas (Sessão 25, branch `codex/pagina-de-vendas`, não publicada).** (a) Revisar textos e visual
    (rodar `npm run dev` na branch e abrir `localhost:3000`, ou pedir à IA). (b) Imagens: nenhuma pendente (todas as telas são
    desenhadas em código; se quiser fotos/prints reais depois, é só pedir).
-   Prints podem ser da conta admin com dados fictícios (nunca de cliente). (c) Mandar os **dados da empresa**: razão social,
-   CNPJ, e-mail de contato, WhatsApp e Instagram (`companyInfo` em `lib/config/site.ts`; a AbacatePay exige isso no site, §13
+   Prints podem ser da conta admin com dados fictícios (nunca de cliente). (c) ✅ CNPJ no rodapé (sem razão social). Falta mandar
+   e-mail de contato, WhatsApp e Instagram (`companyInfo` em `lib/config/site.ts`; a AbacatePay exige contato no site, §13
    0g item 6). (d) Aprovou → merge na `v2` (publica: `maanu.com.br/` vira a página de vendas; o app continua em
    `maanu.com.br/login`, `/painel`...). Ideias não feitas: Pixel da Meta/Google (para medir os anúncios), depoimentos reais
    quando houver, vídeo curto da maanu respondendo.
@@ -2111,8 +2112,8 @@ webhook do ML validado, fila/reprocessamento de jobs, observabilidade, controle 
       qualquer CVV → volta para a maanu e o plano aparece ativo em segundos. Testar também trocar de plano e cancelar.
       Ver Admin → Cobrança → Notificações. Depois do teste, apagar essa assinatura de teste (cancelar) ou avisar a IA.
    6. Produção: verificar a conta na AbacatePay (CNPJ; site com contato por e-mail e WhatsApp, termos, privacidade e **CNPJ
-      no rodapé** — hoje `maanu.com.br` não tem página pública com isso: pedir à IA uma página inicial ou um rodapé com o
-      CNPJ), criar a chave de **produção** e os produtos de produção, trocar a `ABACATEPAY_API_KEY`, apagar a
+      no rodapé** — a página de vendas da Sessão 25 já tem o CNPJ, termos e privacidade no rodapé; falta publicar e os
+      contatos de e-mail/WhatsApp), criar a chave de **produção** e os produtos de produção, trocar a `ABACATEPAY_API_KEY`, apagar a
       `ABACATEPAY_TEST_EMAILS` (opcional) e cadastrar o webhook de novo pelo painel.
    Se algo falhar: Admin → Cobrança mostra o motivo (chave, permissões, produto com preço diferente, webhook). Logs da Vercel:
    `[webhook abacatepay]` e `[cobrança]`.

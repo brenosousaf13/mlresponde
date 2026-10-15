@@ -11,20 +11,19 @@ export const siteConfig = {
 } as const
 
 /**
- * Dados públicos da empresa e canais de contato (rodapé e suporte da página de vendas).
- * null = ainda não informado: a página mostra um espaço marcado "a definir" no lugar.
+ * Dados públicos da empresa e canais de contato (rodapé da página de vendas).
+ * Contatos em null = ainda não informados: a página mostra um espaço marcado "a definir" no lugar.
+ * Sem razão social no rodapé (decisão do Breno, Sessão 25): só o CNPJ.
  */
 export const companyInfo: {
-  legalName: string | null
-  cnpj: string | null
+  cnpj: string
   email: string | null
   /** WhatsApp com DDI e DDD, só números (ex.: "5511999999999"). */
   whatsapp: string | null
   /** Usuário do Instagram, sem @. */
   instagram: string | null
 } = {
-  legalName: null,
-  cnpj: null,
+  cnpj: "65.771.781/0001-63",
   email: null,
   whatsapp: null,
   instagram: null,
