@@ -1,8 +1,6 @@
 import type { Metadata } from "next"
 import { Geist, Geist_Mono } from "next/font/google"
 
-import { Toaster } from "@/components/ui/sonner"
-import { TooltipProvider } from "@/components/ui/tooltip"
 import { siteConfig } from "@/lib/config/site"
 
 import "./globals.css"
@@ -30,10 +28,8 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="pt-BR" className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}>
-      <body className="min-h-full">
-        <TooltipProvider>{children}</TooltipProvider>
-        <Toaster position="top-right" richColors />
-      </body>
+      {/* Avisos e dicas do app ficam em AppProviders (layouts do app), fora da página de vendas. */}
+      <body className="min-h-full">{children}</body>
     </html>
   )
 }

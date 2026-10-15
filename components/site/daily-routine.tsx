@@ -81,7 +81,7 @@ function Label({ moment, index, className }: { moment: Moment; index: number; cl
     <span className={cn("flex flex-wrap items-center gap-x-3 gap-y-1 font-mono text-[11px] tracking-[0.16em] uppercase", className)}>
       <span className="tabular-nums">{String(index + 1).padStart(2, "0")}</span>
       <span>{moment.label}</span>
-      {moment.plan ? <span className="tracking-normal normal-case opacity-70">· no {moment.plan}</span> : null}
+      {moment.plan ? <span className="tracking-normal normal-case">· no {moment.plan}</span> : null}
     </span>
   )
 }
@@ -157,7 +157,7 @@ export function DailyRoutine() {
                     <span
                       className={cn(
                         "mt-2.5 block font-display text-[1.7rem] leading-tight font-semibold tracking-tight transition-colors",
-                        isActive ? "text-foreground" : "text-foreground/35 group-hover/row:text-foreground/60"
+                        isActive ? "text-foreground" : "text-foreground/55 group-hover/row:text-foreground/75"
                       )}
                     >
                       {moment.title}

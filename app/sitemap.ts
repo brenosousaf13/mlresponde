@@ -1,12 +1,11 @@
 import type { MetadataRoute } from "next"
 
-import { siteConfig } from "@/lib/config/site"
+import { SITE_CONTENT_UPDATED, SITE_URL } from "@/lib/site/seo"
 
 export default function sitemap(): MetadataRoute.Sitemap {
-  const base = siteConfig.marketingUrl
   return [
-    { url: `${base}/`, changeFrequency: "weekly", priority: 1 },
-    { url: `${base}/termos`, changeFrequency: "yearly", priority: 0.2 },
-    { url: `${base}/privacidade`, changeFrequency: "yearly", priority: 0.2 },
+    { url: `${SITE_URL}/`, lastModified: SITE_CONTENT_UPDATED, changeFrequency: "weekly", priority: 1 },
+    { url: `${SITE_URL}/termos`, lastModified: "2026-10-14", changeFrequency: "yearly", priority: 0.2 },
+    { url: `${SITE_URL}/privacidade`, lastModified: "2026-10-14", changeFrequency: "yearly", priority: 0.2 },
   ]
 }

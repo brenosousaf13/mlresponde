@@ -2,7 +2,7 @@ import { createServerClient } from "@supabase/ssr"
 import { NextResponse, type NextRequest } from "next/server"
 
 import { adminHostRouting, normalizeHost } from "@/lib/admin/host"
-import { siteHostRouting } from "@/lib/site/host"
+import { isIndexableHost, siteHostRouting } from "@/lib/site/host"
 
 const PUBLIC_PREFIXES = [
   "/login",
@@ -14,6 +14,7 @@ const PUBLIC_PREFIXES = [
   "/privacidade",
   "/robots.txt",
   "/sitemap.xml",
+  "/llms.txt",
   "/api/webhook",
   "/api/cron",
 ]
@@ -44,8 +45,15 @@ export async function proxy(request: NextRequest) {
     appHost: process.env.APP_HOST,
     adminHost,
   })
+  // Só o endereço oficial entra nos buscadores; cópias (staging, *.vercel.app, app, painel) recebem noindex.
+  const indexable = isIndexableHost(request.headers.get("host"))
+  const withRobots = <T extends NextResponse>(res: T): T => {
+    if (!indexable) res.headers.set("X-Robots-Tag", "noindex, nofollow")
+    return res
+  }
+
   // A página de vendas é estática e não usa a sessão: nem consulta o login.
-  if (siteRoute.kind === "landing") return NextResponse.next()
+  if (siteRoute.kind === "landing") return withRobots(NextResponse.next())
   if (siteRoute.kind === "redirect") return NextResponse.redirect(siteRoute.url, 307)
 
   let response = NextResponse.next({ request })
@@ -101,7 +109,7 @@ export async function proxy(request: NextRequest) {
     return NextResponse.redirect(url)
   }
 
-  return response
+  return withRobots(response)
 }
 
 export const config = {

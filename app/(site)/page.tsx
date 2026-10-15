@@ -2,7 +2,7 @@ import type { Metadata } from "next"
 
 import { CertaintySection } from "@/components/site/certainty-section"
 import { DailyRoutine } from "@/components/site/daily-routine"
-import { FaqSection, FAQ } from "@/components/site/faq-section"
+import { FaqSection } from "@/components/site/faq-section"
 import { FinalCta } from "@/components/site/final-cta"
 import { Hero } from "@/components/site/hero"
 import { HowItWorks } from "@/components/site/how-it-works"
@@ -15,47 +15,37 @@ import { SavingsCalculator } from "@/components/site/savings-calculator"
 import { SiteFooter } from "@/components/site/site-footer"
 import { SiteHeader } from "@/components/site/site-header"
 import { siteConfig } from "@/lib/config/site"
-import { SELLABLE_PLANS } from "@/lib/plans/plans"
 import { appHref } from "@/lib/site/host"
+import { SEO_DESCRIPTION, SEO_IMAGE, SEO_TITLE, structuredDataJson } from "@/lib/site/seo"
 
-const title = `${siteConfig.name} · IA que responde as perguntas do Mercado Livre por você`
-const description = `A ${siteConfig.name} lê o seu anúncio e responde os compradores do Mercado Livre em segundos, 24 horas por dia, do jeito da sua loja. Teste grátis por ${siteConfig.trialDays} dias, sem cartão.`
-
-export const metadata: Metadata = {
-  title: { absolute: title },
-  description,
-  alternates: { canonical: "/" },
-  openGraph: { type: "website", locale: "pt_BR", siteName: siteConfig.name, url: "/", title, description },
-  twitter: { card: "summary_large_image", title, description },
+/** Verificação do Google Search Console e do Bing Webmaster Tools por meta tag (opcional; o DNS também serve). */
+const verification = {
+  ...(process.env.GOOGLE_SITE_VERIFICATION ? { google: process.env.GOOGLE_SITE_VERIFICATION } : {}),
+  ...(process.env.BING_SITE_VERIFICATION ? { other: { "msvalidate.01": process.env.BING_SITE_VERIFICATION } } : {}),
 }
 
-/** Dados estruturados (Google): o produto, os planos e as perguntas frequentes. */
-const structuredData = {
-  "@context": "https://schema.org",
-  "@graph": [
-    {
-      "@type": "SoftwareApplication",
-      name: siteConfig.name,
-      applicationCategory: "BusinessApplication",
-      operatingSystem: "Web",
-      url: siteConfig.marketingUrl,
-      description,
-      offers: SELLABLE_PLANS.map((plan) => ({
-        "@type": "Offer",
-        name: plan.name,
-        price: plan.priceMonthly,
-        priceCurrency: "BRL",
-      })),
-    },
-    {
-      "@type": "FAQPage",
-      mainEntity: FAQ.map((item) => ({
-        "@type": "Question",
-        name: item.question,
-        acceptedAnswer: { "@type": "Answer", text: item.answer },
-      })),
-    },
-  ],
+export const metadata: Metadata = {
+  title: { absolute: SEO_TITLE },
+  description: SEO_DESCRIPTION,
+  applicationName: siteConfig.name,
+  category: "business",
+  alternates: { canonical: "/", languages: { "pt-BR": "/", "x-default": "/" } },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: { index: true, follow: true, "max-snippet": -1, "max-image-preview": "large", "max-video-preview": -1 },
+  },
+  openGraph: {
+    type: "website",
+    locale: "pt_BR",
+    siteName: siteConfig.name,
+    url: "/",
+    title: SEO_TITLE,
+    description: SEO_DESCRIPTION,
+    images: [{ ...SEO_IMAGE, type: "image/jpeg" }],
+  },
+  twitter: { card: "summary_large_image", title: SEO_TITLE, description: SEO_DESCRIPTION, images: [{ ...SEO_IMAGE }] },
+  ...(Object.keys(verification).length ? { verification } : {}),
 }
 
 export default function SalesPage() {
@@ -66,7 +56,7 @@ export default function SalesPage() {
     <>
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData).replace(/</g, "\\u003c") }}
+        dangerouslySetInnerHTML={{ __html: structuredDataJson() }}
       />
       <SiteHeader signupHref={signupHref} loginHref={loginHref} />
       <main>

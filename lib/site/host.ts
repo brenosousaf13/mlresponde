@@ -12,6 +12,7 @@
  * O endereço do painel do administrador (ADMIN_HOST) é tratado à parte (lib/admin/host.ts).
  */
 import { normalizeHost } from "@/lib/admin/host"
+import { siteConfig } from "@/lib/config/site"
 
 export type SiteHostDecision =
   /** Página de vendas: não precisa de sessão (o proxy nem consulta o login). */
@@ -21,7 +22,16 @@ export type SiteHostDecision =
   | { kind: "redirect"; url: string }
 
 /** Caminhos que o domínio principal continua servindo quando o app tem endereço próprio. */
-const SITE_HOST_PATHS = ["/termos", "/privacidade", "/robots.txt", "/sitemap.xml", "/api/webhook", "/api/cron"]
+const SITE_HOST_PATHS = [
+  "/termos",
+  "/privacidade",
+  "/robots.txt",
+  "/sitemap.xml",
+  "/llms.txt",
+  "/og",
+  "/api/webhook",
+  "/api/cron",
+]
 
 function matches(pathname: string, prefix: string) {
   return pathname === prefix || pathname.startsWith(`${prefix}/`)
@@ -86,4 +96,18 @@ export function appHref(path: string, siteUrl: string | null | undefined = proce
   } catch {
     return path
   }
+}
+
+/**
+ * Só o endereço oficial (maanu.com.br) entra nos buscadores. Cópias (staging, *.vercel.app, endereço do app ou do
+ * painel) recebem "noindex" (cabeçalho X-Robots-Tag no proxy) para não competir com ele. localhost fica de fora.
+ */
+export function isIndexableHost(
+  host: string | null | undefined,
+  canonicalUrl: string = siteConfig.marketingUrl
+): boolean {
+  const current = normalizeHost(host)
+  if (!current) return false
+  if (isLocalHost(current)) return true
+  return current === normalizeHost(new URL(canonicalUrl).host)
 }

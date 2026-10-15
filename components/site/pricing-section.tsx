@@ -130,7 +130,7 @@ export function PricingSection({ signupHref }: { signupHref: string }) {
                         key={line.text}
                         className={cn(
                           "flex items-start gap-2.5",
-                          !line.included && (highlight ? "text-white/35" : "text-muted-foreground/60")
+                          !line.included && (highlight ? "text-white/55" : "text-muted-foreground")
                         )}
                       >
                         {line.included ? (

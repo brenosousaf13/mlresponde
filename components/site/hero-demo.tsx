@@ -229,7 +229,7 @@ export function HeroDemo() {
                   "rounded-full border px-2 py-0.5 text-[11px] font-medium transition-all duration-300",
                   i < litReads
                     ? "border-brand-teal/40 bg-brand-sage text-brand-teal-ink"
-                    : "border-border text-muted-foreground/60"
+                    : "border-border text-muted-foreground"
                 )}
               >
                 {read}

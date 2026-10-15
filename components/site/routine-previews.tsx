@@ -52,7 +52,7 @@ export function InboxPreview() {
               "active" in tab ? "border-brand-teal/40 bg-brand-sage/70" : "border-border"
             )}
           >
-            <p className="truncate text-[11px] text-muted-foreground">{tab.label}</p>
+            <p className={cn("truncate text-[11px]", "active" in tab ? "text-brand-teal-ink" : "text-muted-foreground")}>{tab.label}</p>
             <p className="mt-0.5 flex items-center gap-1.5 font-display text-xl font-semibold tabular-nums">
               {tab.count}
               {"waiting" in tab ? <span className="size-1.5 rounded-full bg-amber-500" /> : null}

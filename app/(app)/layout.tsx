@@ -4,6 +4,7 @@ import { AccountNotices } from "@/components/app/account-notices"
 import { AppHeader } from "@/components/app/app-header"
 import { AppSidebar, type SidebarNavItem } from "@/components/app/app-sidebar"
 import { WelcomeTour } from "@/components/app/welcome-tour"
+import { AppProviders } from "@/components/providers/app-providers"
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
 import { decideSectionAccess } from "@/lib/access/access"
 import { answersUsageNotice, mlConnectionNotice, paymentNotice, trialNotice } from "@/lib/access/notices"
@@ -70,34 +71,40 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const payment = canManageOrganization(context.role) ? paymentNotice(context.organization.subscription) : null
 
   return (
-    <SidebarProvider defaultOpen={defaultOpen}>
-      <AppSidebar
-        items={items}
-        organizationName={context.organization.name}
-        adminHref={
-          context.profile.isPlatformAdmin
-            ? adminPanelHref(process.env.ADMIN_HOST, process.env.NEXT_PUBLIC_SITE_URL)
-            : undefined
-        }
-        user={{ name: context.profile.fullName, email: context.user.email, isPlatformAdmin: context.profile.isPlatformAdmin }}
-        trialNotice={trial}
-      />
-      {/* Páginas com [data-fill-viewport] (caixa de entrada) ocupam exatamente a altura da tela no computador,
+    <AppProviders>
+      <SidebarProvider defaultOpen={defaultOpen}>
+        <AppSidebar
+          items={items}
+          organizationName={context.organization.name}
+          adminHref={
+            context.profile.isPlatformAdmin
+              ? adminPanelHref(process.env.ADMIN_HOST, process.env.NEXT_PUBLIC_SITE_URL)
+              : undefined
+          }
+          user={{
+            name: context.profile.fullName,
+            email: context.user.email,
+            isPlatformAdmin: context.profile.isPlatformAdmin,
+          }}
+          trialNotice={trial}
+        />
+        {/* Páginas com [data-fill-viewport] (caixa de entrada) ocupam exatamente a altura da tela no computador,
           com rolagem própria em cada coluna; abaixo de 44rem de altura a página volta a rolar. */}
-      <SidebarInset className="bg-canvas lg:has-[[data-fill-viewport]]:h-[max(100svh,44rem)]">
-        <AppHeader trialNotice={trial} />
-        <div className="flex min-h-0 flex-1 flex-col gap-6 p-4 md:p-6">
-          <AccountNotices
-            ml={mlNotice}
-            canManage={canManageOrganization(context.role)}
-            platformAiPaused={platformAiPaused}
-            usage={usageNotice}
-            payment={payment}
-          />
-          {children}
-        </div>
-      </SidebarInset>
-      {context.profile.tourCompletedAt ? null : <WelcomeTour />}
-    </SidebarProvider>
+        <SidebarInset className="bg-canvas lg:has-[[data-fill-viewport]]:h-[max(100svh,44rem)]">
+          <AppHeader trialNotice={trial} />
+          <div className="flex min-h-0 flex-1 flex-col gap-6 p-4 md:p-6">
+            <AccountNotices
+              ml={mlNotice}
+              canManage={canManageOrganization(context.role)}
+              platformAiPaused={platformAiPaused}
+              usage={usageNotice}
+              payment={payment}
+            />
+            {children}
+          </div>
+        </SidebarInset>
+        {context.profile.tourCompletedAt ? null : <WelcomeTour />}
+      </SidebarProvider>
+    </AppProviders>
   )
 }

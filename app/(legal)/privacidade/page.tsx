@@ -3,7 +3,12 @@ import type { Metadata } from "next"
 import { LegalPage, type LegalSection } from "@/components/legal/legal-page"
 import { siteConfig } from "@/lib/config/site"
 
-export const metadata: Metadata = { title: "Política de Privacidade" }
+export const metadata: Metadata = {
+  title: "Política de Privacidade",
+  description: `Como a ${siteConfig.name} coleta, usa e protege os seus dados e os da sua conta do Mercado Livre.`,
+  // Endereço oficial fixo: a página também abre no endereço do app, mas o Google deve guardar só esta.
+  alternates: { canonical: `${siteConfig.marketingUrl}/privacidade` },
+}
 
 const name = siteConfig.name
 

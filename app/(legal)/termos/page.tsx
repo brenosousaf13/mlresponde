@@ -3,7 +3,12 @@ import type { Metadata } from "next"
 import { LegalPage, type LegalSection } from "@/components/legal/legal-page"
 import { siteConfig } from "@/lib/config/site"
 
-export const metadata: Metadata = { title: "Termos de Uso" }
+export const metadata: Metadata = {
+  title: "Termos de Uso",
+  description: `Termos de Uso da ${siteConfig.name}, a plataforma de respostas automáticas com IA para o Mercado Livre.`,
+  // Endereço oficial fixo: a página também abre no endereço do app, mas o Google deve guardar só esta.
+  alternates: { canonical: `${siteConfig.marketingUrl}/termos` },
+}
 
 const name = siteConfig.name
 

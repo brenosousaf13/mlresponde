@@ -87,7 +87,7 @@ export function SiteFooter({ signupHref, loginHref }: { signupHref: string; logi
             </div>
           </div>
 
-          <div className="flex flex-col gap-4 border-t border-white/10 pt-8 text-xs leading-relaxed text-white/45">
+          <div className="flex flex-col gap-4 border-t border-white/10 pt-8 text-xs leading-relaxed text-white/60">
             <p className="flex flex-wrap items-center gap-x-2 gap-y-1">
               <span>© {YEAR} {siteConfig.name}</span>
               <span aria-hidden>·</span>

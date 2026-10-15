@@ -1,5 +1,6 @@
 import type { Metadata } from "next"
 
+import { AppProviders } from "@/components/providers/app-providers"
 import { getAdminIdentity } from "@/lib/dal/admin"
 
 export const metadata: Metadata = {
@@ -13,5 +14,5 @@ export const metadata: Metadata = {
  */
 export default async function AdminRootLayout({ children }: { children: React.ReactNode }) {
   await getAdminIdentity()
-  return children
+  return <AppProviders>{children}</AppProviders>
 }

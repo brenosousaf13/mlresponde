@@ -4,7 +4,7 @@
 > inteiro antes de trabalhar e atualizá-lo ao terminar. Se algo aqui divergir do código, o código vence —
 > e este arquivo deve ser corrigido na mesma sessão.
 
-Última atualização: **2026-10-14** (Sessão 25 — página de vendas em `maanu.com.br/` e app pronto para ir para `app.maanu.com.br` (variável `APP_HOST`), na branch `codex/pagina-de-vendas`, aguardando o Breno; Sessão 24 — cliente sem permissão de administrador vê uma mensagem de acesso restrito com retorno ao painel; Sessão 23b — tela "Levando você para o pagamento seguro" antes da AbacatePay, teste de compra aprovado e dados de teste apagados, falta a chave de produção; Sessão 23 — cobrança pela AbacatePay pronta no código e no banco: assinar, trocar, cancelar e webhooks; falta só a chave de API do Breno; Sessão 22 — perguntas chegando sozinhas: rotina que busca no ML a cada ~10 s + webhook respondendo na hora; foto do anúncio corrigida; Sessão 21 — v1: botão de pausar a IA funcionando, commit `bf56777` na `main`; Sessão 20b — Starter com 300 respostas e espaço nos cards dos planos; Sessão 20 — planos Starter/Pro/Escala com limites, teste grátis e Melhorias de anúncio; Sessão 19 — pesquisa de preços e proposta de 3 planos; Sessão 18 — tour de boas-vindas e avisos de teste/conta ML redesenhados; Sessão 17 — chaves de IA cadastradas e trocadas pelo painel do administrador; Sessão 16 — textos do cadastro sem falar em cobrança; Sessão 15b — Fase 1 da troca preparada)
+Última atualização: **2026-10-15** (Sessão 25 — página de vendas em `maanu.com.br/` com SEO para Google, Bing e buscas por IA (dados estruturados, `llms.txt`, robots, imagem de compartilhamento, carregamento mais rápido) e app pronto para ir para `app.maanu.com.br` (variável `APP_HOST`), na branch `codex/pagina-de-vendas`, aguardando o Breno; Sessão 24 — cliente sem permissão de administrador vê uma mensagem de acesso restrito com retorno ao painel; Sessão 23b — tela "Levando você para o pagamento seguro" antes da AbacatePay, teste de compra aprovado e dados de teste apagados, falta a chave de produção; Sessão 23 — cobrança pela AbacatePay pronta no código e no banco: assinar, trocar, cancelar e webhooks; falta só a chave de API do Breno; Sessão 22 — perguntas chegando sozinhas: rotina que busca no ML a cada ~10 s + webhook respondendo na hora; foto do anúncio corrigida; Sessão 21 — v1: botão de pausar a IA funcionando, commit `bf56777` na `main`; Sessão 20b — Starter com 300 respostas e espaço nos cards dos planos; Sessão 20 — planos Starter/Pro/Escala com limites, teste grátis e Melhorias de anúncio; Sessão 19 — pesquisa de preços e proposta de 3 planos; Sessão 18 — tour de boas-vindas e avisos de teste/conta ML redesenhados; Sessão 17 — chaves de IA cadastradas e trocadas pelo painel do administrador; Sessão 16 — textos do cadastro sem falar em cobrança; Sessão 15b — Fase 1 da troca preparada)
 
 ---
 
@@ -162,7 +162,11 @@ novas funcionalidades, segurança multi-tenant de verdade — **desenvolvido em 
   Sem espaços de imagem (tudo desenhado em código); rodapé com o **CNPJ 65.771.781/0001-63** (sem razão social, pedido do
   Breno) e contatos "a definir" (e-mail, WhatsApp, Instagram em `companyInfo`, `lib/config/site.ts`). O app pode morar em `app.maanu.com.br` com a
   variável **`APP_HOST`** (`lib/site/host.ts` + `proxy.ts`): sem ela nada muda além da página inicial. Passo a passo da troca
-  de endereço em §13 item 0i.
+  de endereço em §13 item 0i. **SEO (2026-10-15):** título/descrição/canonical, dados estruturados (Organization com CNPJ,
+  WebSite, WebPage, SoftwareApplication com os preços, FAQPage), `robots.txt` liberando buscadores e robôs de IA (GPTBot,
+  ClaudeBot, PerplexityBot, Google-Extended...), `sitemap.xml`, `/llms.txt` (resumo em Markdown para IAs), imagem de
+  compartilhamento própria e `noindex` fora de `maanu.com.br`. Lighthouse: celular 90–91 de desempenho, computador 100; SEO,
+  acessibilidade e boas práticas 100. Falta o Breno cadastrar o site no Google Search Console e no Bing (§13 item 0i (e)).
 - **Marca:** **maanu** (decisão do Breno, 2026-10-11). Guia de uso, paleta e arquivos em `docs/brand/README.md`; nome,
   assinatura e slogan em `lib/config/site.ts`; logo só pelos componentes de `components/brand/logo.tsx`.
 - P0 de segurança/toggle (§8) **adiados** por decisão do Breno — revisitar antes de abrir para novos clientes.
@@ -234,11 +238,16 @@ proxy.ts                          # renova a sessão (getClaims) e redireciona: 
                                   # /login|/cadastro|... → /painel. NÃO é a camada de segurança (cada página/ação revalida).
                                   # Com ADMIN_HOST: /admin só abre no subdomínio do painel (lib/admin/host.ts)
 app/
-  layout.tsx                      # pt-BR, Geist, TooltipProvider, Toaster (sonner), metadata da marca
+  layout.tsx                      # pt-BR, Geist, metadata da marca (TooltipProvider + Toaster saíram daqui na Sessão 25:
+                                  # ficam em components/providers/app-providers.tsx, usado pelos layouts do app, admin,
+                                  # (auth), onboarding e acesso-negado; a página de vendas não carrega esse código)
   (site)/                         # PÁGINA DE VENDAS em "/" (Sessão 25; antes app/page.tsx redirecionava para /painel):
                                   # layout.tsx (fonte Funnel Display + site.css com as animações), page.tsx (seções, metadata,
-                                  # dados estruturados). Com APP_HOST, "/" no endereço do app vai para /painel (proxy.ts)
-  robots.ts, sitemap.ts           # buscadores: página de vendas + termos/privacidade; área logada fora
+                                  # dados estruturados de lib/site/seo.ts). Com APP_HOST, "/" no endereço do app vai para /painel
+  robots.ts, sitemap.ts           # buscadores e robôs de IA (lista em lib/site/seo.ts): página de vendas + termos/privacidade;
+                                  # área logada fora (PRIVATE_PATHS)
+  llms.txt/route.ts               # /llms.txt: resumo da maanu em Markdown para IAs (buildLlmsTxt, estático)
+  (legal)/termos, privacidade     # canonical fixo em maanu.com.br (também abrem no endereço do app)
   icon.svg, favicon.ico           # favicon "m." (gerados por docs/brand/scripts/gerar.mjs)
   apple-icon.png, opengraph-image.png (+ .alt.txt)   # ícone do iPhone e imagem de links compartilhados
   (auth)/                         # telas públicas no estilo shadcn login-03 (fundo muted + card)
@@ -298,7 +307,8 @@ components/
   app/account-select.tsx          # seletor de conta (?conta=), com "Todas as contas" opcional
   billing/billing-profile-form.tsx # dados de cobrança (cadastro e Configurações): CPF/CNPJ com confirmação, CEP automático
   brand/logo.tsx (+ logo-paths.ts) # LogoWordmark ("maanu.") e LogoMark ("m.") em SVG; letras = cor do texto, ponto teal
-  site/                           # PÁGINA DE VENDAS (Sessão 25): site-header (vidro grafite ao rolar, menu Sheet no celular),
+  site/                           # PÁGINA DE VENDAS (Sessão 25): site-header (vidro grafite ao rolar; menu do celular em
+                                  # mobile-menu.tsx, Sheet carregado só no toque; links em nav.ts),
                                   # hero + hero-demo (pergunta → leitura do anúncio → resposta, cronômetro e certeza; pausa
                                   # fora da tela), question-ticker, problem-section + buyer-race, how-it-works,
                                   # listing-reading, certainty-section, daily-routine + routine-previews ("no dia a dia":
@@ -312,6 +322,10 @@ lib/
   config/site.ts                  # nome da marca, dias de teste, versão dos termos, marketingUrl e companyInfo (CNPJ, contatos)
   site/host.ts                    # siteHostRouting: página de vendas × endereço do app (APP_HOST) + appHref (puro, testado)
   site/calculator.ts              # calculadora da página de vendas (mesma conta de Resultados) e R$/dia (puro; não indica plano)
+  site/seo.ts                     # SEO da página de vendas: título, descrição, imagem (public/og/), robôs liberados, caminhos
+                                  # privados, dados estruturados (JSON-LD) e llms.txt (puro, testado). SITE_CONTENT_UPDATED =
+                                  # data da última mudança de conteúdo (sitemap/llms.txt): atualizar ao mexer nos textos
+  site/faq.ts                     # perguntas e respostas das Dúvidas (página, FAQPage e llms.txt usam a mesma lista)
   env.ts                          # leitura de env obrigatória (server-only)
   access/access.ts                # computeAccess (trial/active/blocked) + decideSectionAccess (puro, testado)
   access/notices.ts               # trialNotice + mlConnectionNotice: quando e o que os avisos mostram (puro, testado)
@@ -444,6 +458,8 @@ Novas na v2:
 | `ABACATEPAY_TEST_EMAILS` | opcional. E-mails (separados por vírgula) que podem assinar com a chave de **teste** em produção (além dos administradores da plataforma). |
 | `ABACATEPAY_SUBSCRIPTION_METHODS` | opcional. `CARD` (padrão) ou `CARD,PIX` (só se a AbacatePay liberar o PIX Automático na conta). |
 | `APP_HOST` | opcional (Sessão 25). Endereço próprio do app, ex.: `app.maanu.com.br`. Sem ela, `maanu.com.br/` é a página de vendas e o app continua no mesmo endereço. Com ela, o domínio principal só serve a página de vendas, `/termos`, `/privacidade`, robots/sitemap e `/api/webhook/*` e `/api/cron/*`; o resto vai (307) para o mesmo caminho e busca em `APP_HOST`, e no endereço do app `/` leva a `/painel`. Junto com ela trocar `NEXT_PUBLIC_SITE_URL` e `ML_REDIRECT_URI` (§13 item 0i). Hoje **não** existe na Vercel. |
+| `GOOGLE_SITE_VERIFICATION` | opcional (Sessão 25). Código da meta tag do Google Search Console (só o valor do `content`). Desnecessária se a propriedade for verificada pelo DNS (recomendado). Hoje **não** existe na Vercel. |
+| `BING_SITE_VERIFICATION` | opcional (Sessão 25). Código da meta tag `msvalidate.01` do Bing Webmaster Tools. Desnecessária se o site for importado do Search Console. Hoje **não** existe na Vercel. |
 | `ADMIN_HOST` | opcional (Sessão 13). Endereço próprio do painel do administrador, ex.: `admin.maanu.com.br`. Com ele, `/admin` só abre nesse endereço (no domínio do app vira 404) e o endereço só serve o painel e o login. Sem ele, o painel fica em `/admin` do próprio app. Hoje **não** existe na Vercel (sem domínio próprio). |
 
 Obsoletas (citadas no `instructions.md`, não usadas): `ANTHROPIC_API_KEY`, `NEXT_PUBLIC_APP_URL`.
@@ -1379,6 +1395,10 @@ webhook do ML validado, fila/reprocessamento de jobs, observabilidade, controle 
 | 2026-10-14 | Página de vendas: layout inspirado na AbacatePay (topo emoldurado e arredondado, navegação flutuante, seções alternando claro/escuro, simulador escuro, dúvidas em 2 colunas, convite final) com identidade própria: grafite + teal "aceso" (`brand-mint`, `brand-night`), títulos em **Funnel Display**, demonstrações animadas feitas em código (sem vídeo) e espaços de imagem marcados | Pedido do Breno ("mais vivo, com animações e tecnologia, nada com cara de modelo feito por IA"). Animações em CSS + IntersectionObserver (sem biblioteca nova), página estática (○ no build) e o proxy nem consulta o login em "/" (carrega rápido para quem vem do anúncio). Tudo respeita "reduzir movimento". |
 | 2026-10-14 | Calculadora da página de vendas **sem indicar plano** | Breno: quem visse que precisaria do plano mais caro poderia desistir antes do teste grátis. A escolha do plano fica para depois do teste, dentro do app. |
 | 2026-10-14 | Sem depoimentos, números de clientes ou selos inventados na página de vendas; exemplos marcados como ilustrativos; preços e limites lidos de `SELLABLE_PLANS` | Ainda não há depoimentos reais (1 cliente em teste). Propaganda enganosa queima o anúncio e o CDC; preço em um lugar só não fica desatualizado. |
+| 2026-10-15 | **SEO da página de vendas aberto para buscadores e IAs**: `robots.txt` libera explicitamente os robôs de busca e de IA (GPTBot, OAI-SearchBot, ChatGPT-User, ClaudeBot, Claude-SearchBot, PerplexityBot, Google-Extended, Applebot-Extended...), com a área logada fora; `/llms.txt` com o resumo da maanu; dados estruturados (Organization com CNPJ, WebSite, WebPage, SoftwareApplication com os preços, FAQPage) | Pedido do Breno: ser achado no Google e nas respostas do ChatGPT, Claude, Gemini e Perplexity. A página é de venda, então não há o que proteger do treino das IAs; quanto mais elas conhecerem a maanu, mais a citam. Sem nota/avaliações nos dados estruturados enquanto não houver avaliações reais (o Google pune dados inventados). |
+| 2026-10-15 | Fora de `maanu.com.br` (endereço da Vercel, prévias, futuro `app.maanu.com.br`) todas as respostas levam `X-Robots-Tag: noindex, nofollow`; termos e privacidade com canonical fixo no domínio principal | Evita conteúdo duplicado e o app aparecendo no Google no lugar da página de vendas. |
+| 2026-10-15 | Respostas das Dúvidas no HTML mesmo fechadas (`hiddenUntilFound` do Accordion) e animação do título do topo sem esconder o texto | Buscadores e IAs leem o que está no HTML; o título apagado no início atrasava a "maior pintura" (LCP) que o Google mede. |
+| 2026-10-15 | `TooltipProvider` e `Toaster` (sonner) saíram do layout raiz para os layouts das áreas que usam (`components/providers/app-providers.tsx`); menu do celular da página de vendas carregado só quando tocado | Menos JavaScript para quem chega pelo anúncio no celular (o que mais pesa na nota de velocidade). |
 | 2026-10-14 | Cliente sem `is_platform_admin` abre `/admin/*` → tela **`/acesso-negado`** com mensagem em português e botão de retorno ao painel (substitui o 404 da Sessão 13) | Pedido do Breno. Redirecionamento no servidor, mantendo MFA, proteção das ações e RLS. API estável do Next (`redirect`), sem habilitar `forbidden`/`authInterrupts` experimentais. |
 
 ---
@@ -1442,6 +1462,24 @@ webhook do ML validado, fila/reprocessamento de jobs, observabilidade, controle 
   controle ou um `scrollIntoView` rolava o painel). Agora os painéis usam `.site-clip` (`overflow: clip`, que não rola;
   navegador antigo fica com hidden). Exceção: o abre/fecha de "No dia a dia" continua com hidden (precisa para a animação).
 - CNPJ do Breno no rodapé (`companyInfo.cnpj`); a razão social saiu do rodapé e do `companyInfo` (pedido dele).
+- **SEO (2026-10-15)** — pedido: "SEO perfeito, busca orgânica rápida, Google e IAs (ChatGPT, Claude, Gemini) achando a
+  página". Medição inicial (Lighthouse, celular): desempenho 84 (LCP 3,9 s), SEO 100, acessibilidade 96; a página "/" estava
+  sem imagem de compartilhamento (o `openGraph` da página apagava a do arquivo), as respostas fechadas das Dúvidas não
+  estavam no HTML e os toasts/tooltips do app carregavam na página de vendas. Conferido que os robôs de IA já entram em
+  `maanu.com.br` (200 para GPTBot, ClaudeBot etc.; Cloudflare em DNS only, sem bloqueio).
+  Feito: `lib/site/seo.ts` (título "Respostas automáticas com IA para o Mercado Livre | maanu", descrição, imagem
+  `public/og/maanu-pagina-de-vendas.jpg` 1200×630 feita com as fontes e cores da marca, JSON-LD, lista de robôs, `llms.txt`)
+  e `lib/site/faq.ts` (13 dúvidas; novas: "O que é a maanu?", "Quanto custa a maanu?" (gerada dos planos) e "Funciona para
+  qualquer tipo de produto?"); metadata da página (canonical, pt-BR, `max-image-preview:large`, Open Graph/Twitter,
+  verificação opcional por variável); `app/robots.ts`, `app/sitemap.ts` (com data), `app/llms.txt/route.ts`;
+  `isIndexableHost` + `X-Robots-Tag` no `proxy.ts`; termos/privacidade com descrição e canonical; texto do topo citando
+  "Mercado Livre"; título do topo sem esconder o texto na entrada; providers do app fora do layout raiz; menu do celular
+  sob demanda; contrastes ajustados (rodapé, demonstrações, "No dia a dia", itens não incluídos dos planos).
+  Resultado (Lighthouse em `next start`): celular **90–91** de desempenho (FCP 1,5 s, LCP ~3,5 s simulado em 4G lento; no
+  computador local a página pinta em 0,33 s), TBT 30 ms, CLS 0; computador **100**; SEO, acessibilidade e boas práticas
+  **100** nos dois. Testes novos `tests/unit/site-seo.test.ts`; typecheck, 455 testes, lint e build ok (`/` e `/llms.txt`
+  estáticas). Menu do celular testado (abre, links levam à seção e fecham). Sem mudanças no banco, na Vercel, no ML ou no
+  Supabase Auth.
 
 ### 2026-10-14 — Sessão 23b · Aviso antes do pagamento e limpeza do teste (IA: Claude, via app Codex)
 - O Breno colocou a `ABACATEPAY_API_KEY` (chave de **teste**) e a `ABACATEPAY_TEST_EMAILS`, cadastrou o webhook pelo painel e
@@ -2077,6 +2115,13 @@ webhook do ML validado, fila/reprocessamento de jobs, observabilidade, controle 
    0g item 6). (d) Aprovou → merge na `v2` (publica: `maanu.com.br/` vira a página de vendas; o app continua em
    `maanu.com.br/login`, `/painel`...). Ideias não feitas: Pixel da Meta/Google (para medir os anúncios), depoimentos reais
    quando houver, vídeo curto da maanu respondendo.
+   (e) **SEO, depois de publicar** (Breno, uma vez): Google Search Console → "Adicionar propriedade" → **Domínio**
+   `maanu.com.br` → copiar o registro TXT → Cloudflare → DNS → TXT na raiz (`@`) → Verificar → Sitemaps: enviar
+   `https://maanu.com.br/sitemap.xml` → Inspeção de URL na home → "Solicitar indexação". Bing Webmaster Tools → "Importar do
+   Google Search Console" (o Bing alimenta a busca do ChatGPT e do Copilot). Colocar o link `maanu.com.br` no Instagram e
+   nos perfis da marca (links de fora ajudam o Google e as IAs a acharem a página). Ao mudar textos da página, atualizar
+   `SITE_CONTENT_UPDATED` em `lib/site/seo.ts`. Ideia não feita: blog/guias ("como responder perguntas no Mercado Livre")
+   para atrair busca orgânica de quem ainda não conhece a maanu.
    **Troca do app para `app.maanu.com.br` (depois da página publicada, com o "pode fazer" do Breno):**
    1. IA: adicionar `app.maanu.com.br` ao projeto Vercel `maanu` (mostra o CNAME). Breno, no Cloudflare: `CNAME app → <valor
       da Vercel>`, **DNS only** (nuvem cinza). Esperar o HTTPS ficar pronto.

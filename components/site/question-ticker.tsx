@@ -66,7 +66,7 @@ export function QuestionTicker() {
     <section aria-labelledby="ticker-title" className="py-14 sm:py-16">
       <Container>
         <p id="ticker-title" className="text-center text-sm text-muted-foreground">
-          O tipo de pergunta que chega todo dia no seu anúncio{" "}
+          O tipo de pergunta que chega todo dia no seu anúncio do Mercado Livre{" "}
           <span className="text-foreground">e que a maanu responde sozinha</span>
         </p>
       </Container>

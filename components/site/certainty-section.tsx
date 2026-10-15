@@ -109,7 +109,7 @@ export function CertaintySection() {
             {CASES.map((item, index) => (
               <CertaintyCard key={item.question} item={item} index={index} />
             ))}
-            <p className="text-center text-xs text-white/45">
+            <p className="text-center text-xs text-white/60">
               Exemplos ilustrativos. A linha branca é o rigor que você escolhe.
             </p>
           </Reveal>

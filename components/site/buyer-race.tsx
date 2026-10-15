@@ -144,7 +144,7 @@ function StoreColumn({ store, step }: { store: Store; step: number }) {
           >
             {QUESTION}
           </p>
-          <p className={cn("mt-1 pl-1 font-mono text-[11px]", winner ? "text-white/45" : "text-muted-foreground")}>
+          <p className={cn("mt-1 pl-1 font-mono text-[11px]", winner ? "text-white/60" : "text-muted-foreground")}>
             22:14
           </p>
         </div>
@@ -202,7 +202,7 @@ function StoreColumn({ store, step }: { store: Store; step: number }) {
               Vendeu. Ele comprou às 22:16.
             </p>
           ) : (
-            <p className="text-white/40">Esperando a resposta…</p>
+            <p className="text-white/60">Esperando a resposta…</p>
           )
         ) : answered ? (
           <p className="site-enter inline-flex items-center gap-2 text-slate-500">
@@ -210,7 +210,7 @@ function StoreColumn({ store, step }: { store: Store; step: number }) {
             Tarde: ele já tinha comprado.
           </p>
         ) : (
-          <p className="text-muted-foreground/60">{sold ? "Ele já está comprando em outra loja…" : "Esperando a resposta…"}</p>
+          <p className="text-muted-foreground">{sold ? "Ele já está comprando em outra loja…" : "Esperando a resposta…"}</p>
         )}
       </div>
     </div>

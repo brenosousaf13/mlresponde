@@ -1,4 +1,4 @@
-import type { Metadata } from "next"
+import type { Metadata, Viewport } from "next"
 import { Funnel_Display } from "next/font/google"
 
 import { siteConfig } from "@/lib/config/site"
@@ -12,6 +12,9 @@ const funnelDisplay = Funnel_Display({ variable: "--font-funnel", subsets: ["lat
 export const metadata: Metadata = {
   metadataBase: new URL(siteConfig.marketingUrl),
 }
+
+/** Cor da barra do navegador no celular (grafite da marca). */
+export const viewport: Viewport = { themeColor: "#0F172A" }
 
 export default function SiteLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (

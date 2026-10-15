@@ -189,3 +189,23 @@
     overflow: clip;
   }
 }
+
+/*
+ * Entrada do título e do texto do topo: só movimento, sem esconder (opacidade) nem desfocar. O título é o maior
+ * conteúdo da primeira tela; escondê-lo atrasava a métrica de carregamento do Google (LCP).
+ */
+@keyframes site-rise {
+  from { transform: translate3d(0, 14px, 0); }
+  to { transform: none; }
+}
+
+.site-rise {
+  animation: site-rise 0.8s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+  animation-delay: var(--enter-delay, 0ms);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .site-rise {
+    animation: none;
+  }
+}

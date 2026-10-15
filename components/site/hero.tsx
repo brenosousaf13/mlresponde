@@ -33,20 +33,20 @@ export function Hero({ signupHref }: { signupHref: string }) {
               id="hero-title"
               className="font-display text-[2.6rem] leading-[0.98] font-semibold tracking-[-0.045em] text-balance sm:text-6xl lg:text-[3.7rem] xl:text-[4.6rem]"
             >
-              <span style={delay(0)} className="site-enter block">
+              <span style={delay(0)} className="site-rise block">
                 Quem responde primeiro,
               </span>
-              <span style={delay(100)} className="site-enter block">
+              <span style={delay(60)} className="site-rise block">
                 <span className="site-gradient-text">vende primeiro.</span>
               </span>
             </h1>
 
             <p
-              style={delay(220)}
-              className="site-enter mx-auto mt-6 max-w-xl text-lg leading-relaxed text-pretty text-white/70 lg:mx-0"
+              style={delay(120)}
+              className="site-rise mx-auto mt-6 max-w-xl text-lg leading-relaxed text-pretty text-white/70 lg:mx-0"
             >
-              A {siteConfig.name} lê o seu anúncio, entende a pergunta do comprador e responde em segundos, do jeito da sua
-              loja. De dia, de madrugada, no domingo. E quando ela não tem certeza, a pergunta fica com você.
+              A {siteConfig.name} responde com IA as perguntas dos seus anúncios no Mercado Livre, em segundos e do jeito da
+              sua loja. De dia, de madrugada, no domingo. E quando ela não tem certeza, a pergunta fica com você.
             </p>
 
             <div
