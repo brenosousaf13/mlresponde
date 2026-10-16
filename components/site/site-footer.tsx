@@ -2,8 +2,8 @@ import { AtSign, Mail, MessageCircle } from "lucide-react"
 
 import { LogoWordmark } from "@/components/brand/logo"
 import { companyInfo, siteConfig } from "@/lib/config/site"
+import { formatWhatsapp, normalizeWhatsapp } from "@/lib/validation/forms"
 
-import { Pending, whatsappUrl } from "./pending"
 import { Container } from "./primitives"
 import { SiteButton } from "./site-button"
 
@@ -11,8 +11,14 @@ const YEAR = new Date().getFullYear()
 
 const linkClass = "text-white/60 transition-colors hover:text-white"
 
+/** Conversa no WhatsApp (número com DDI, só dígitos). */
+function whatsappUrl(number: string) {
+  return `https://wa.me/${number.replace(/\D/g, "")}`
+}
+
 export function SiteFooter({ signupHref, loginHref }: { signupHref: string; loginHref: string }) {
   const { cnpj, email, whatsapp, instagram } = companyInfo
+  const phone = whatsapp ? formatWhatsapp(normalizeWhatsapp(whatsapp)) : ""
   return (
     <footer className="px-3 pt-3 pb-3 sm:px-4 sm:pt-4 sm:pb-4">
       <div className="site-clip rounded-[2rem] bg-brand-graphite text-white sm:rounded-[2.75rem]">
@@ -54,35 +60,39 @@ export function SiteFooter({ signupHref, loginHref }: { signupHref: string; logi
             </nav>
             <div>
               <p className="font-medium">Contato</p>
+              {/* Só os canais já informados (companyInfo); nada de "a definir" para quem avalia o site. */}
               <ul className="mt-4 flex flex-col gap-3 text-sm">
-                <li className="flex items-center gap-2">
-                  <Mail className="size-4 text-brand-mint" aria-hidden />
-                  {email ? (
+                {whatsapp && phone ? (
+                  <li className="flex items-start gap-2">
+                    <MessageCircle className="mt-0.5 size-4 shrink-0 text-brand-mint" aria-hidden />
+                    <span className="flex flex-col">
+                      <span className="text-white/60">WhatsApp e telefone</span>
+                      <a
+                        className="font-medium text-white transition-colors hover:text-brand-mint"
+                        href={whatsappUrl(whatsapp)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        aria-label={`Conversar no WhatsApp: ${phone}`}
+                      >
+                        {phone}
+                      </a>
+                    </span>
+                  </li>
+                ) : null}
+                {email ? (
+                  <li className="flex items-center gap-2">
+                    <Mail className="size-4 shrink-0 text-brand-mint" aria-hidden />
                     <a className={linkClass} href={`mailto:${email}`}>{email}</a>
-                  ) : (
-                    <Pending tone="dark">e-mail de contato</Pending>
-                  )}
-                </li>
-                <li className="flex items-center gap-2">
-                  <MessageCircle className="size-4 text-brand-mint" aria-hidden />
-                  {whatsapp ? (
-                    <a className={linkClass} href={whatsappUrl(whatsapp)} target="_blank" rel="noopener noreferrer">
-                      WhatsApp
-                    </a>
-                  ) : (
-                    <Pending tone="dark">WhatsApp</Pending>
-                  )}
-                </li>
-                <li className="flex items-center gap-2">
-                  <AtSign className="size-4 text-brand-mint" aria-hidden />
-                  {instagram ? (
+                  </li>
+                ) : null}
+                {instagram ? (
+                  <li className="flex items-center gap-2">
+                    <AtSign className="size-4 shrink-0 text-brand-mint" aria-hidden />
                     <a className={linkClass} href={`https://instagram.com/${instagram}`} target="_blank" rel="noopener noreferrer">
                       @{instagram}
                     </a>
-                  ) : (
-                    <Pending tone="dark">Instagram</Pending>
-                  )}
-                </li>
+                  </li>
+                ) : null}
               </ul>
             </div>
           </div>

@@ -11,8 +11,9 @@ export const siteConfig = {
 } as const
 
 /**
- * Dados públicos da empresa e canais de contato (rodapé da página de vendas).
- * Contatos em null = ainda não informados: a página mostra um espaço marcado "a definir" no lugar.
+ * Dados públicos da empresa e canais de contato (rodapé da página de vendas e dados estruturados).
+ * Contato em null = ainda não informado: some do rodapé (nada de "a definir" visível para quem avalia o site, como o
+ * gateway de pagamento). A AbacatePay pede e-mail e WhatsApp visíveis, Termos, Privacidade e CNPJ no rodapé.
  * Sem razão social no rodapé (decisão do Breno, Sessão 25): só o CNPJ.
  */
 export const companyInfo: {
@@ -25,6 +26,6 @@ export const companyInfo: {
 } = {
   cnpj: "65.771.781/0001-63",
   email: null,
-  whatsapp: null,
+  whatsapp: "5531992630934",
   instagram: null,
 }

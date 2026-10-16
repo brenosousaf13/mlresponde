@@ -6,6 +6,7 @@
  */
 import { companyInfo, siteConfig } from "@/lib/config/site"
 import { FEATURE_LABELS, SELLABLE_PLANS, SUPPORT_LABELS, formatPrice, monthlyPrice } from "@/lib/plans/plans"
+import { formatWhatsapp, normalizeWhatsapp } from "@/lib/validation/forms"
 
 import { FAQ } from "./faq"
 import { SALES_PAGE_PATH } from "./host"
@@ -247,6 +248,10 @@ export function buildLlmsTxt(links: { signup: string; login: string }): string {
     "",
     `- Site: ${SALES_PAGE_URL}`,
     `- Empresa: ${siteConfig.name}, CNPJ ${companyInfo.cnpj} (Brasil)`,
+    ...(companyInfo.whatsapp
+      ? [`- WhatsApp e telefone: +55 ${formatWhatsapp(normalizeWhatsapp(companyInfo.whatsapp))}`]
+      : []),
+    ...(companyInfo.email ? [`- E-mail: ${companyInfo.email}`] : []),
     "- Idioma: português do Brasil",
     `- Atualizado em: ${SITE_CONTENT_UPDATED}`,
     "",

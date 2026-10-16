@@ -4,7 +4,7 @@
 > inteiro antes de trabalhar e atualizá-lo ao terminar. Se algo aqui divergir do código, o código vence —
 > e este arquivo deve ser corrigido na mesma sessão.
 
-Última atualização: **2026-10-15** (Sessão 25b — página de vendas **publicada em `maanu.com.br/institucional`** para o Breno e o sócio revisarem, fora do Google por enquanto; `maanu.com.br/` continua levando ao app; Sessão 25 — página de vendas em `maanu.com.br/` com SEO para Google, Bing e buscas por IA (dados estruturados, `llms.txt`, robots, imagem de compartilhamento, carregamento mais rápido) e app pronto para ir para `app.maanu.com.br` (variável `APP_HOST`), na branch `codex/pagina-de-vendas`, aguardando o Breno; Sessão 24 — cliente sem permissão de administrador vê uma mensagem de acesso restrito com retorno ao painel; Sessão 23b — tela "Levando você para o pagamento seguro" antes da AbacatePay, teste de compra aprovado e dados de teste apagados, falta a chave de produção; Sessão 23 — cobrança pela AbacatePay pronta no código e no banco: assinar, trocar, cancelar e webhooks; falta só a chave de API do Breno; Sessão 22 — perguntas chegando sozinhas: rotina que busca no ML a cada ~10 s + webhook respondendo na hora; foto do anúncio corrigida; Sessão 21 — v1: botão de pausar a IA funcionando, commit `bf56777` na `main`; Sessão 20b — Starter com 300 respostas e espaço nos cards dos planos; Sessão 20 — planos Starter/Pro/Escala com limites, teste grátis e Melhorias de anúncio; Sessão 19 — pesquisa de preços e proposta de 3 planos; Sessão 18 — tour de boas-vindas e avisos de teste/conta ML redesenhados; Sessão 17 — chaves de IA cadastradas e trocadas pelo painel do administrador; Sessão 16 — textos do cadastro sem falar em cobrança; Sessão 15b — Fase 1 da troca preparada)
+Última atualização: **2026-10-16** (Sessão 25c — WhatsApp/telefone `(31) 99263-0934` no rodapé de `/institucional` para a aprovação da AbacatePay; falta o e-mail; Sessão 25b — página de vendas **publicada em `maanu.com.br/institucional`** para o Breno e o sócio revisarem, fora do Google por enquanto; `maanu.com.br/` continua levando ao app; Sessão 25 — página de vendas em `maanu.com.br/` com SEO para Google, Bing e buscas por IA (dados estruturados, `llms.txt`, robots, imagem de compartilhamento, carregamento mais rápido) e app pronto para ir para `app.maanu.com.br` (variável `APP_HOST`), na branch `codex/pagina-de-vendas`, aguardando o Breno; Sessão 24 — cliente sem permissão de administrador vê uma mensagem de acesso restrito com retorno ao painel; Sessão 23b — tela "Levando você para o pagamento seguro" antes da AbacatePay, teste de compra aprovado e dados de teste apagados, falta a chave de produção; Sessão 23 — cobrança pela AbacatePay pronta no código e no banco: assinar, trocar, cancelar e webhooks; falta só a chave de API do Breno; Sessão 22 — perguntas chegando sozinhas: rotina que busca no ML a cada ~10 s + webhook respondendo na hora; foto do anúncio corrigida; Sessão 21 — v1: botão de pausar a IA funcionando, commit `bf56777` na `main`; Sessão 20b — Starter com 300 respostas e espaço nos cards dos planos; Sessão 20 — planos Starter/Pro/Escala com limites, teste grátis e Melhorias de anúncio; Sessão 19 — pesquisa de preços e proposta de 3 planos; Sessão 18 — tour de boas-vindas e avisos de teste/conta ML redesenhados; Sessão 17 — chaves de IA cadastradas e trocadas pelo painel do administrador; Sessão 16 — textos do cadastro sem falar em cobrança; Sessão 15b — Fase 1 da troca preparada)
 
 ---
 
@@ -162,7 +162,8 @@ novas funcionalidades, segurança multi-tenant de verdade — **desenvolvido em 
   da IA respondendo, faixa de perguntas, "a mesma pergunta em três lojas", como funciona, leitura do anúncio, certeza, "no dia a
   dia", calculadora de economia, planos, dúvidas, convite final e rodapé), inspirada no layout da AbacatePay sem copiar.
   Sem espaços de imagem (tudo desenhado em código); rodapé com o **CNPJ 65.771.781/0001-63** (sem razão social, pedido do
-  Breno) e contatos "a definir" (e-mail, WhatsApp, Instagram em `companyInfo`, `lib/config/site.ts`). O app pode morar em `app.maanu.com.br` com a
+  Breno), WhatsApp/telefone `(31) 99263-0934` (2026-10-16) e só os contatos já informados em `companyInfo`
+  (`lib/config/site.ts`; e-mail e Instagram ainda vazios, então não aparecem). O app pode morar em `app.maanu.com.br` com a
   variável **`APP_HOST`** (`lib/site/host.ts` + `proxy.ts`): sem ela nada muda no app. Passo a passo da troca
   de endereço em §13 item 0i. **SEO (2026-10-15):** título/descrição/canonical, dados estruturados (Organization com CNPJ,
   WebSite, WebPage, SoftwareApplication com os preços, FAQPage), `robots.txt` liberando buscadores e robôs de IA (GPTBot,
@@ -321,7 +322,7 @@ components/
                                   # lista com abas do shadcn que avança sozinha + telas da maanu desenhadas em código),
                                   # savings-calculator, pricing-section (SELLABLE_PLANS, mensal/anual), faq-section (FAQ também
                                   # vira dados estruturados), final-cta + time-on-page, site-footer, mobile-cta-bar,
-                                  # pending (dado "a definir"), reveal + use-in-view,
+                                  # reveal + use-in-view,
                                   # site-button (TODOS os botões da página: mesmas medidas, espaço igual dos 2 lados da seta)
   auth/ onboarding/ contas/ configuracoes/ legal/ forms/
 lib/
@@ -1404,6 +1405,7 @@ webhook do ML validado, fila/reprocessamento de jobs, observabilidade, controle 
 | 2026-10-14 | Calculadora da página de vendas **sem indicar plano** | Breno: quem visse que precisaria do plano mais caro poderia desistir antes do teste grátis. A escolha do plano fica para depois do teste, dentro do app. |
 | 2026-10-14 | Sem depoimentos, números de clientes ou selos inventados na página de vendas; exemplos marcados como ilustrativos; preços e limites lidos de `SELLABLE_PLANS` | Ainda não há depoimentos reais (1 cliente em teste). Propaganda enganosa queima o anúncio e o CDC; preço em um lugar só não fica desatualizado. |
 | 2026-10-15 | **SEO da página de vendas aberto para buscadores e IAs**: `robots.txt` libera explicitamente os robôs de busca e de IA (GPTBot, OAI-SearchBot, ChatGPT-User, ClaudeBot, Claude-SearchBot, PerplexityBot, Google-Extended, Applebot-Extended...), com a área logada fora; `/llms.txt` com o resumo da maanu; dados estruturados (Organization com CNPJ, WebSite, WebPage, SoftwareApplication com os preços, FAQPage) | Pedido do Breno: ser achado no Google e nas respostas do ChatGPT, Claude, Gemini e Perplexity. A página é de venda, então não há o que proteger do treino das IAs; quanto mais elas conhecerem a maanu, mais a citam. Sem nota/avaliações nos dados estruturados enquanto não houver avaliações reais (o Google pune dados inventados). |
+| 2026-10-16 | Rodapé da página de vendas mostra **só os contatos já informados** (`companyInfo`); os espaços "a definir" saíram (componente `pending.tsx` apagado) e o WhatsApp aparece com o número escrito, `(31) 99263-0934`, e link para o `wa.me` | A AbacatePay recusou o cadastro pedindo contato visível (e-mail e WhatsApp), Termos, Privacidade e CNPJ no rodapé (o avaliador abriu `maanu.com.br`, que leva ao login). Quem avalia precisa ver o número, não a palavra "WhatsApp"; um "a definir" à mostra parece site inacabado. |
 | 2026-10-15 | Página de vendas publicada em **`maanu.com.br/institucional`** (e não em "/") e **fora do Google** (`noindex`, fora do sitemap) enquanto estiver lá; `maanu.com.br/` segue levando ao app | Pedido do Breno: colocar no ar para o sócio analisar, com o app ainda no domínio principal ("depois vamos mudar para app"). Indexar um endereço provisório, com conteúdo em revisão e contatos "a definir", obrigaria a redirecionar e reenviar tudo ao Google na troca; o SEO liga junto com a ida para "/" (uma constante, `SALES_PAGE_INDEXABLE`). A prévia do link no WhatsApp funciona normalmente. |
 | 2026-10-15 | Fora de `maanu.com.br` (endereço da Vercel, prévias, futuro `app.maanu.com.br`) todas as respostas levam `X-Robots-Tag: noindex, nofollow`; termos e privacidade com canonical fixo no domínio principal | Evita conteúdo duplicado e o app aparecendo no Google no lugar da página de vendas. |
 | 2026-10-15 | Respostas das Dúvidas no HTML mesmo fechadas (`hiddenUntilFound` do Accordion) e animação do título do topo sem esconder o texto | Buscadores e IAs leem o que está no HTML; o título apagado no início atrasava a "maior pintura" (LCP) que o Google mede. |
@@ -1471,6 +1473,14 @@ webhook do ML validado, fila/reprocessamento de jobs, observabilidade, controle 
   controle ou um `scrollIntoView` rolava o painel). Agora os painéis usam `.site-clip` (`overflow: clip`, que não rola;
   navegador antigo fica com hidden). Exceção: o abre/fecha de "No dia a dia" continua com hidden (precisa para a animação).
 - CNPJ do Breno no rodapé (`companyInfo.cnpj`); a razão social saiu do rodapé e do `companyInfo` (pedido dele).
+- **Contato para o gateway (2026-10-16, "Sessão 25c")** — a AbacatePay devolveu o cadastro ("Seu cadastro precisa de
+  ajustes": meios de contato (e-mail e WhatsApp), Termos de uso, Política de privacidade, CNPJ no rodapé). O Breno explicou
+  que o avaliador abriu a página de login (`maanu.com.br` leva ao login) em vez de `/institucional` e mandou o telefone
+  **31 99263-0934**. Feito: `companyInfo.whatsapp = "5531992630934"`; no rodapé, "WhatsApp e telefone (31) 99263-0934" com
+  link `wa.me` (formatado por `formatWhatsapp`/`normalizeWhatsapp` de `lib/validation/forms.ts`); contatos vazios não
+  aparecem mais (sem "a definir"); WhatsApp também no `llms.txt` e no `contactPoint` dos dados estruturados. Teste novo em
+  `site-seo.test.ts`. typecheck, 458 testes, lint e build ok; rodapé conferido em 1366 e 390 px. **E-mail de contato ainda
+  não existe no site** (nenhum endereço cadastrado; `nao-responda@` é só remetente) — a AbacatePay pede os dois.
 - **Publicação (2026-10-15, "Sessão 25b")** — pedido: "coloque a página no ar pra eu enviar para meu sócio analisar,
   /institucional nesse caminho por enquanto. Depois vamos mudar para app." Feito: a página foi para
   `app/(site)/institucional/page.tsx` e `app/page.tsx` voltou a ser o da `v2` ("/" → `/painel`, ou `/login` sem sessão);
@@ -2129,9 +2139,10 @@ webhook do ML validado, fila/reprocessamento de jobs, observabilidade, controle 
 0i. **Breno — página de vendas (Sessão 25; no ar em `https://maanu.com.br/institucional` desde 2026-10-15, fora do
    Google).** (a) Revisar com o sócio pelo link (ajustes: pedir à IA; cada push na `v2` publica). (b) Imagens: nenhuma pendente (todas as telas são
    desenhadas em código; se quiser fotos/prints reais depois, é só pedir).
-   Prints podem ser da conta admin com dados fictícios (nunca de cliente). (c) ✅ CNPJ no rodapé (sem razão social). Falta mandar
-   e-mail de contato, WhatsApp e Instagram (`companyInfo` em `lib/config/site.ts`; a AbacatePay exige contato no site, §13
-   0g item 6). (d) ✅ Publicada em `/institucional` (merge na `v2`, 2026-10-15); "/" continua sendo o app. Ideias não feitas: Pixel da Meta/Google (para medir os anúncios), depoimentos reais
+   Prints podem ser da conta admin com dados fictícios (nunca de cliente). (c) ✅ CNPJ no rodapé (sem razão social) e ✅
+   WhatsApp/telefone (31) 99263-0934 (2026-10-16). **Falta o e-mail de contato** (a AbacatePay pede e-mail e WhatsApp,
+   §13 0g item 6): Breno manda o endereço → IA coloca em `companyInfo.email` (`lib/config/site.ts`); Instagram é opcional.
+   No cadastro da AbacatePay, informar o site como **`https://maanu.com.br/institucional`** (em `maanu.com.br` abre o login). (d) ✅ Publicada em `/institucional` (merge na `v2`, 2026-10-15); "/" continua sendo o app. Ideias não feitas: Pixel da Meta/Google (para medir os anúncios), depoimentos reais
    quando houver, vídeo curto da maanu respondendo.
    (e) **SEO, quando a página for para "/"** (não antes: em `/institucional` ela está com `noindex`). IA: mover
    `app/(site)/institucional/page.tsx` para `app/(site)/page.tsx`, apagar `app/page.tsx`, `SALES_PAGE_PATH = "/"`,

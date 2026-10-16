@@ -4,6 +4,7 @@ import { companyInfo, siteConfig } from "@/lib/config/site"
 import { SELLABLE_PLANS } from "@/lib/plans/plans"
 import { FAQ } from "@/lib/site/faq"
 import { SALES_PAGE_PATH, isIndexableHost } from "@/lib/site/host"
+import { normalizeWhatsapp } from "@/lib/validation/forms"
 import {
   PRIVATE_PATHS,
   SALES_PAGE_URL,
@@ -57,6 +58,13 @@ describe("dados estruturados (schema.org)", () => {
 
   it("CNPJ da empresa", () => {
     expect(node("Organization").taxID).toBe(companyInfo.cnpj)
+  })
+
+  it("contato da empresa: WhatsApp válido, com DDI, no ponto de contato", () => {
+    expect(companyInfo.whatsapp).toMatch(/^55\d{10,11}$/)
+    expect(normalizeWhatsapp(companyInfo.whatsapp ?? "")).not.toBeNull()
+    const contact = (node("Organization").contactPoint as { telephone?: string }[])[0]
+    expect(contact.telephone).toBe(`+${companyInfo.whatsapp}`)
   })
 
   it("todas as perguntas frequentes entram, com resposta", () => {
@@ -120,6 +128,7 @@ describe("/llms.txt", () => {
   it("traz os preços atuais, o CNPJ e todas as perguntas frequentes", () => {
     for (const plan of SELLABLE_PLANS) expect(text).toContain(`**${plan.name}** — R$ ${plan.priceMonthly}/mês`)
     expect(text).toContain(companyInfo.cnpj)
+    expect(text).toContain("WhatsApp e telefone: +55 (31) 99263-0934")
     for (const item of FAQ) expect(text).toContain(`### ${item.question}`)
     expect(text).toContain("https://maanu.com.br/cadastro")
     expect(text).toContain(`- Site: ${SALES_PAGE_URL}`)
