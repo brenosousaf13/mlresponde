@@ -1437,6 +1437,16 @@ webhook do ML validado, fila/reprocessamento de jobs, observabilidade, controle 
   com o mensal). Banco intacto (`annual` continua aceito, sem uso). Testes ajustados.
 - Verificação: typecheck, 458 testes, lint e build ok; fluxo completo da cobrança no banco de produção
   (`RUN_BILLING_DB=1`, loja temporária apagada) ok. Publicado na `v2`.
+- Achado nos logs depois do deploy: das 17:00 às 18:44 a loja Girassol Moda Jeans tentou assinar 5 vezes (Pro, Starter,
+  Escala) e a AbacatePay respondeu `400 CARD is not available for this store` em todas: a conta aprovada **não tinha o
+  cartão de crédito habilitado** (habilitação separada, por análise da AbacatePay). O Breno habilitou no painel; às 18:49 a
+  mesma conta gerou a página de pagamento do Pro em produção (`bill_MHFp…`, sem "Modo simulação", logo da maanu, R$ 197/mês),
+  ainda não paga. Sem o cartão habilitado o cliente vê "O sistema de pagamento recusou o pedido" e o painel Cobrança mostra
+  o erro em Páginas de pagamento.
+- Taxas escolhidas pelo Breno (recebe em 1 dia útil): cartão à vista **3,50% + 1,92% de antecipação + R$ 0,60** por
+  cobrança; 10% do líquido fica bloqueado por 40 dias (Bloqueio de Contencioso, termos da AbacatePay item 10). Líquido por
+  mês: Starter R$ 91,14 (R$ 82,03 na hora + R$ 9,11 em 40 dias), Pro R$ 185,72 (167,15 + 18,57), Escala R$ 374,88
+  (337,39 + 37,49). Saque por PIX: R$ 0,80 cada (até 20/mês). Impostos não incluídos.
 - Falta o Breno: arquivar os 3 produtos anuais na AbacatePay (opcional; são ignorados) e a compra real de verificação
   (§13 item 0g).
 
@@ -2212,7 +2222,8 @@ webhook do ML validado, fila/reprocessamento de jobs, observabilidade, controle 
 0g. **Breno — cobrança pela AbacatePay (Sessão 23).** ✅ **No ar em produção desde 2026-10-16 (Sessão 23c).** Faltam:
    (a) a **compra real de verificação** (conta separada, nem admin nem cliente; Starter; depois cancelar e pedir o estorno no
    painel da AbacatePay) — a IA confere os registros; (b) ✅ anual decidido: **só o mensal** (Sessão 23d) — os 3 produtos anuais criados na
-   AbacatePay são ignorados e podem ser arquivados lá; (c) opcional: apagar o webhook do Dev mode.
+   AbacatePay são ignorados e podem ser arquivados lá; ✅ cartão de crédito habilitado na loja em 16/10 (antes a API
+   respondia `400 CARD is not available for this store`; taxas e líquido por plano no diário da Sessão 23d); (c) opcional: apagar o webhook do Dev mode.
    (Histórico:) Passos 1 a 5 feitos em modo de teste (Sessão 23b; dados do teste apagados); faltava o passo 6 (produção). Hoje a chave em uso é a de teste e não há e-mails liberados, então os
    clientes veem "Contratação pelo app em breve" até a troca. Ao trocar: chave de produção com as mesmas permissões, produtos
    recriados no modo de produção, `ABACATEPAY_API_KEY` trocada na Vercel + Redeploy e "Cadastrar webhook na AbacatePay" de
