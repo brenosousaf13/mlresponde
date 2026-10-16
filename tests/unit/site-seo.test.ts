@@ -5,8 +5,10 @@ import { SELLABLE_PLANS } from "@/lib/plans/plans"
 import { FAQ } from "@/lib/site/faq"
 import { SALES_PAGE_PATH, isIndexableHost } from "@/lib/site/host"
 import { normalizeWhatsapp } from "@/lib/validation/forms"
+import sitemap from "@/app/sitemap"
 import {
   PRIVATE_PATHS,
+  SALES_PAGE_INDEXABLE,
   SALES_PAGE_URL,
   SEARCH_AND_AI_CRAWLERS,
   SEO_DESCRIPTION,
@@ -45,6 +47,7 @@ describe("dados estruturados (schema.org)", () => {
 
   it("página, software e dúvidas apontam para o endereço da página de vendas", () => {
     expect(SALES_PAGE_URL).toBe(`${siteConfig.marketingUrl}${SALES_PAGE_PATH}`)
+    expect(SALES_PAGE_URL).toBe("https://maanu.com.br/")
     for (const type of ["WebPage", "SoftwareApplication", "FAQPage"]) expect(node(type).url).toBe(SALES_PAGE_URL)
     const offers = node("SoftwareApplication").offers as { url: string }[]
     expect(offers.every((offer) => offer.url === `${SALES_PAGE_URL}#planos`)).toBe(true)
@@ -101,6 +104,14 @@ describe("robôs e endereços", () => {
         (path) => path === "/" || path.startsWith("/institucional") || path.startsWith("/termos") || path.startsWith("/privacidade")
       )
     ).toBe(false)
+  })
+
+  it("a página de vendas na raiz do domínio principal entra nos buscadores e no sitemap", () => {
+    expect(SALES_PAGE_INDEXABLE).toBe(true)
+    const urls = sitemap().map((entry) => entry.url)
+    expect(urls[0]).toBe("https://maanu.com.br/")
+    expect(urls).toEqual(expect.arrayContaining(["https://maanu.com.br/termos", "https://maanu.com.br/privacidade"]))
+    expect(urls.some((url) => url.includes("/institucional"))).toBe(false)
   })
 
   it("só o endereço oficial entra nos buscadores", () => {

@@ -1,10 +1,10 @@
 /**
  * Endereços do site (puro, testado em tests/unit/site.test.ts).
  *
- * maanu.com.br é a página de vendas (no caminho SALES_PAGE_PATH). O app pode morar num endereço próprio, definido pela
- * variável APP_HOST (ex.: "app.maanu.com.br"):
- *  - sem APP_HOST (hoje e no computador local): a página de vendas abre sem login e o resto do app continua no mesmo
- *    endereço ("/" leva ao painel enquanto a página de vendas estiver em /institucional);
+ * maanu.com.br/ é a página de vendas (SALES_PAGE_PATH). O app mora num endereço próprio, definido pela variável APP_HOST
+ * ("app.maanu.com.br" em produção desde a Sessão 27):
+ *  - sem APP_HOST (computador local, ou se a variável for apagada para voltar atrás): "/" é a página de vendas, sem
+ *    login, e o resto do app continua no mesmo endereço;
  *  - com APP_HOST, no endereço do app: "/" leva ao painel e todo o resto funciona como sempre;
  *  - com APP_HOST, nos outros endereços (o domínio principal): ficam a página de vendas, as páginas legais, robots/sitemap
  *    e as rotas chamadas por servidores (webhooks do Mercado Livre e da AbacatePay, crons da Vercel), para nada quebrar
@@ -16,12 +16,10 @@ import { normalizeHost } from "@/lib/admin/host"
 import { siteConfig } from "@/lib/config/site"
 
 /**
- * Caminho da página de vendas. Por enquanto "/institucional" (publicada para revisão do Breno e do sócio com o app
- * ainda em "/"). Precisa bater com a pasta da rota: app/(site)/institucional/page.tsx. Na troca do app para
- * app.maanu.com.br ela vai para "/" (CEREBRO.md §13 item 0i): mover a página para app/(site)/page.tsx, apagar
- * app/page.tsx, trocar aqui para "/" e redirecionar /institucional para "/" (next.config.ts).
+ * Caminho da página de vendas: a raiz do domínio principal. Precisa bater com a pasta da rota (app/(site)/page.tsx).
+ * Até a Sessão 27 ela ficou em /institucional (revisão); esse endereço antigo vai para "/" com 308 (next.config.ts).
  */
-export const SALES_PAGE_PATH = "/institucional"
+export const SALES_PAGE_PATH = "/"
 
 export type SiteHostDecision =
   /** Página de vendas: não precisa de sessão (o proxy nem consulta o login). */
@@ -91,6 +89,25 @@ export function siteHostRouting(input: {
   if (!appHost) return { kind: "pass" }
   if (SITE_HOST_PATHS.some((prefix) => matches(pathname, prefix))) return { kind: "pass" }
   return { kind: "redirect", url: appHostUrl(input.url, appHost) }
+}
+
+/**
+ * Endereço base das URLs que cadastramos em serviços de fora para eles chamarem a maanu (webhook da AbacatePay; a URL de
+ * notificações do Mercado Livre segue a mesma regra, cadastrada à mão no DevCenter).
+ * Com o app num endereço próprio (APP_HOST), fica no **domínio principal**, que continua servindo /api/webhook/* (veja
+ * SITE_HOST_PATHS): assim a URL cadastrada não muda quando o app troca de endereço e ninguém precisa recadastrar nada.
+ * Sem APP_HOST, é o endereço do próprio app (NEXT_PUBLIC_SITE_URL, ex.: staging), ou o domínio principal.
+ */
+export function webhookBaseUrl(
+  input: { appHost?: string | null; siteUrl?: string | null; marketingUrl?: string } = {
+    appHost: process.env.APP_HOST,
+    siteUrl: process.env.NEXT_PUBLIC_SITE_URL,
+  }
+): string {
+  const marketing = (input.marketingUrl ?? siteConfig.marketingUrl).replace(/\/+$/, "")
+  if (normalizeHost(input.appHost)) return marketing
+  const site = input.siteUrl?.trim().replace(/\/+$/, "")
+  return site || marketing
 }
 
 /**

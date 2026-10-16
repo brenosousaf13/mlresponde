@@ -30,7 +30,7 @@ export const metadata: Metadata = {
   applicationName: siteConfig.name,
   category: "business",
   alternates: { canonical: SALES_PAGE_PATH, languages: { "pt-BR": SALES_PAGE_PATH, "x-default": SALES_PAGE_PATH } },
-  // Fora do Google enquanto está em revisão em /institucional (SALES_PAGE_INDEXABLE, lib/site/seo.ts).
+  // SALES_PAGE_INDEXABLE (lib/site/seo.ts): false tira a página do Google sem tirá-la do ar.
   robots: {
     index: SALES_PAGE_INDEXABLE,
     follow: true,

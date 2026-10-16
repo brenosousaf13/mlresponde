@@ -23,8 +23,13 @@ const nextConfig: NextConfig = {
     ]
   },
   async redirects() {
-    // "Respostas da IA" virou "Assistente de IA" (2026-10-11).
-    return [{ source: "/respostas", destination: "/assistente", permanent: false }]
+    return [
+      // "Respostas da IA" virou "Assistente de IA" (2026-10-11).
+      { source: "/respostas", destination: "/assistente", permanent: false },
+      // A página de vendas saiu de /institucional (revisão) para a raiz do domínio principal (Sessão 27; SALES_PAGE_PATH
+      // em lib/site/host.ts). A busca (?utm_source=...) vai junto. Roda antes do proxy.
+      { source: "/institucional", destination: "/", permanent: true },
+    ]
   },
 }
 

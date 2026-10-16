@@ -4,6 +4,7 @@ import { getCatalog, type CatalogResult } from "@/lib/billing/abacatepay/catalog
 import { getStore, listWebhooks, type ProviderWebhook } from "@/lib/billing/abacatepay/client"
 import { billingSettings, type BillingSettings } from "@/lib/billing/abacatepay/config"
 import { requireAdmin } from "@/lib/dal/admin"
+import { webhookBaseUrl } from "@/lib/site/host"
 import { createClient } from "@/lib/supabase/server"
 
 /** Painel do administrador → Cobrança. Dados de clientes pelas funções admin_* (admin_assert no banco). */
@@ -76,8 +77,9 @@ export type ProviderStatus = {
   endpoint: string
 }
 
+/** Endereço do webhook na AbacatePay: fica no domínio principal mesmo com o app em app.maanu.com.br (webhookBaseUrl). */
 export function webhookEndpoint() {
-  return `${(process.env.NEXT_PUBLIC_SITE_URL || "https://maanu.com.br").replace(/\/$/, "")}/api/webhook/abacatepay`
+  return `${webhookBaseUrl()}/api/webhook/abacatepay`
 }
 
 function errorText(error: unknown) {

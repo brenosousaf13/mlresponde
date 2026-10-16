@@ -12,16 +12,16 @@ import { FAQ } from "./faq"
 import { SALES_PAGE_PATH } from "./host"
 
 /** Data da última mudança de conteúdo da página de vendas (sitemap e dados estruturados). Atualize ao mudar o texto. */
-export const SITE_CONTENT_UPDATED = "2026-10-15"
+export const SITE_CONTENT_UPDATED = "2026-10-16"
 
 export const SITE_URL = siteConfig.marketingUrl
 
 /**
- * A página de vendas entra no Google e nas buscas das IAs? **false enquanto estiver em /institucional para revisão**
- * (meta robots "noindex" e fora do sitemap; o link funciona normalmente e a prévia no WhatsApp também). Virar true
- * quando ela for para "/" com o app em app.maanu.com.br (CEREBRO.md §13 item 0i).
+ * A página de vendas entra no Google e nas buscas das IAs? true desde a Sessão 27 (página em maanu.com.br/, app em
+ * app.maanu.com.br). Ficou false enquanto ela estava em /institucional para revisão. false = meta robots "noindex" e
+ * fora do sitemap (o link e a prévia no WhatsApp continuam funcionando).
  */
-export const SALES_PAGE_INDEXABLE = false
+export const SALES_PAGE_INDEXABLE = true
 
 /** ≤ 60 caracteres: aparece inteiro no Google. Palavras que o vendedor procura primeiro. */
 export const SEO_TITLE = "Respostas automáticas com IA para o Mercado Livre | maanu"
@@ -88,10 +88,10 @@ function absolute(path: string) {
   return new URL(path, `${SITE_URL}/`).toString()
 }
 
-/** Endereço completo da página de vendas (hoje https://maanu.com.br/institucional). */
+/** Endereço completo da página de vendas (https://maanu.com.br/). */
 export const SALES_PAGE_URL = absolute(SALES_PAGE_PATH)
 
-/** Seção da página de vendas (ex.: "planos" → https://maanu.com.br/institucional#planos). */
+/** Seção da página de vendas (ex.: "planos" → https://maanu.com.br/#planos). */
 function section(id: string) {
   return `${SALES_PAGE_URL}#${id}`
 }

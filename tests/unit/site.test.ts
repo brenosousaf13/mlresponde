@@ -8,31 +8,30 @@ import {
   formatInteger,
   pricePerDay,
 } from "@/lib/site/calculator"
-import { SALES_PAGE_PATH, appHostUrl, appHref, isLocalHost, siteHostRouting } from "@/lib/site/host"
+import { SALES_PAGE_PATH, appHostUrl, appHref, isLocalHost, siteHostRouting, webhookBaseUrl } from "@/lib/site/host"
 import { SELLABLE_PLANS } from "@/lib/plans/plans"
 
 describe("endereços do site (página de vendas × app)", () => {
   const route = (url: string, appHost?: string, adminHost?: string) =>
     siteHostRouting({ url, host: new URL(url).host, appHost, adminHost })
 
-  it("a página de vendas está em /institucional por enquanto (revisão), com o app ainda em '/'", () => {
-    expect(SALES_PAGE_PATH).toBe("/institucional")
+  it("a página de vendas fica na raiz do domínio principal (saiu de /institucional na Sessão 27)", () => {
+    expect(SALES_PAGE_PATH).toBe("/")
   })
 
-  it("sem APP_HOST: a página de vendas abre sem login e o resto do app segue no mesmo endereço", () => {
-    expect(route("https://maanu.com.br/institucional")).toEqual({ kind: "landing" })
-    expect(route("https://maanu.com.br/institucional?utm_source=instagram")).toEqual({ kind: "landing" })
-    expect(route("http://localhost:3000/institucional")).toEqual({ kind: "landing" })
-    // "/" continua sendo o app (leva ao painel ou ao login), como antes da página de vendas.
-    expect(route("https://maanu.com.br/")).toEqual({ kind: "pass" })
+  it("sem APP_HOST: a página de vendas abre sem login em '/' e o resto do app segue no mesmo endereço", () => {
+    expect(route("https://maanu.com.br/")).toEqual({ kind: "landing" })
+    expect(route("https://maanu.com.br/?utm_source=instagram")).toEqual({ kind: "landing" })
+    expect(route("http://localhost:3000/")).toEqual({ kind: "landing" })
     expect(route("https://maanu.com.br/login")).toEqual({ kind: "pass" })
     expect(route("https://maanu.com.br/painel?x=1")).toEqual({ kind: "pass" })
-    expect(route("https://maanu.com.br/institucional-extra")).toEqual({ kind: "pass" })
   })
 
   it("com APP_HOST, o domínio principal mantém a página de vendas, as páginas legais e as rotas de servidores", () => {
     const app = "app.maanu.com.br"
-    expect(route("https://maanu.com.br/institucional", app)).toEqual({ kind: "landing" })
+    expect(route("https://maanu.com.br/", app)).toEqual({ kind: "landing" })
+    expect(route("https://maanu.com.br/?utm_source=instagram&utm_medium=bio", app)).toEqual({ kind: "landing" })
+    expect(route("https://maanu.com.br/llms.txt", app)).toEqual({ kind: "pass" })
     expect(route("https://maanu.com.br/termos", app)).toEqual({ kind: "pass" })
     expect(route("https://maanu.com.br/privacidade", app)).toEqual({ kind: "pass" })
     expect(route("https://maanu.com.br/sitemap.xml", app)).toEqual({ kind: "pass" })
@@ -56,8 +55,19 @@ describe("endereços do site (página de vendas × app)", () => {
       kind: "redirect",
       url: "https://app.maanu.com.br/api/auth/callback/mercadolivre?code=1&state=2",
     })
+    expect(route("https://maanu.com.br/painel", app)).toEqual({ kind: "redirect", url: "https://app.maanu.com.br/painel" })
     // Prefixo parecido não é página legal.
     expect(route("https://maanu.com.br/termos-extra", app).kind).toBe("redirect")
+  })
+
+  it("webhooks cadastrados em serviços de fora ficam no domínio principal quando o app tem endereço próprio", () => {
+    const marketingUrl = "https://maanu.com.br"
+    expect(webhookBaseUrl({ appHost: "app.maanu.com.br", siteUrl: "https://app.maanu.com.br", marketingUrl })).toBe(marketingUrl)
+    // Antes da troca (ou voltando atrás): o mesmo endereço de sempre.
+    expect(webhookBaseUrl({ appHost: "", siteUrl: "https://maanu.com.br/", marketingUrl })).toBe(marketingUrl)
+    expect(webhookBaseUrl({ appHost: null, siteUrl: null, marketingUrl })).toBe(marketingUrl)
+    // Outro ambiente sem APP_HOST (staging) usa o próprio endereço.
+    expect(webhookBaseUrl({ siteUrl: "https://mlresponde-v2.vercel.app", marketingUrl })).toBe("https://mlresponde-v2.vercel.app")
   })
 
   it("no endereço do app, '/' leva ao painel e o resto passa", () => {
