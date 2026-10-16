@@ -4,7 +4,7 @@
 > inteiro antes de trabalhar e atualizá-lo ao terminar. Se algo aqui divergir do código, o código vence —
 > e este arquivo deve ser corrigido na mesma sessão.
 
-Última atualização: **2026-10-16** (Sessão 23d — **só o plano mensal** (decisão do Breno): o anual saiu da Assinatura, da página de vendas, das Dúvidas, do `llms.txt`, dos Termos e do painel; Sessão 23c — **cobrança pela AbacatePay em produção** (chave de produção, produtos mensais e webhook prontos); o anual só aparece quando houver os produtos anuais; Sessão 25c — WhatsApp/telefone `(31) 99263-0934` no rodapé de `/institucional` para a aprovação da AbacatePay; falta o e-mail; Sessão 25b — página de vendas **publicada em `maanu.com.br/institucional`** para o Breno e o sócio revisarem, fora do Google por enquanto; `maanu.com.br/` continua levando ao app; Sessão 25 — página de vendas em `maanu.com.br/` com SEO para Google, Bing e buscas por IA (dados estruturados, `llms.txt`, robots, imagem de compartilhamento, carregamento mais rápido) e app pronto para ir para `app.maanu.com.br` (variável `APP_HOST`), na branch `codex/pagina-de-vendas`, aguardando o Breno; Sessão 24 — cliente sem permissão de administrador vê uma mensagem de acesso restrito com retorno ao painel; Sessão 23b — tela "Levando você para o pagamento seguro" antes da AbacatePay, teste de compra aprovado e dados de teste apagados, falta a chave de produção; Sessão 23 — cobrança pela AbacatePay pronta no código e no banco: assinar, trocar, cancelar e webhooks; falta só a chave de API do Breno; Sessão 22 — perguntas chegando sozinhas: rotina que busca no ML a cada ~10 s + webhook respondendo na hora; foto do anúncio corrigida; Sessão 21 — v1: botão de pausar a IA funcionando, commit `bf56777` na `main`; Sessão 20b — Starter com 300 respostas e espaço nos cards dos planos; Sessão 20 — planos Starter/Pro/Escala com limites, teste grátis e Melhorias de anúncio; Sessão 19 — pesquisa de preços e proposta de 3 planos; Sessão 18 — tour de boas-vindas e avisos de teste/conta ML redesenhados; Sessão 17 — chaves de IA cadastradas e trocadas pelo painel do administrador; Sessão 16 — textos do cadastro sem falar em cobrança; Sessão 15b — Fase 1 da troca preparada)
+Última atualização: **2026-10-16** (Sessão 27 — **troca de endereços**: página de vendas na raiz de `maanu.com.br/` (indexável; `/institucional` redireciona), `app.maanu.com.br` na Vercel e no Supabase, webhooks fixos no domínio principal; **falta o CNAME `app` do Breno no Cloudflare** e a IA ligar o `APP_HOST` (§13 item 0k); Sessão 23d — **só o plano mensal** (decisão do Breno): o anual saiu da Assinatura, da página de vendas, das Dúvidas, do `llms.txt`, dos Termos e do painel; Sessão 23c — **cobrança pela AbacatePay em produção** (chave de produção, produtos mensais e webhook prontos); o anual só aparece quando houver os produtos anuais; Sessão 25c — WhatsApp/telefone `(31) 99263-0934` no rodapé de `/institucional` para a aprovação da AbacatePay; falta o e-mail; Sessão 25b — página de vendas **publicada em `maanu.com.br/institucional`** para o Breno e o sócio revisarem, fora do Google por enquanto; `maanu.com.br/` continua levando ao app; Sessão 26 — quatro criativos 4:5 para carrossel do Instagram salvos em `CRIATIVOS/`; Sessão 25 — página de vendas em `maanu.com.br/` com SEO para Google, Bing e buscas por IA (dados estruturados, `llms.txt`, robots, imagem de compartilhamento, carregamento mais rápido) e app pronto para ir para `app.maanu.com.br` (variável `APP_HOST`), na branch `codex/pagina-de-vendas`, aguardando o Breno; Sessão 24 — cliente sem permissão de administrador vê uma mensagem de acesso restrito com retorno ao painel; Sessão 23b — tela "Levando você para o pagamento seguro" antes da AbacatePay, teste de compra aprovado e dados de teste apagados, falta a chave de produção; Sessão 23 — cobrança pela AbacatePay pronta no código e no banco: assinar, trocar, cancelar e webhooks; falta só a chave de API do Breno; Sessão 22 — perguntas chegando sozinhas: rotina que busca no ML a cada ~10 s + webhook respondendo na hora; foto do anúncio corrigida; Sessão 21 — v1: botão de pausar a IA funcionando, commit `bf56777` na `main`; Sessão 20b — Starter com 300 respostas e espaço nos cards dos planos; Sessão 20 — planos Starter/Pro/Escala com limites, teste grátis e Melhorias de anúncio; Sessão 19 — pesquisa de preços e proposta de 3 planos; Sessão 18 — tour de boas-vindas e avisos de teste/conta ML redesenhados; Sessão 17 — chaves de IA cadastradas e trocadas pelo painel do administrador; Sessão 16 — textos do cadastro sem falar em cobrança; Sessão 15b — Fase 1 da troca preparada)
 
 ---
 
@@ -162,8 +162,8 @@ novas funcionalidades, segurança multi-tenant de verdade — **desenvolvido em 
   verificação e exportação CSV) vai para `/acesso-negado`: "Você não tem acesso a esta página", explicação e botão
   "Voltar ao meu painel", no padrão visual da marca. Permissões, segunda etapa e verificações do banco mantidas.
   **Sessão 25 (2026-10-14): página de vendas** — **publicada em 2026-10-15 em `maanu.com.br/institucional`** (merge da
-  branch `codex/pagina-de-vendas` na `v2`) para o Breno e o sócio revisarem; `maanu.com.br/` **continua levando ao app**
-  (`app/page.tsx` → `/painel`) até a troca do app para `app.maanu.com.br`, quando a página vai para "/" (§13 item 0i).
+  branch `codex/pagina-de-vendas` na `v2`) para o Breno e o sócio revisarem; `maanu.com.br/` continuou levando ao app até a
+  **Sessão 27 (2026-10-16), quando a página foi para a raiz `maanu.com.br/`** (`/institucional` redireciona com 308).
   Conteúdo: topo escuro com demonstração ao vivo
   da IA respondendo, faixa de perguntas, "a mesma pergunta em três lojas", como funciona, leitura do anúncio, certeza, "no dia a
   dia", calculadora de economia, planos, dúvidas, convite final e rodapé), inspirada no layout da AbacatePay sem copiar.
@@ -171,15 +171,22 @@ novas funcionalidades, segurança multi-tenant de verdade — **desenvolvido em 
   Breno), WhatsApp/telefone `(31) 99263-0934` (2026-10-16) e só os contatos já informados em `companyInfo`
   (`lib/config/site.ts`; e-mail e Instagram ainda vazios, então não aparecem). O app pode morar em `app.maanu.com.br` com a
   variável **`APP_HOST`** (`lib/site/host.ts` + `proxy.ts`): sem ela nada muda no app. Passo a passo da troca
-  de endereço em §13 item 0i. **SEO (2026-10-15):** título/descrição/canonical, dados estruturados (Organization com CNPJ,
+  de endereço em §13 item 0k (Sessão 27). **SEO (2026-10-15):** título/descrição/canonical, dados estruturados (Organization com CNPJ,
   WebSite, WebPage, SoftwareApplication com os preços, FAQPage), `robots.txt` liberando buscadores e robôs de IA (GPTBot,
   ClaudeBot, PerplexityBot, Google-Extended...), `sitemap.xml`, `/llms.txt` (resumo em Markdown para IAs), imagem de
   compartilhamento própria e `noindex` fora de `maanu.com.br`. Lighthouse: celular 90–91 de desempenho, computador 100; SEO,
-  acessibilidade e boas práticas 100. **Fora do Google enquanto está em `/institucional`** (`SALES_PAGE_INDEXABLE = false`
-  em `lib/site/seo.ts`: meta `noindex` e fora do sitemap); liga junto com a ida para "/", e aí o Breno cadastra o site no
-  Google Search Console e no Bing (§13 item 0i (e)).
+  acessibilidade e boas práticas 100. Ficou fora do Google enquanto esteve em `/institucional`; **indexável desde a Sessão 27** (`SALES_PAGE_INDEXABLE = true`
+  em `lib/site/seo.ts`, página no sitemap); falta o Breno cadastrar o site no Google Search Console e no Bing (§13 item 0i (e)).
+  **Sessão 27 (2026-10-16): troca de endereços** (pedido do Breno: "a plataforma vai passar a responder em
+  `app.maanu.com.br` e o /institucional no domínio principal"). No ar: página de vendas em `maanu.com.br/`. Preparado:
+  `app.maanu.com.br` no projeto Vercel `maanu` e nos redirects do Supabase Auth; webhook da AbacatePay fixo no domínio
+  principal (`webhookBaseUrl`). O app **continua** em `maanu.com.br/login`, `/painel`... até o Breno criar o CNAME `app` no
+  Cloudflare e a IA ligar `APP_HOST` + `NEXT_PUBLIC_SITE_URL` e o Site URL do Supabase (§13 item 0k). Webhooks do ML e da
+  AbacatePay e a URL de retorno do OAuth do ML ficam em `maanu.com.br` (nada a mudar no DevCenter nem na AbacatePay).
 - **Marca:** **maanu** (decisão do Breno, 2026-10-11). Guia de uso, paleta e arquivos em `docs/brand/README.md`; nome,
   assinatura e slogan em `lib/config/site.ts`; logo só pelos componentes de `components/brand/logo.tsx`.
+- **Criativos sociais:** em 2026-10-15 foram criadas quatro peças 1080×1350 para um carrossel de apresentação da maanu;
+  os PNGs finais ficam em `CRIATIVOS/` e aguardam avaliação do Breno antes de qualquer publicação.
 - P0 de segurança/toggle (§8) **adiados** por decisão do Breno — revisitar antes de abrir para novos clientes.
 
 ---
@@ -252,9 +259,9 @@ app/
   layout.tsx                      # pt-BR, Geist, metadata da marca (TooltipProvider + Toaster saíram daqui na Sessão 25:
                                   # ficam em components/providers/app-providers.tsx, usado pelos layouts do app, admin,
                                   # (auth), onboarding e acesso-negado; a página de vendas não carrega esse código)
-  page.tsx                        # "/" → /painel (app). Fica até a página de vendas ir para "/" (troca do app, §13 item 0i)
-  (site)/                         # PÁGINA DE VENDAS (Sessão 25), hoje em /institucional (SALES_PAGE_PATH, lib/site/host.ts):
-                                  # layout.tsx (fonte Funnel Display + site.css com as animações), institucional/page.tsx
+  (site)/                         # PÁGINA DE VENDAS (Sessão 25), em "/" desde a Sessão 27 (SALES_PAGE_PATH, lib/site/host.ts;
+                                  # /institucional → / com 308 em next.config.ts; app/page.tsx foi apagado):
+                                  # layout.tsx (fonte Funnel Display + site.css com as animações), page.tsx
                                   # (seções, metadata, dados estruturados de lib/site/seo.ts). Abre sem login (proxy nem
                                   # consulta a sessão). Com APP_HOST, "/" no endereço do app vai para /painel
   robots.ts, sitemap.ts           # buscadores e robôs de IA (lista em lib/site/seo.ts): página de vendas + termos/privacidade;
@@ -472,7 +479,7 @@ Novas na v2:
 | `ABACATEPAY_WEBHOOK_SECRET` | Sessão 23. Segredo do webhook (≥ 32 caracteres; aleatório, criado pela IA na Vercel, `maanu` Production, sensível; ninguém sabe o valor). O painel admin → Cobrança cadastra o webhook na AbacatePay com ele. Trocar = cadastrar o webhook de novo. Sem ele o webhook responde 503 (a AbacatePay tenta de novo por ~18 h). |
 | `ABACATEPAY_TEST_EMAILS` | opcional. E-mails (separados por vírgula) que podem assinar com a chave de **teste** em produção (além dos administradores da plataforma). |
 | `ABACATEPAY_SUBSCRIPTION_METHODS` | opcional. `CARD` (padrão) ou `CARD,PIX` (só se a AbacatePay liberar o PIX Automático na conta). |
-| `APP_HOST` | opcional (Sessão 25). Endereço próprio do app, ex.: `app.maanu.com.br`. Sem ela, `maanu.com.br/` é a página de vendas e o app continua no mesmo endereço. Com ela, o domínio principal só serve a página de vendas, `/termos`, `/privacidade`, robots/sitemap e `/api/webhook/*` e `/api/cron/*`; o resto vai (307) para o mesmo caminho e busca em `APP_HOST`, e no endereço do app `/` leva a `/painel`. Junto com ela trocar `NEXT_PUBLIC_SITE_URL` e `ML_REDIRECT_URI` (§13 item 0i). Hoje **não** existe na Vercel. |
+| `APP_HOST` | opcional (Sessão 25). Endereço próprio do app, ex.: `app.maanu.com.br`. Sem ela, `maanu.com.br/` é a página de vendas e o app continua no mesmo endereço. Com ela, o domínio principal só serve a página de vendas, `/termos`, `/privacidade`, robots/sitemap e `/api/webhook/*` e `/api/cron/*`; o resto vai (307) para o mesmo caminho e busca em `APP_HOST`, e no endereço do app `/` leva a `/painel`. Junto com ela, `NEXT_PUBLIC_SITE_URL` vira o endereço do app; `ML_REDIRECT_URI` pode ficar no domínio principal (o retorno do OAuth é redirecionado). Webhooks cadastrados fora (AbacatePay) usam `webhookBaseUrl` = domínio principal quando ela existe. Hoje (fim da Sessão 27) **ainda não** existe na Vercel: entra quando o DNS de `app.maanu.com.br` existir (§13 item 0k). |
 | `GOOGLE_SITE_VERIFICATION` | opcional (Sessão 25). Código da meta tag do Google Search Console (só o valor do `content`). Desnecessária se a propriedade for verificada pelo DNS (recomendado). Hoje **não** existe na Vercel. |
 | `BING_SITE_VERIFICATION` | opcional (Sessão 25). Código da meta tag `msvalidate.01` do Bing Webmaster Tools. Desnecessária se o site for importado do Search Console. Hoje **não** existe na Vercel. |
 | `ADMIN_HOST` | opcional (Sessão 13). Endereço próprio do painel do administrador, ex.: `admin.maanu.com.br`. Com ele, `/admin` só abre nesse endereço (no domínio do app vira 404) e o endereço só serve o painel e o login. Sem ele, o painel fica em `/admin` do próprio app. Hoje **não** existe na Vercel (sem domínio próprio). |
@@ -499,8 +506,8 @@ região `iad1`, Standard Protection (só os domínios próprios são públicos),
 (= chave **publishable**), `SUPABASE_SERVICE_ROLE_KEY` (= chave **secret** `maanu_servidor`), `ML_CLIENT_ID`
 (`8693830632560554`), `ML_REDIRECT_URI` e `NEXT_PUBLIC_SITE_URL` (`https://maanu.com.br`), `ML_TOKEN_ENCRYPTION_KEY` (a
 mesma da staging/`.env.local`, para as duas lerem os tokens do mesmo banco), `CRON_SECRET` (novo, só na Vercel),
-`OPENAI_API_KEY` (sensível) e, desde a Sessão 17, `AI_KEYS_ENCRYPTION_KEY` (sensível). **Falta `ML_CLIENT_SECRET`** (sensível: o Breno cola no painel). Domínios: `maanu.com.br` e
-`www.maanu.com.br` (redireciona 308 para o sem www). No projeto antigo `mlresponde` foi colocado um ignored build step que
+`OPENAI_API_KEY` (sensível) e, desde a Sessão 17, `AI_KEYS_ENCRYPTION_KEY` (sensível). **Falta `ML_CLIENT_SECRET`** (sensível: o Breno cola no painel). Domínios: `maanu.com.br`,
+`www.maanu.com.br` (redireciona 308 para o sem www) e, desde a Sessão 27, `app.maanu.com.br` (aguardando o CNAME no Cloudflare). No projeto antigo `mlresponde` foi colocado um ignored build step que
 só publica `main` e `v2` (outras branches pegariam as variáveis da v1).
 
 **Chaves do Supabase da v2 (Sessão 15):** só as novas funcionam — publishable `default` e secret `maanu_servidor`; as
@@ -987,7 +994,8 @@ Projeto `ookosqyfazobiwmopiix` (vai virar a produção da v2). Conferido e corri
 - ✅ (Sessão 15b) Banco limpo: sem dados de demonstração, sem a Noord Shop; só o login admin do Breno (org "Loja Maanu",
   `plan='admin'`, com o CPF dele em dados de cobrança). Histórico do admin (`admin_audit_log`) mantido (é imutável).
 - ✅ (Sessão 15b) Auth: Site URL `https://maanu.com.br`; redirects `https://maanu.com.br/**` e (só durante a semana de teste)
-  `https://mlresponde-v2.vercel.app/**`; localhost removido.
+  `https://mlresponde-v2.vercel.app/**`; localhost removido. (Sessão 27) + `https://app.maanu.com.br/**`; o Site URL vira
+  `https://app.maanu.com.br` junto com o `APP_HOST` (§13 item 0k).
 - ✅ (Sessão 15b) **SMTP próprio** (Resend, `nao-responda@maanu.com.br`), e-mails em português aplicados
   (`node scripts/emails-auth/gerar.mjs` → PATCH `config/auth`) e limite de 30 e-mails/hora.
 - ⏳ **Pendente antes de abrir para todos os clientes:** (2) **CAPTCHA no cadastro** (Cloudflare Turnstile; chave +
@@ -1396,6 +1404,9 @@ webhook do ML validado, fila/reprocessamento de jobs, observabilidade, controle 
 | 2026-10-13 | Webhook do ML responde 200 **antes** de qualquer acesso ao banco (tudo em `after()`) | Regra do ML: 200 em até 500 ms, senão os tópicos podem ser desligados ("fall back") e é preciso se inscrever de novo. |
 | 2026-10-13 | Perguntas abre em **Respondidas pela IA**, o 1º cartão (ordem: IA, você, para responder, todas) | Pedido do Breno: o principal para o cliente é ver o que a IA resolveu. O que espera o vendedor continua sinalizado (ponto âmbar no cartão, contador no menu) e os atalhos de "aguardando você" abrem direto em Para responder. |
 | 2026-10-13 | Fotos do ML sempre em https (`mlImageUrl`), corrigidas também na hora de mostrar | O ML devolve http; corrigir na tela resolve as fotos já gravadas sem mexer no banco de produção. Endereço que não é do `mlstatic.com` vira o ícone de pacote (nunca imagem quebrada). |
+| 2026-10-16 | **Página de vendas em `maanu.com.br/` e indexável já**, antes de o app sair do domínio principal; `/institucional` → `/` com **308** | Pedido do Breno (página pronta). A raiz é o que o anúncio, o Google e o avaliador da AbacatePay abrem; o app continua funcionando nos mesmos caminhos até o `APP_HOST`. 308 porque o endereço antigo nunca volta (estava fora do Google, nada a perder). |
+| 2026-10-16 | **Webhooks e retorno do OAuth do ML ficam em `maanu.com.br`** mesmo com o app em `app.maanu.com.br` (`webhookBaseUrl`; `ML_REDIRECT_URI` não muda) | O domínio principal continua servindo `/api/webhook/*` e redireciona o retorno do OAuth (307, com a busca) para o app, onde está o cookie. Assim nada é recadastrado no DevCenter do ML nem na AbacatePay e não surgem 2 webhooks entregando o mesmo evento. Se um dia o domínio principal sair da Vercel, mudar os dois cadastros antes. |
+| 2026-10-16 | `APP_HOST` **só depois do DNS e do HTTPS de `app.maanu.com.br`** (a IA confere antes de ligar) | Com a variável e sem DNS, o domínio principal mandaria login/painel/e-mails para um endereço que não abre: app fora do ar para os clientes. |
 | 2026-10-16 | **Só o plano mensal**: anual removido da Assinatura, da página de vendas, das Dúvidas, do `llms.txt`, dos Termos e do painel; produtos ANNUALLY da AbacatePay ignorados | Decisão do Breno ("vamos trabalhar sem o anual por enquanto"). Menos coisa para explicar e manter. O banco continua aceitando `annual` (nada destrutivo). Voltar: devolver `priceAnnual`, o ciclo `annual` em `BILLING_CYCLES`, o seletor e os textos (ver o commit da Sessão 23d). |
 | 2026-10-16 | Plano **anual só aparece quando existem os produtos anuais** na AbacatePay (sem nenhum, a Assinatura oferece só o mensal) | O Breno criou só os mensais em produção; botões "indisponível" no anual pareceriam erro. Volta sozinho quando os produtos forem criados. **Substituída** no mesmo dia pela decisão "só o plano mensal" (Sessão 23d). |
 | 2026-10-14 | Cobrança pela **página hospedada da AbacatePay** (checkout de assinatura), cartão por padrão; sem checkout transparente | O cartão nunca passa pela maanu (sem PCI) e é o caminho da documentação para assinaturas. PIX Automático fica por variável quando a AbacatePay liberar. |
@@ -1418,11 +1429,35 @@ webhook do ML validado, fila/reprocessamento de jobs, observabilidade, controle 
 | 2026-10-15 | Fora de `maanu.com.br` (endereço da Vercel, prévias, futuro `app.maanu.com.br`) todas as respostas levam `X-Robots-Tag: noindex, nofollow`; termos e privacidade com canonical fixo no domínio principal | Evita conteúdo duplicado e o app aparecendo no Google no lugar da página de vendas. |
 | 2026-10-15 | Respostas das Dúvidas no HTML mesmo fechadas (`hiddenUntilFound` do Accordion) e animação do título do topo sem esconder o texto | Buscadores e IAs leem o que está no HTML; o título apagado no início atrasava a "maior pintura" (LCP) que o Google mede. |
 | 2026-10-15 | `TooltipProvider` e `Toaster` (sonner) saíram do layout raiz para os layouts das áreas que usam (`components/providers/app-providers.tsx`); menu do celular da página de vendas carregado só quando tocado | Menos JavaScript para quem chega pelo anúncio no celular (o que mais pesa na nota de velocidade). |
+| 2026-10-15 | Criativos para Instagram usam o formato 1080×1350, direção editorial clean e apenas a paleta/logos oficiais da maanu | Apresentação da marca com leitura rápida no feed; evitar estética genérica ou artificial e manter as peças prontas para avaliação antes de publicar. |
 | 2026-10-14 | Cliente sem `is_platform_admin` abre `/admin/*` → tela **`/acesso-negado`** com mensagem em português e botão de retorno ao painel (substitui o 404 da Sessão 13) | Pedido do Breno. Redirecionamento no servidor, mantendo MFA, proteção das ações e RLS. API estável do Next (`redirect`), sem habilitar `forbidden`/`authInterrupts` experimentais. |
 
 ---
 
 ## 12. Diário de sessões (mais recente no topo)
+
+### 2026-10-16 — Sessão 27 · Troca de endereços: página de vendas na raiz e app em app.maanu.com.br (IA: Claude, via app Codex)
+- Pedido do Breno: "a plataforma vai passar a responder em app.maanu.com.br e o /institucional vai responder no domínio
+  principal. Me passe tudo que eu preciso fazer e atualize do seu lado tudo que conseguir."
+- Código (commits `30b0cbe` + `42b7ec8` na `v2`; o 1º saiu só com a mudança de pasta por um `git add` que falhou, e o deploy
+  dele foi **cancelado** antes de terminar, então a produção nunca o serviu): `app/(site)/institucional/page.tsx` →
+  `app/(site)/page.tsx`, `app/page.tsx` apagado, `SALES_PAGE_PATH = "/"`, `SALES_PAGE_INDEXABLE = true`,
+  `SITE_CONTENT_UPDATED = 2026-10-16`, `/institucional` → `/` (308, `next.config.ts`, busca preservada) e
+  `webhookBaseUrl` (`lib/site/host.ts`): com `APP_HOST`, o webhook da AbacatePay continua em `maanu.com.br` (o painel
+  Cobrança não pede recadastro). `.env.example` atualizado. Testes novos em `site.test.ts` e `site-seo.test.ts` (raiz,
+  sitemap, webhook). typecheck, 460 testes, lint e build ok (`/` estática). Conferido com `next start` +
+  `APP_HOST=app.localhost`: domínio principal serve página/termos/llms.txt/sitemap/webhook; login, painel, `/auth/confirm`
+  e retorno do OAuth vão para o app com a busca; no app, `/` → `/painel`.
+- Infra: `app.maanu.com.br` adicionado ao projeto Vercel `maanu` (API; aguardando DNS: CNAME `app` →
+  `5205331b18becd29.vercel-dns-016.com`, o mesmo do `www`); Supabase Auth com `https://app.maanu.com.br/**` nos redirects
+  (Site URL mantido). **Não** foram criadas/alteradas variáveis na Vercel: `APP_HOST` sem DNS derrubaria o app.
+- Produção (deploy `dpl_H3U4pDJwwhV2SUMpgzA3aaFKdfpv` READY): `maanu.com.br/` 200 com a página de vendas (`index, follow`,
+  canonical `https://maanu.com.br`), `/institucional?utm_source=ig` → 308 `/?utm_source=ig`, `/login` e `/cadastro` 200,
+  `/painel` → login, sitemap com a raiz, webhook do ML 200.
+- Observação: cache `.next/dev/types` antigo (de um `next dev` anterior) fazia o typecheck acusar `app/page.js` e
+  `institucional/page.js` inexistentes; rodar `next dev` uma vez regenera (apagar arquivos foi bloqueado pela política do app).
+- Falta: Breno criar o CNAME no Cloudflare e avisar; a IA liga `APP_HOST`/`NEXT_PUBLIC_SITE_URL`, faz o redeploy e troca o
+  Site URL do Supabase (checklist em §13 item 0k); depois, Search Console/Bing e avisar os clientes do endereço novo.
 
 ### 2026-10-16 — Sessão 23d · Só o plano mensal (IA: Claude, via app Codex)
 - Pedido do Breno: "vamos trabalhar sem o anual por enquanto… remover tudo que tem anual e deixar apenas o mensal" (ele
@@ -1466,6 +1501,13 @@ webhook do ML validado, fila/reprocessamento de jobs, observabilidade, controle 
 - O webhook do modo de teste continua no Dev mode da AbacatePay (mesmo endereço): eventos de teste chegam com
   `devMode: true` e são ignorados (não estão ligados a nenhuma loja). Pode ser apagado lá.
 
+### 2026-10-15 — Sessão 26 · Carrossel de apresentação da maanu
+- Pedido do Breno: criar a pasta `CRIATIVOS` na página do projeto e quatro imagens para um carrossel do Instagram,
+  apresentando a maanu com identidade visual consistente, visual clean e sem cara de IA.
+- Feito: quatro PNGs 1080×1350 em `CRIATIVOS/`: capa, apresentação da IA, fluxo pergunta → resposta e fechamento com CTA.
+  As peças usam os logos oficiais, grafite/off-white/teal/mint, tipografia geométrica e elementos de conversa desenhados
+  para o formato 4:5. Aguardando avaliação do Breno; ainda não há publicação nem alteração de código/produto.
+
 ### 2026-10-14 — Sessão 25 · Página de vendas e endereço do app (IA: Claude, via app Codex)
 - Pedido do Breno: criar a página de vendas para os anúncios (todo o conteúdo e copy), inspirada no layout da
   `abacatepay.com` sem copiar e sem cara de modelo de IA, com a logo/cores da maanu "mais vivas", animações e tecnologia; onde
@@ -1488,7 +1530,7 @@ webhook do ML validado, fila/reprocessamento de jobs, observabilidade, controle 
   maanu não é afiliada ao Mercado Livre; botão fixo "Testar grátis" no celular. Dados estruturados (SoftwareApplication +
   FAQPage), canonical `maanu.com.br`, robots e sitemap.
 - Endereços: `lib/site/host.ts` + `proxy.ts` (variável `APP_HOST`, §5). Opinião dada ao Breno: vale a pena e dá para mudar
-  sem quebrar nada (passo a passo em §13 item 0i).
+  sem quebrar nada (passo a passo em §13 item 0k, desde a Sessão 27).
 - Testes novos `tests/unit/site.test.ts` (endereços e calculadora). Conferido no navegador local (1280 e 390 px: topo,
   demo, faixa, linha do dia, passos, recursos, calculadora com teclado, planos mensal/anual, dúvidas, menu do celular) e,
   com `next start` + `APP_HOST=app.localhost`, os redirecionamentos (login, painel, `/auth/confirm` e retorno do OAuth com a
@@ -2186,37 +2228,59 @@ webhook do ML validado, fila/reprocessamento de jobs, observabilidade, controle 
 
 ## 13. Próximos passos
 
-0i. **Breno — página de vendas (Sessão 25; no ar em `https://maanu.com.br/institucional` desde 2026-10-15, fora do
-   Google).** (a) Revisar com o sócio pelo link (ajustes: pedir à IA; cada push na `v2` publica). (b) Imagens: nenhuma pendente (todas as telas são
-   desenhadas em código; se quiser fotos/prints reais depois, é só pedir).
-   Prints podem ser da conta admin com dados fictícios (nunca de cliente). (c) ✅ CNPJ no rodapé (sem razão social) e ✅
+0k. **TROCA DE ENDEREÇOS (Sessão 27, 2026-10-16): falta 1 passo do Breno (DNS) e o fechamento da IA.**
+   Feito: página de vendas em `maanu.com.br/` (indexável e no sitemap; `/institucional` → `/` com 308);
+   `app.maanu.com.br` adicionado ao projeto Vercel `maanu` (aguardando o DNS); `https://app.maanu.com.br/**` nos
+   redirects do Supabase Auth (Site URL ainda `https://maanu.com.br`); webhook da AbacatePay fixo no domínio principal
+   (`webhookBaseUrl`, nada a recadastrar). Enquanto `APP_HOST` não existe, o app continua funcionando em
+   `maanu.com.br/login`, `/painel` etc.; só `maanu.com.br/` virou a página de vendas (quem cai nela clica em "Entrar").
+   1. **Breno, Cloudflare** (`maanu.com.br` → DNS → Records → Add record): Type `CNAME`, Name `app`, Target
+      `5205331b18becd29.vercel-dns-016.com`, Proxy status **DNS only** (nuvem cinza), TTL Auto. (Igual ao `www`.)
+   2. **IA, quando o Breno avisar.** ⚠️ **NUNCA antes de o DNS e o HTTPS existirem**: com `APP_HOST` e sem DNS, o domínio
+      principal manda todo mundo para um endereço que não abre (app fora do ar para os clientes).
+      a. Conferir: `Resolve-DnsName app.maanu.com.br -Server 1.1.1.1` responde; Vercel
+         `GET /v6/domains/app.maanu.com.br/config?projectIdOrName=maanu` com `misconfigured: false`;
+         `https://app.maanu.com.br/login` abre com certificado válido (a Vercel emite em alguns minutos depois do DNS).
+      b. Vercel `maanu` Production: criar `APP_HOST=app.maanu.com.br` e trocar `NEXT_PUBLIC_SITE_URL` para
+         `https://app.maanu.com.br` (tipo encrypted, como hoje). `ML_REDIRECT_URI` **fica**
+         `https://maanu.com.br/api/auth/callback/mercadolivre`: o retorno do OAuth é redirecionado (307, com a busca) para o
+         app, onde está o cookie do OAuth, e o `redirect_uri` da troca do código continua igual ao da autorização. Nada muda
+         no DevCenter do ML (notificações seguem em `maanu.com.br/api/webhook/mercadolivre`).
+      c. Redeploy do último deploy de produção e esperar READY (variável só vale em deploy novo).
+      d. Supabase Auth (Management API `PATCH /v1/projects/ookosqyfazobiwmopiix/config/auth`, token da CLI no Gerenciador
+         de Credenciais): `site_url` = `https://app.maanu.com.br` (os links dos e-mails usam `{{ .SiteURL }}`). Manter
+         `https://maanu.com.br/**` nos redirects (e-mails já enviados continuam valendo pelo redirecionamento).
+      e. Testar em produção: `maanu.com.br/` 200 (página de vendas, sem `X-Robots-Tag`); `maanu.com.br/login?next=x` → 307
+         `app.maanu.com.br/login?next=x`; `app.maanu.com.br/` → `/painel`; `app.maanu.com.br/login` 200 com
+         `X-Robots-Tag: noindex, nofollow`; `POST maanu.com.br/api/webhook/mercadolivre` 200; "Entrar"/"Testar grátis" da
+         página e o `/llms.txt` apontando para `app.maanu.com.br`; Admin → Cobrança com o webhook cadastrado (endereço
+         `https://maanu.com.br/api/webhook/abacatepay`, o mesmo de antes); logs da Vercel sem erro.
+      Voltar atrás: apagar `APP_HOST`, devolver `NEXT_PUBLIC_SITE_URL=https://maanu.com.br` e o Site URL do Supabase →
+      Redeploy (o domínio principal volta a servir o app; a página de vendas continua em "/").
+   3. **Breno, depois da troca:** avisar os clientes em teste (Girassol Moda Jeans, Descomplicasa) que o endereço do app é
+      `app.maanu.com.br` (links antigos levam para lá; quem estava logado entra de novo uma vez); no cadastro da
+      AbacatePay, o site é `https://maanu.com.br`; Google Search Console e Bing (item 0i (e)). Opcional (não precisa):
+      adicionar `https://app.maanu.com.br/api/auth/callback/mercadolivre` como 2ª URL de retorno no DevCenter do ML.
+
+0j. **Breno — avaliar o carrossel de Instagram (Sessão 26):** revisar as quatro peças em `CRIATIVOS/` e pedir ajustes de
+   texto, composição ou cor antes de publicar. Não publicar os criativos sem essa revisão.
+
+0i. **Breno — página de vendas (Sessão 25; em `https://maanu.com.br/` desde 2026-10-16, Sessão 27; antes em
+   `/institucional`, que agora redireciona para "/").** (a) Ajustes: pedir à IA (cada push na `v2` publica). (b) Imagens:
+   nenhuma pendente (todas as telas são desenhadas em código; se quiser fotos/prints reais depois, é só pedir). Prints
+   podem ser da conta admin com dados fictícios (nunca de cliente). (c) ✅ CNPJ no rodapé (sem razão social) e ✅
    WhatsApp/telefone (31) 99263-0934 (2026-10-16). **Falta o e-mail de contato** (a AbacatePay pede e-mail e WhatsApp,
    §13 0g item 6): Breno manda o endereço → IA coloca em `companyInfo.email` (`lib/config/site.ts`); Instagram é opcional.
-   No cadastro da AbacatePay, informar o site como **`https://maanu.com.br/institucional`** (em `maanu.com.br` abre o login). (d) ✅ Publicada em `/institucional` (merge na `v2`, 2026-10-15); "/" continua sendo o app. Ideias não feitas: Pixel da Meta/Google (para medir os anúncios), depoimentos reais
-   quando houver, vídeo curto da maanu respondendo.
-   (e) **SEO, quando a página for para "/"** (não antes: em `/institucional` ela está com `noindex`). IA: mover
-   `app/(site)/institucional/page.tsx` para `app/(site)/page.tsx`, apagar `app/page.tsx`, `SALES_PAGE_PATH = "/"`,
-   `SALES_PAGE_INDEXABLE = true`, redirecionar `/institucional` → `/` (308, `next.config.ts`) e ajustar os testes. Breno, uma vez: Google Search Console → "Adicionar propriedade" → **Domínio**
-   `maanu.com.br` → copiar o registro TXT → Cloudflare → DNS → TXT na raiz (`@`) → Verificar → Sitemaps: enviar
-   `https://maanu.com.br/sitemap.xml` → Inspeção de URL na home → "Solicitar indexação". Bing Webmaster Tools → "Importar do
-   Google Search Console" (o Bing alimenta a busca do ChatGPT e do Copilot). Colocar o link `maanu.com.br` no Instagram e
-   nos perfis da marca (links de fora ajudam o Google e as IAs a acharem a página). Ao mudar textos da página, atualizar
-   `SITE_CONTENT_UPDATED` em `lib/site/seo.ts`. Ideia não feita: blog/guias ("como responder perguntas no Mercado Livre")
-   para atrair busca orgânica de quem ainda não conhece a maanu.
-   **Troca do app para `app.maanu.com.br` (com o "pode fazer" do Breno; junto, a página de vendas vai para "/", item (e)):**
-   1. IA: adicionar `app.maanu.com.br` ao projeto Vercel `maanu` (mostra o CNAME). Breno, no Cloudflare: `CNAME app → <valor
-      da Vercel>`, **DNS only** (nuvem cinza). Esperar o HTTPS ficar pronto.
-   2. Breno, DevCenter do ML (app `8693830632560554`): **adicionar** a URL de retorno
-      `https://app.maanu.com.br/api/auth/callback/mercadolivre` (manter a antiga). A URL de notificações pode continuar em
-      `maanu.com.br` (o domínio principal continua aceitando webhooks).
-   3. IA, Vercel `maanu` Production: `APP_HOST=app.maanu.com.br`, `NEXT_PUBLIC_SITE_URL=https://app.maanu.com.br`,
-      `ML_REDIRECT_URI=https://app.maanu.com.br/api/auth/callback/mercadolivre` → Redeploy.
-   4. IA, Supabase Auth (Management API): Site URL `https://app.maanu.com.br` e redirect `https://app.maanu.com.br/**`
-      (manter `https://maanu.com.br/**` um tempo, por causa de e-mails já enviados).
-   5. Admin → Cobrança → "Cadastrar webhook na AbacatePay" de novo (endereço novo; o antigo continua funcionando).
-   6. Testar: página de vendas em `maanu.com.br`, `maanu.com.br/login` → `app.maanu.com.br/login`, cadastro com e-mail,
-      "esqueci a senha", conectar conta do ML, Assinatura. Quem estava logado entra de novo uma vez.
-   Voltar atrás: apagar `APP_HOST` e devolver as 2 variáveis → Redeploy (o domínio principal volta a servir o app).
+   No cadastro da AbacatePay, o site agora é **`https://maanu.com.br`**. (d) ✅ Publicada (Sessão 25b em `/institucional`,
+   Sessão 27 em "/"). Ideias não feitas: Pixel da Meta/Google (para medir os anúncios), depoimentos reais quando houver,
+   vídeo curto da maanu respondendo.
+   (e) **SEO: ligado na Sessão 27** (`SALES_PAGE_INDEXABLE = true`, página no sitemap). Breno, uma vez: Google Search
+   Console → "Adicionar propriedade" → **Domínio** `maanu.com.br` → copiar o registro TXT → Cloudflare → DNS → TXT na raiz
+   (`@`) → Verificar → Sitemaps: enviar `https://maanu.com.br/sitemap.xml` → Inspeção de URL na home → "Solicitar
+   indexação". Bing Webmaster Tools → "Importar do Google Search Console" (o Bing alimenta a busca do ChatGPT e do Copilot).
+   Colocar o link `maanu.com.br` no Instagram e nos perfis da marca (links de fora ajudam o Google e as IAs a acharem a
+   página). Ao mudar textos da página, atualizar `SITE_CONTENT_UPDATED` em `lib/site/seo.ts`. Ideia não feita:
+   blog/guias ("como responder perguntas no Mercado Livre") para atrair busca orgânica de quem ainda não conhece a maanu.
 0h. **Breno — conferir o aviso de acesso restrito (Sessão 24):** com um cliente comum logado, abrir
    `maanu.com.br/admin/cobranca` e conferir "Você não tem acesso a esta página" e "Voltar ao meu painel".
 0g. **Breno — cobrança pela AbacatePay (Sessão 23).** ✅ **No ar em produção desde 2026-10-16 (Sessão 23c).** Faltam:
