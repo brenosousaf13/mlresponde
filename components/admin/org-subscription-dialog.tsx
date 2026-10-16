@@ -24,7 +24,7 @@ import { InputGroup, InputGroupAddon, InputGroupInput, InputGroupText } from "@/
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { toDateInput } from "@/lib/admin/format"
 import { SUBSCRIPTION_STATUSES } from "@/lib/admin/labels"
-import { BILLING_CYCLE_LABELS, monthlyPrice, PLANS, sellablePlan, type BillingCycle } from "@/lib/plans/plans"
+import { BILLING_CYCLE_LABELS, PLANS, sellablePlan, type BillingCycle } from "@/lib/plans/plans"
 import { formatNumber } from "@/lib/format"
 import type { FormState } from "@/lib/validation/forms"
 
@@ -73,9 +73,8 @@ export function OrgSubscriptionDialog({ values }: { values: SubscriptionValues }
     const sellable = sellablePlan(nextPlan)
     if (!sellable) return
     setAccountsLimit(String(sellable.limits.mlAccounts))
-    const billing: BillingCycle = nextCycle === "annual" ? "annual" : "monthly"
     if (nextCycle === NO_CYCLE) setCycle("monthly")
-    setPrice(priceText(Math.round(monthlyPrice(sellable, billing) * 100) / 100))
+    setPrice(priceText(sellable.priceMonthly))
   }
 
   function reset() {
@@ -244,7 +243,7 @@ export function OrgSubscriptionDialog({ values }: { values: SubscriptionValues }
                     ))}
                   </SelectContent>
                 </Select>
-                <FieldDescription>No anual, a mensalidade é o total ÷ 12.</FieldDescription>
+                <FieldDescription>A maanu só vende o plano mensal.</FieldDescription>
                 <FieldError errors={fieldErrors(state, "billing_cycle")} />
               </Field>
               <Field data-invalid={invalid("monthly_answers_limit")}>

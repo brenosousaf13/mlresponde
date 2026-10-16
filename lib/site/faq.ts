@@ -3,7 +3,7 @@
  * (FAQPage) e o /llms.txt — mudou aqui, muda nos três.
  */
 import { siteConfig } from "@/lib/config/site"
-import { SELLABLE_PLANS, formatPrice, monthlyPrice } from "@/lib/plans/plans"
+import { SELLABLE_PLANS, formatPrice } from "@/lib/plans/plans"
 
 export type FaqItem = { id: string; question: string; answer: string }
 
@@ -16,8 +16,7 @@ function pricingAnswer(): string {
         plan.limits.mlAccounts === 1 ? "1 conta" : `${plan.limits.mlAccounts} contas`
       } do Mercado Livre)`
   )
-  const annual = SELLABLE_PLANS.map((plan) => formatPrice(monthlyPrice(plan, "annual"))).join(", ")
-  return `São três planos: ${plans.join("; ")}. No plano anual, você ganha 2 meses grátis (sai por ${annual} por mês). Todos começam com ${siteConfig.trialDays} dias grátis, sem cartão.`
+  return `São três planos, todos com cobrança mensal e sem fidelidade: ${plans.join("; ")}. Todos começam com ${siteConfig.trialDays} dias grátis, sem cartão.`
 }
 
 export const FAQ: readonly FaqItem[] = [

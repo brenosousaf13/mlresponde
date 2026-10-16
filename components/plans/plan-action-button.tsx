@@ -21,7 +21,7 @@ import { Spinner } from "@/components/ui/spinner"
 import type { CheckoutAvailability } from "@/lib/billing/abacatepay/catalog"
 import { isUpgrade, planIntent, type CurrentSubscription } from "@/lib/billing/subscription"
 import { formatDate } from "@/lib/format"
-import { BILLING_CYCLE_LABELS, formatPrice, planName, type BillingCycle, type SellablePlan } from "@/lib/plans/plans"
+import { formatPrice, planName, type SellablePlan } from "@/lib/plans/plans"
 
 export type PlanPickerBilling = {
   /** Contratação pelo app ligada para este usuário. */
@@ -34,8 +34,8 @@ export type PlanPickerBilling = {
   nextChargeAt: string | null
 }
 
-function priceText(plan: SellablePlan, cycle: BillingCycle) {
-  return cycle === "annual" ? `${formatPrice(plan.priceAnnual)} por ano` : `${formatPrice(plan.priceMonthly)} por mês`
+function priceText(plan: SellablePlan) {
+  return `${formatPrice(plan.priceMonthly)} por mês`
 }
 
 type Confirmation = { title: string; description: string; confirm: string; run: () => void }
@@ -43,16 +43,14 @@ type Confirmation = { title: string; description: string; confirm: string; run: 
 /** Tempo mínimo da tela de espera, para o cliente conseguir ler que vai para a AbacatePay. */
 const MIN_REDIRECT_MESSAGE_MS = 1800
 
-/** Botão de cada plano na tela Assinatura: assinar, trocar de plano ou assinar de novo (outro ciclo ou outro cartão). */
+/** Botão de cada plano na tela Assinatura: assinar, trocar de plano ou assinar de novo com outro cartão. */
 export function PlanActionButton({
   plan,
-  cycle,
   billing,
   highlight,
   legacyCurrent,
 }: {
   plan: SellablePlan
-  cycle: BillingCycle
   billing: PlanPickerBilling
   highlight: boolean
   /** Contratação desligada: o plano já é o da organização (cadastrado pela equipe). */
@@ -87,7 +85,7 @@ export function PlanActionButton({
   }
 
   const current = billing.current
-  const intent = planIntent(current, plan.id, cycle)
+  const intent = planIntent(current, plan.id)
   const nextCharge = billing.nextChargeAt ? formatDate(billing.nextChargeAt) : null
 
   if (intent === "current") {
@@ -106,14 +104,14 @@ export function PlanActionButton({
     )
   }
 
-  if (!billing.availability?.[plan.id]?.[cycle]) {
+  if (!billing.availability?.[plan.id]?.monthly) {
     return (
       <>
         <Button disabled variant={variant} className="w-full">
           Assinar o {plan.name}
         </Button>
         <p className="text-center text-xs text-muted-foreground">
-          {cycle === "annual" ? "Plano anual indisponível no momento" : "Indisponível no momento"}
+          Indisponível no momento
         </p>
       </>
     )
@@ -134,7 +132,7 @@ export function PlanActionButton({
     const startedAt = Date.now()
     setRedirect({ url: null })
     startTransition(async () => {
-      const result = await subscribeToPlan(plan.id, cycle)
+      const result = await subscribeToPlan(plan.id)
       if (result.ok && result.url) {
         const url = result.url
         setRedirect({ url })
@@ -162,37 +160,27 @@ export function PlanActionButton({
   let label = `Assinar o ${plan.name}`
   let onClick = goToCheckout
   if (intent === "change_plan" && current) {
-    const upgrade = isUpgrade(current.plan, plan.id, current.cycle)
+    const upgrade = isUpgrade(current.plan, plan.id)
     label = `Mudar para o ${plan.name}`
     onClick = () =>
       setConfirmation({
         title: `Mudar para o plano ${plan.name}?`,
         description: upgrade
-          ? `O ${plan.name} fica liberado agora mesmo. A partir da próxima cobrança${nextCharge ? ` (${nextCharge})` : ""}, o valor passa a ser ${priceText(plan, cycle)}.`
-          : `Você continua com o plano ${planName(current.plan)} até ${nextCharge ?? "a próxima cobrança"}. Depois, o plano muda para o ${plan.name} e passa a custar ${priceText(plan, cycle)}. Se houver mais contas do Mercado Livre ativas do que o ${plan.name} permite, as mais novas ficam inativas.`,
+          ? `O ${plan.name} fica liberado agora mesmo. A partir da próxima cobrança${nextCharge ? ` (${nextCharge})` : ""}, o valor passa a ser ${priceText(plan)}.`
+          : `Você continua com o plano ${planName(current.plan)} até ${nextCharge ?? "a próxima cobrança"}. Depois, o plano muda para o ${plan.name} e passa a custar ${priceText(plan)}. Se houver mais contas do Mercado Livre ativas do que o ${plan.name} permite, as mais novas ficam inativas.`,
         confirm: `Mudar para o ${plan.name}`,
         run: requestChange,
       })
   } else if (intent === "replace" && current) {
-    if (current.paymentFailing) {
-      label = current.plan === plan.id && current.cycle === cycle ? "Pagar com outro cartão" : `Assinar o ${plan.name}`
-      onClick = () =>
-        setConfirmation({
-          title: "Assinar de novo com outro cartão?",
-          description: `Abrimos uma página de pagamento nova (${plan.name}, ${priceText(plan, cycle)}). Quando o pagamento for aprovado, a assinatura com a cobrança recusada é cancelada.`,
-          confirm: "Ir para o pagamento",
-          run: goToCheckout,
-        })
-    } else {
-      label = `Assinar o ${plan.name} ${BILLING_CYCLE_LABELS[cycle].toLowerCase()}`
-      onClick = () =>
-        setConfirmation({
-          title: `Trocar para o pagamento ${BILLING_CYCLE_LABELS[cycle].toLowerCase()}?`,
-          description: `A troca entre mensal e anual começa uma assinatura nova, cobrada agora (${priceText(plan, cycle)}). Quando o pagamento for aprovado, a assinatura atual é cancelada e não terá novas cobranças.`,
-          confirm: "Ir para o pagamento",
-          run: goToCheckout,
-        })
-    }
+    // Cobrança recusada: assinatura nova com outro cartão (a anterior é cancelada quando a nova for paga).
+    label = current.plan === plan.id ? "Pagar com outro cartão" : `Assinar o ${plan.name}`
+    onClick = () =>
+      setConfirmation({
+        title: "Assinar de novo com outro cartão?",
+        description: `Abrimos uma página de pagamento nova (${plan.name}, ${priceText(plan)}). Quando o pagamento for aprovado, a assinatura com a cobrança recusada é cancelada.`,
+        confirm: "Ir para o pagamento",
+        run: goToCheckout,
+      })
   }
 
   return (
@@ -207,7 +195,7 @@ export function PlanActionButton({
       <CheckoutRedirectDialog
         open={redirect !== null}
         url={redirect?.url ?? null}
-        summary={`Plano ${plan.name} · ${priceText(plan, cycle)}`}
+        summary={`Plano ${plan.name} · ${priceText(plan)}`}
       />
       <AlertDialog open={confirmation !== null} onOpenChange={(open) => (open ? null : setConfirmation(null))}>
         <AlertDialogContent>

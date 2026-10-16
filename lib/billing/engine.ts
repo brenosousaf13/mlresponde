@@ -60,9 +60,8 @@ export type SubscriptionRow = {
   dev_mode: boolean
 }
 
-function asCycle(value: string | null | undefined): BillingCycle {
-  return value === "annual" ? "annual" : "monthly"
-}
+/** Só existe o mensal (desde 2026-10-16). */
+const CYCLE: BillingCycle = "monthly"
 
 function toStored(row: SubscriptionRow): StoredSubscription {
   return {
@@ -70,7 +69,7 @@ function toStored(row: SubscriptionRow): StoredSubscription {
     subscriptionId: row.subscription_id,
     status: row.status === "cancelled" ? "cancelled" : "active",
     plan: row.plan,
-    cycle: asCycle(row.cycle),
+    cycle: CYCLE,
     amountCents: row.amount_cents,
     scheduledPlan: row.scheduled_plan,
     paymentFailures: row.payment_failures,
@@ -83,7 +82,6 @@ export function currentSubscriptionOf(row: SubscriptionRow | null): CurrentSubsc
   if (!row) return null
   return {
     plan: row.plan,
-    cycle: asCycle(row.cycle),
     status: row.status === "cancelled" ? "cancelled" : "active",
     paymentFailing: row.status === "active" && Boolean(row.payment_failed_at),
     scheduledPlan: row.scheduled_plan,
@@ -132,7 +130,8 @@ function providerMessage(error: unknown, fallback: string): string {
 }
 
 /** Cria (ou reaproveita) a página de pagamento da AbacatePay para o plano e a forma de pagamento escolhidos. */
-export async function startCheckout(actor: BillingActor, planId: string, cycle: BillingCycle): Promise<BillingActionResult> {
+export async function startCheckout(actor: BillingActor, planId: string): Promise<BillingActionResult> {
+  const cycle = CYCLE
   const settings = billingSettings()
   if (!settings.enabled) return fail("A contratação pelo app ainda não está disponível.")
   if (actor.organizationPlan === "admin") {
@@ -146,7 +145,7 @@ export async function startCheckout(actor: BillingActor, planId: string, cycle: 
 
   const admin = createServiceClient()
   const current = await loadSubscriptionByOrganization(admin, actor.organizationId)
-  const intent = planIntent(currentSubscriptionOf(current), plan.id, cycle)
+  const intent = planIntent(currentSubscriptionOf(current), plan.id)
   if (intent === "current") return fail("Você já assina este plano.")
   if (intent === "change_plan") return fail("Para trocar de plano, use o botão de troca do plano escolhido.")
 
@@ -156,7 +155,7 @@ export async function startCheckout(actor: BillingActor, planId: string, cycle: 
     if (catalogError) console.error("[cobrança] catálogo:", catalogError)
     return fail("Este plano não está disponível para contratação agora. Fale com o suporte.")
   }
-  const expected = expectedPriceCents(plan, cycle)
+  const expected = expectedPriceCents(plan)
 
   // Clicou de novo: reaproveita a página criada há pouco (mesmo plano, ciclo e ambiente).
   const devModeExpected = settings.keyMode === "test"
@@ -264,7 +263,7 @@ export async function startCheckout(actor: BillingActor, planId: string, cycle: 
   return { ok: true, message: "Abrindo a página de pagamento…", url: checkout.url }
 }
 
-/** Troca de plano na mesma assinatura (mesmo ciclo). Subir libera na hora; descer vale na próxima cobrança. */
+/** Troca de plano na mesma assinatura. Subir libera na hora; descer vale na próxima cobrança. */
 export async function requestPlanChange(actor: BillingActor, planId: string): Promise<BillingActionResult> {
   if (!billingSettings().enabled) return fail("A troca pelo app ainda não está disponível.")
   const plan = sellablePlan(planId)
@@ -273,10 +272,10 @@ export async function requestPlanChange(actor: BillingActor, planId: string): Pr
   const current = await loadSubscriptionByOrganization(admin, actor.organizationId)
   const state = currentSubscriptionOf(current)
   if (!current || !state) return fail("Você ainda não tem uma assinatura ativa.")
-  if (planIntent(state, plan.id, state.cycle) !== "change_plan") return fail("Esta troca não pode ser feita assim.")
+  if (planIntent(state, plan.id) !== "change_plan") return fail("Esta troca não pode ser feita assim.")
 
   const { catalog } = await getCatalog()
-  const entry = catalogEntry(catalog, plan.id, state.cycle)
+  const entry = catalogEntry(catalog, plan.id, CYCLE)
   if (!entry?.product || entry.status !== "ok") return fail("Este plano não está disponível para troca agora. Fale com o suporte.")
 
   try {
@@ -285,7 +284,7 @@ export async function requestPlanChange(actor: BillingActor, planId: string): Pr
     return fail(providerMessage(error, "O sistema de pagamento não aceitou a troca. Fale com o suporte."))
   }
 
-  if (isUpgrade(current.plan, plan.id, state.cycle)) {
+  if (isUpgrade(current.plan, plan.id)) {
     const { error } = await admin
       .from("billing_subscriptions")
       .update({ plan: plan.id, scheduled_plan: null, scheduled_at: null })
@@ -374,7 +373,7 @@ function toLinked(row: CheckoutRow | null): LinkedCheckout | null {
     id: row.id,
     organizationId: row.organization_id,
     plan: row.plan,
-    cycle: asCycle(row.cycle),
+    cycle: CYCLE,
     checkoutId: row.checkout_id,
     devMode: row.dev_mode,
   }
@@ -518,7 +517,7 @@ async function applyDecision(
           subscription_status: "active",
           billing_cycle: decision.cycle,
           current_period_end: decision.periodEnd,
-          monthly_price: monthlyPriceFromAmount(decision.amountCents, decision.cycle),
+          monthly_price: monthlyPriceFromAmount(decision.amountCents),
         })
         .eq("id", decision.organizationId)
       if (orgError) throw orgError
@@ -585,7 +584,7 @@ async function applyDecision(
       if (error) throw error
       const { error: orgError } = await admin
         .from("organizations")
-        .update({ plan: decision.plan, monthly_price: monthlyPriceFromAmount(decision.amountCents, decision.cycle) })
+        .update({ plan: decision.plan, monthly_price: monthlyPriceFromAmount(decision.amountCents) })
         .eq("id", decision.organizationId)
       if (orgError) throw orgError
       return `troca de plano aplicada: ${decision.plan}`

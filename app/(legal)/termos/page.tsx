@@ -44,7 +44,7 @@ const sections: LegalSection[] = [
     title: "Teste grátis, planos e pagamento",
     paragraphs: [
       `Novas contas têm ${siteConfig.trialDays} dias de teste grátis, sem necessidade de cartão. Ao final do teste, as funcionalidades ficam bloqueadas até a contratação de um plano.`,
-      "Os planos são cobrados de forma recorrente (mensal ou anual, conforme a escolha), até o cancelamento. Os limites e valores de cada plano são informados na página de assinatura.",
+      "Os planos são cobrados mensalmente, de forma recorrente, até o cancelamento. Os limites e valores de cada plano são informados na página de assinatura.",
       "O pagamento é processado pela AbacatePay, com cartão de crédito. Se uma cobrança for recusada, novas tentativas são feitas nos dias seguintes; se todas falharem, a assinatura é cancelada.",
       "A troca para um plano mais caro vale na hora, e o novo valor é cobrado a partir da próxima renovação. A troca para um plano mais barato vale a partir da próxima renovação.",
     ],

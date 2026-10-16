@@ -230,7 +230,7 @@ describe("formulários do painel", () => {
         monthly_price: "149,90",
         billing_exempt: "on",
         monthly_answers_limit: "2.000",
-        billing_cycle: "annual",
+        billing_cycle: "monthly",
       })
     )
     expect(ok.success).toBe(true)
@@ -242,7 +242,7 @@ describe("formulários do painel", () => {
         billing_exempt: true,
         current_period_end: null,
         monthly_answers_limit: 2000,
-        billing_cycle: "annual",
+        billing_cycle: "monthly",
       })
       expect(ok.data.trial_ends_at).toBe("2026-10-21T02:59:59.000Z")
     }

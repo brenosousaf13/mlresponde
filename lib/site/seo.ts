@@ -5,7 +5,7 @@
  * Regra: nada de nota, avaliação, depoimento ou número de clientes que não exista (Google pune e o CDC também).
  */
 import { companyInfo, siteConfig } from "@/lib/config/site"
-import { FEATURE_LABELS, SELLABLE_PLANS, SUPPORT_LABELS, formatPrice, monthlyPrice } from "@/lib/plans/plans"
+import { FEATURE_LABELS, SELLABLE_PLANS, SUPPORT_LABELS, formatPrice } from "@/lib/plans/plans"
 import { formatWhatsapp, normalizeWhatsapp } from "@/lib/validation/forms"
 
 import { FAQ } from "./faq"
@@ -233,7 +233,7 @@ function planLine(plan: (typeof SELLABLE_PLANS)[number]): string {
     ...(listingImprovementsPerMonth ? [`${FEATURE_LABELS.melhorias_anuncio} (${listingImprovementsPerMonth} análises por mês)`] : []),
     SUPPORT_LABELS[plan.support].toLowerCase(),
   ]
-  return `- **${plan.name}** — ${formatPrice(plan.priceMonthly)}/mês (no anual, ${formatPrice(monthlyPrice(plan, "annual"))}/mês): ${parts.join("; ")}.`
+  return `- **${plan.name}** — ${formatPrice(plan.priceMonthly)}/mês: ${parts.join("; ")}.`
 }
 
 /**

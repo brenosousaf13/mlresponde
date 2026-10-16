@@ -3,11 +3,10 @@
  * cliente escolhe um plano, e os textos da tela Assinatura.
  */
 
-import { sellablePlan, type BillingCycle } from "@/lib/plans/plans"
+import { sellablePlan } from "@/lib/plans/plans"
 
 export type CurrentSubscription = {
   plan: string
-  cycle: BillingCycle
   status: "active" | "cancelled"
   /** A última cobrança foi recusada (a AbacatePay está tentando de novo). */
   paymentFailing: boolean
@@ -16,27 +15,24 @@ export type CurrentSubscription = {
 
 /**
  *  - subscribe: não tem assinatura ativa → página de pagamento;
- *  - change_plan: mesma forma de pagamento (mensal/anual), outro plano → troca na própria assinatura;
- *  - replace: outra forma de pagamento, ou cobrança recusada (pagar com outro cartão) → assinatura nova; quando ela é
- *    paga, a anterior é cancelada;
+ *  - change_plan: outro plano → troca na própria assinatura;
+ *  - replace: cobrança recusada (pagar com outro cartão) → assinatura nova; quando ela é paga, a anterior é cancelada;
  *  - current: é o plano atual.
  */
 export type PlanIntent = "subscribe" | "change_plan" | "replace" | "current"
 
-export function planIntent(current: CurrentSubscription | null, plan: string, cycle: BillingCycle): PlanIntent {
+export function planIntent(current: CurrentSubscription | null, plan: string): PlanIntent {
   if (!current || current.status !== "active") return "subscribe"
   if (current.paymentFailing) return "replace"
-  if (current.cycle !== cycle) return "replace"
   return current.plan === plan ? "current" : "change_plan"
 }
 
-/** Subir de plano (mais caro no mesmo ciclo) libera na hora; descer vale a partir da próxima cobrança. */
-export function isUpgrade(fromPlan: string, toPlan: string, cycle: BillingCycle): boolean {
+/** Subir de plano (mais caro) libera na hora; descer vale a partir da próxima cobrança. */
+export function isUpgrade(fromPlan: string, toPlan: string): boolean {
   const from = sellablePlan(fromPlan)
   const to = sellablePlan(toPlan)
   if (!from || !to) return false
-  const price = (plan: typeof from) => (cycle === "annual" ? plan.priceAnnual : plan.priceMonthly)
-  return price(to) > price(from)
+  return to.priceMonthly > from.priceMonthly
 }
 
 const CANCEL_REASONS: Record<string, string> = {

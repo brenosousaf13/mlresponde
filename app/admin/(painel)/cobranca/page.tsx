@@ -40,7 +40,7 @@ const IGNORED_REASONS: Record<string, string> = {
   archived: "arquivado",
   no_plan: "o nome não diz o plano (Starter, Pro ou Escala)",
   no_cycle: "sem recorrência (é avulso)",
-  unsupported_cycle: "recorrência que a maanu não vende (só mensal e anual)",
+  unsupported_cycle: "recorrência que a maanu não vende (só mensal) — pode arquivar na AbacatePay",
 }
 
 function Check({ ok, children }: { ok: boolean; children: React.ReactNode }) {
@@ -63,11 +63,7 @@ export default async function AdminBillingPage() {
   const missingEvents = ourWebhooks.length
     ? SUBSCRIPTION_EVENTS.filter((event) => !ourWebhooks.some((webhook) => webhook.events.includes(event)))
     : []
-  const ready = (cycle: string) => catalog.catalog?.entries.filter((entry) => entry.cycle === cycle && entry.status === "ok").length ?? 0
-  const monthlyReady = ready("monthly")
-  const annualReady = ready("annual")
-  // Anual é opcional: sem nenhum produto anual, o app só oferece o mensal (o botão Anual some da tela Assinatura).
-  const productsOk = monthlyReady === 3 && (annualReady === 0 || annualReady === 3)
+  const monthlyReady = catalog.catalog?.entries.filter((entry) => entry.status === "ok").length ?? 0
   const keyLabel =
     settings.keyMode === "live" ? "produção" : settings.keyMode === "test" ? "modo de teste" : settings.keyMode === "unknown" ? "formato desconhecido" : null
 
@@ -87,7 +83,7 @@ export default async function AdminBillingPage() {
           label="MRR pela AbacatePay"
           icon={LandmarkIcon}
           value={cents(overview.totals.mrr_cents)}
-          headline="Anual dividido por 12"
+          headline="Soma das mensalidades ativas"
           detail="Também entra no Financeiro (mensalidade preenchida sozinha)"
         />
         <StatCard
@@ -125,10 +121,8 @@ export default async function AdminBillingPage() {
               Segredo do webhook (<code>ABACATEPAY_WEBHOOK_SECRET</code>):{" "}
               <strong>{settings.webhookSecretValid ? "configurado" : "não configurado (mínimo 32 caracteres)"}</strong>
             </Check>
-            <Check ok={productsOk}>
-              Produtos prontos para venda: <strong>mensal {monthlyReady} de 3</strong> ·{" "}
-              <strong>anual {annualReady ? `${annualReady} de 3` : "não vendido"}</strong>
-              {annualReady === 0 ? " (para vender o anual, crie os 3 produtos com recorrência anual: R$ 970, R$ 1.970 e R$ 3.970)" : ""}
+            <Check ok={monthlyReady === 3}>
+              Produtos prontos para venda: <strong>{monthlyReady} de 3</strong> (Starter, Pro e Escala, mensais)
               {catalog.error ? <span className="text-muted-foreground"> · {catalog.error}</span> : null}
             </Check>
             <Check ok={ourWebhooks.length > 0 && missingEvents.length === 0}>
@@ -169,7 +163,7 @@ export default async function AdminBillingPage() {
         <CardHeader>
           <CardTitle>Produtos na AbacatePay</CardTitle>
           <CardDescription>
-            Cada plano precisa de um produto ativo com recorrência mensal e outro anual, com &quot;Starter&quot;, &quot;Pro&quot; ou
+            Cada plano precisa de um produto ativo com recorrência mensal, com &quot;Starter&quot;, &quot;Pro&quot; ou
             &quot;Escala&quot; no nome e o mesmo preço da maanu. Preço diferente não é usado (o cliente nunca paga outro valor).
             {catalog.fetchedAt ? ` Lidos em ${formatDateTime(catalog.fetchedAt)}.` : ""}
           </CardDescription>

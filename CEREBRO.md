@@ -4,7 +4,7 @@
 > inteiro antes de trabalhar e atualizá-lo ao terminar. Se algo aqui divergir do código, o código vence —
 > e este arquivo deve ser corrigido na mesma sessão.
 
-Última atualização: **2026-10-16** (Sessão 23c — **cobrança pela AbacatePay em produção** (chave de produção, produtos mensais e webhook prontos); o anual só aparece quando houver os produtos anuais; Sessão 25c — WhatsApp/telefone `(31) 99263-0934` no rodapé de `/institucional` para a aprovação da AbacatePay; falta o e-mail; Sessão 25b — página de vendas **publicada em `maanu.com.br/institucional`** para o Breno e o sócio revisarem, fora do Google por enquanto; `maanu.com.br/` continua levando ao app; Sessão 25 — página de vendas em `maanu.com.br/` com SEO para Google, Bing e buscas por IA (dados estruturados, `llms.txt`, robots, imagem de compartilhamento, carregamento mais rápido) e app pronto para ir para `app.maanu.com.br` (variável `APP_HOST`), na branch `codex/pagina-de-vendas`, aguardando o Breno; Sessão 24 — cliente sem permissão de administrador vê uma mensagem de acesso restrito com retorno ao painel; Sessão 23b — tela "Levando você para o pagamento seguro" antes da AbacatePay, teste de compra aprovado e dados de teste apagados, falta a chave de produção; Sessão 23 — cobrança pela AbacatePay pronta no código e no banco: assinar, trocar, cancelar e webhooks; falta só a chave de API do Breno; Sessão 22 — perguntas chegando sozinhas: rotina que busca no ML a cada ~10 s + webhook respondendo na hora; foto do anúncio corrigida; Sessão 21 — v1: botão de pausar a IA funcionando, commit `bf56777` na `main`; Sessão 20b — Starter com 300 respostas e espaço nos cards dos planos; Sessão 20 — planos Starter/Pro/Escala com limites, teste grátis e Melhorias de anúncio; Sessão 19 — pesquisa de preços e proposta de 3 planos; Sessão 18 — tour de boas-vindas e avisos de teste/conta ML redesenhados; Sessão 17 — chaves de IA cadastradas e trocadas pelo painel do administrador; Sessão 16 — textos do cadastro sem falar em cobrança; Sessão 15b — Fase 1 da troca preparada)
+Última atualização: **2026-10-16** (Sessão 23d — **só o plano mensal** (decisão do Breno): o anual saiu da Assinatura, da página de vendas, das Dúvidas, do `llms.txt`, dos Termos e do painel; Sessão 23c — **cobrança pela AbacatePay em produção** (chave de produção, produtos mensais e webhook prontos); o anual só aparece quando houver os produtos anuais; Sessão 25c — WhatsApp/telefone `(31) 99263-0934` no rodapé de `/institucional` para a aprovação da AbacatePay; falta o e-mail; Sessão 25b — página de vendas **publicada em `maanu.com.br/institucional`** para o Breno e o sócio revisarem, fora do Google por enquanto; `maanu.com.br/` continua levando ao app; Sessão 25 — página de vendas em `maanu.com.br/` com SEO para Google, Bing e buscas por IA (dados estruturados, `llms.txt`, robots, imagem de compartilhamento, carregamento mais rápido) e app pronto para ir para `app.maanu.com.br` (variável `APP_HOST`), na branch `codex/pagina-de-vendas`, aguardando o Breno; Sessão 24 — cliente sem permissão de administrador vê uma mensagem de acesso restrito com retorno ao painel; Sessão 23b — tela "Levando você para o pagamento seguro" antes da AbacatePay, teste de compra aprovado e dados de teste apagados, falta a chave de produção; Sessão 23 — cobrança pela AbacatePay pronta no código e no banco: assinar, trocar, cancelar e webhooks; falta só a chave de API do Breno; Sessão 22 — perguntas chegando sozinhas: rotina que busca no ML a cada ~10 s + webhook respondendo na hora; foto do anúncio corrigida; Sessão 21 — v1: botão de pausar a IA funcionando, commit `bf56777` na `main`; Sessão 20b — Starter com 300 respostas e espaço nos cards dos planos; Sessão 20 — planos Starter/Pro/Escala com limites, teste grátis e Melhorias de anúncio; Sessão 19 — pesquisa de preços e proposta de 3 planos; Sessão 18 — tour de boas-vindas e avisos de teste/conta ML redesenhados; Sessão 17 — chaves de IA cadastradas e trocadas pelo painel do administrador; Sessão 16 — textos do cadastro sem falar em cobrança; Sessão 15b — Fase 1 da troca preparada)
 
 ---
 
@@ -153,8 +153,10 @@ novas funcionalidades, segurança multi-tenant de verdade — **desenvolvido em 
   AbacatePay, o cliente vê a tela "Levando você para o pagamento seguro" (`components/plans/checkout-redirect-dialog.tsx`).
   **Sessão 23c (2026-10-16): no ar em produção.** Conta da AbacatePay aprovada (loja "maanu."); o Breno criou a chave de
   **produção**, os 3 produtos mensais e cadastrou o webhook pelo painel. Qualquer cliente já assina pela tela Assinatura.
-  Os produtos **anuais não existem** ainda: o seletor Mensal/Anual some da Assinatura enquanto não houver nenhum produto
-  anual e volta sozinho quando o Breno criar os 3 (R$ 970 / 1.970 / 3.970, recorrência anual).
+  **Sessão 23d (mesmo dia): só o plano mensal** (decisão do Breno, "vamos trabalhar sem o anual por enquanto"): o anual
+  saiu de tudo — Assinatura, página de vendas, Dúvidas, `llms.txt`/dados estruturados, Termos e painel admin. Produtos
+  ANNUALLY na AbacatePay são **ignorados** (o painel Cobrança os lista como "pode arquivar"). O banco ainda aceita
+  `billing_cycle = 'annual'` (sem uso, nada foi apagado). Voltar a vender o anual exige código (decisão 2026-10-16).
   Spec: `docs/superpowers/specs/2026-10-14-cobranca-abacatepay-design.md`. Passo a passo para ligar: §13 item 0g.
   **Sessão 24 (2026-10-14): acesso restrito ao admin** — cliente logado que abre uma página `/admin/*` (incluindo
   verificação e exportação CSV) vai para `/acesso-negado`: "Você não tem acesso a esta página", explicação e botão
@@ -324,7 +326,7 @@ components/
                                   # fora da tela), question-ticker, problem-section + buyer-race, how-it-works,
                                   # listing-reading, certainty-section, daily-routine + routine-previews ("no dia a dia":
                                   # lista com abas do shadcn que avança sozinha + telas da maanu desenhadas em código),
-                                  # savings-calculator, pricing-section (SELLABLE_PLANS, mensal/anual), faq-section (FAQ também
+                                  # savings-calculator, pricing-section (SELLABLE_PLANS, só mensal), faq-section (FAQ também
                                   # vira dados estruturados), final-cta + time-on-page, site-footer, mobile-cta-bar,
                                   # reveal + use-in-view,
                                   # site-button (TODOS os botões da página: mesmas medidas, espaço igual dos 2 lados da seta)
@@ -1394,7 +1396,8 @@ webhook do ML validado, fila/reprocessamento de jobs, observabilidade, controle 
 | 2026-10-13 | Webhook do ML responde 200 **antes** de qualquer acesso ao banco (tudo em `after()`) | Regra do ML: 200 em até 500 ms, senão os tópicos podem ser desligados ("fall back") e é preciso se inscrever de novo. |
 | 2026-10-13 | Perguntas abre em **Respondidas pela IA**, o 1º cartão (ordem: IA, você, para responder, todas) | Pedido do Breno: o principal para o cliente é ver o que a IA resolveu. O que espera o vendedor continua sinalizado (ponto âmbar no cartão, contador no menu) e os atalhos de "aguardando você" abrem direto em Para responder. |
 | 2026-10-13 | Fotos do ML sempre em https (`mlImageUrl`), corrigidas também na hora de mostrar | O ML devolve http; corrigir na tela resolve as fotos já gravadas sem mexer no banco de produção. Endereço que não é do `mlstatic.com` vira o ícone de pacote (nunca imagem quebrada). |
-| 2026-10-16 | Plano **anual só aparece quando existem os produtos anuais** na AbacatePay (sem nenhum, a Assinatura oferece só o mensal) | O Breno criou só os mensais em produção; botões "indisponível" no anual pareceriam erro. Volta sozinho quando os produtos forem criados. |
+| 2026-10-16 | **Só o plano mensal**: anual removido da Assinatura, da página de vendas, das Dúvidas, do `llms.txt`, dos Termos e do painel; produtos ANNUALLY da AbacatePay ignorados | Decisão do Breno ("vamos trabalhar sem o anual por enquanto"). Menos coisa para explicar e manter. O banco continua aceitando `annual` (nada destrutivo). Voltar: devolver `priceAnnual`, o ciclo `annual` em `BILLING_CYCLES`, o seletor e os textos (ver o commit da Sessão 23d). |
+| 2026-10-16 | Plano **anual só aparece quando existem os produtos anuais** na AbacatePay (sem nenhum, a Assinatura oferece só o mensal) | O Breno criou só os mensais em produção; botões "indisponível" no anual pareceriam erro. Volta sozinho quando os produtos forem criados. **Substituída** no mesmo dia pela decisão "só o plano mensal" (Sessão 23d). |
 | 2026-10-14 | Cobrança pela **página hospedada da AbacatePay** (checkout de assinatura), cartão por padrão; sem checkout transparente | O cartão nunca passa pela maanu (sem PCI) e é o caminho da documentação para assinaturas. PIX Automático fica por variável quando a AbacatePay liberar. |
 | 2026-10-14 | Produtos da AbacatePay reconhecidos **pelo nome (Starter/Pro/Escala) + recorrência + preço igual ao da maanu**; preço diferente não vende | O Breno já criou os produtos no painel (sem externalId combinado). Nunca cobrar um valor diferente do que a tela mostra. |
 | 2026-10-14 | O **webhook manda** no plano, mas assinatura nova só vale depois de confirmada na API (`GET /subscriptions/get` = ACTIVE, mesmo ambiente) | Defesa em profundidade: um webhook forjado (segredo vazado) não libera plano sem pagamento real. |
@@ -1421,6 +1424,22 @@ webhook do ML validado, fila/reprocessamento de jobs, observabilidade, controle 
 
 ## 12. Diário de sessões (mais recente no topo)
 
+### 2026-10-16 — Sessão 23d · Só o plano mensal (IA: Claude, via app Codex)
+- Pedido do Breno: "vamos trabalhar sem o anual por enquanto… remover tudo que tem anual e deixar apenas o mensal" (ele
+  tinha acabado de criar os produtos anuais na AbacatePay).
+- Feito: `lib/plans/plans.ts` sem `priceAnnual`/`monthlyPrice`/`annualSavings`, `BILLING_CYCLES = ["monthly"]`; catálogo
+  da AbacatePay só reconhece MONTHLY (ANNUALLY = ignorado, "recorrência que a maanu não vende — pode arquivar");
+  `decide.ts` (`addOneMonth`, `monthlyPriceFromAmount`), `subscription.ts` (`planIntent`/`isUpgrade` sem ciclo), motor
+  (`startCheckout(actor, planId)`), ações e tela Assinatura ("Pro · Mensal", "Cobrado todo mês no cartão de crédito",
+  sem seletor), botões dos planos sem ciclo ("pagar com outro cartão" só para cobrança recusada); página de vendas
+  (`pricing-section` sem o seletor e sem "use client"), Dúvidas, `llms.txt`/dados estruturados e Termos ("cobrados
+  mensalmente"); painel admin (produtos "X de 3", MRR "soma das mensalidades ativas", diálogo do plano do cliente só
+  com o mensal). Banco intacto (`annual` continua aceito, sem uso). Testes ajustados.
+- Verificação: typecheck, 458 testes, lint e build ok; fluxo completo da cobrança no banco de produção
+  (`RUN_BILLING_DB=1`, loja temporária apagada) ok. Publicado na `v2`.
+- Falta o Breno: arquivar os 3 produtos anuais na AbacatePay (opcional; são ignorados) e a compra real de verificação
+  (§13 item 0g).
+
 ### 2026-10-16 — Sessão 23c · Cobrança pela AbacatePay em produção (IA: Claude, via app Codex)
 - O Breno teve a conta da AbacatePay aprovada, criou a chave de produção (8 permissões), os produtos Starter/Pro/Escala
   mensais em produção, trocou a `ABACATEPAY_API_KEY` na Vercel (16/10 16:30, deploy `dpl_G5xnP3ksrxYf1ZthQ3hbyj3Lu3zG` READY)
@@ -1432,7 +1451,8 @@ webhook do ML validado, fila/reprocessamento de jobs, observabilidade, controle 
   (mostra "Cobrado todo mês no cartão de crédito"); volta sozinho com os produtos anuais (catálogo lido a cada 5 min ou
   "Ler de novo" no painel). Admin → Cobrança mostra "mensal 3 de 3 · anual não vendido" como ok (anual é opcional;
   1 ou 2 anuais = aviso). **Atenção:** a página de vendas (`components/site/pricing-section.tsx`, `lib/site/faq.ts`,
-  `lib/site/seo.ts`) anuncia o anual com 2 meses grátis — criar os produtos anuais ou tirar o anual de lá antes de divulgar.
+  `lib/site/seo.ts`) anuncia o anual com 2 meses grátis — criar os produtos anuais ou tirar o anual de lá antes de divulgar
+  (resolvido na Sessão 23d: o anual saiu de tudo).
 - O webhook do modo de teste continua no Dev mode da AbacatePay (mesmo endereço): eventos de teste chegam com
   `devMode: true` e são ignorados (não estão ligados a nenhuma loja). Pode ser apagado lá.
 
@@ -2191,8 +2211,8 @@ webhook do ML validado, fila/reprocessamento de jobs, observabilidade, controle 
    `maanu.com.br/admin/cobranca` e conferir "Você não tem acesso a esta página" e "Voltar ao meu painel".
 0g. **Breno — cobrança pela AbacatePay (Sessão 23).** ✅ **No ar em produção desde 2026-10-16 (Sessão 23c).** Faltam:
    (a) a **compra real de verificação** (conta separada, nem admin nem cliente; Starter; depois cancelar e pedir o estorno no
-   painel da AbacatePay) — a IA confere os registros; (b) decidir o anual: criar os 3 produtos anuais em produção (R$ 970 /
-   1.970 / 3.970, recorrência anual) ou tirar o anual da página de vendas; (c) opcional: apagar o webhook do Dev mode.
+   painel da AbacatePay) — a IA confere os registros; (b) ✅ anual decidido: **só o mensal** (Sessão 23d) — os 3 produtos anuais criados na
+   AbacatePay são ignorados e podem ser arquivados lá; (c) opcional: apagar o webhook do Dev mode.
    (Histórico:) Passos 1 a 5 feitos em modo de teste (Sessão 23b; dados do teste apagados); faltava o passo 6 (produção). Hoje a chave em uso é a de teste e não há e-mails liberados, então os
    clientes veem "Contratação pelo app em breve" até a troca. Ao trocar: chave de produção com as mesmas permissões, produtos
    recriados no modo de produção, `ABACATEPAY_API_KEY` trocada na Vercel + Redeploy e "Cadastrar webhook na AbacatePay" de

@@ -1,9 +1,5 @@
-"use client"
-
 import { Check, Minus } from "lucide-react"
-import { useState } from "react"
 
-import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 import { siteConfig } from "@/lib/config/site"
 import { formatBRL, formatInteger, pricePerDay } from "@/lib/site/calculator"
 import {
@@ -11,8 +7,6 @@ import {
   SELLABLE_PLANS,
   SUPPORT_LABELS,
   formatPrice,
-  monthlyPrice,
-  type BillingCycle,
   type SellablePlan,
 } from "@/lib/plans/plans"
 import { cn } from "@/lib/utils"
@@ -41,7 +35,6 @@ function planLines(plan: SellablePlan): Line[] {
 }
 
 export function PricingSection({ signupHref }: { signupHref: string }) {
-  const [cycle, setCycle] = useState<BillingCycle>("monthly")
   const cheapest = SELLABLE_PLANS[0]
 
   return (
@@ -57,33 +50,6 @@ export function PricingSection({ signupHref }: { signupHref: string }) {
             Sem taxa de adesão e sem fidelidade. Todo plano começa com {siteConfig.trialDays} dias grátis com tudo do Pro, e
             você só cadastra o cartão se decidir continuar.
           </p>
-
-          <ToggleGroup
-            aria-label="Forma de pagamento"
-            value={[cycle]}
-            onValueChange={(next) => {
-              const choice = next[0]
-              if (choice === "monthly" || choice === "annual") setCycle(choice)
-            }}
-            spacing={0}
-            className="mx-auto mt-9 rounded-full border border-border bg-white p-1 shadow-sm"
-          >
-            <ToggleGroupItem
-              value="monthly"
-              className="h-10 rounded-full! px-5 text-sm aria-pressed:bg-brand-graphite aria-pressed:text-white aria-pressed:hover:bg-brand-graphite aria-pressed:hover:text-white"
-            >
-              Mensal
-            </ToggleGroupItem>
-            <ToggleGroupItem
-              value="annual"
-              className="h-10 gap-2 rounded-full! px-5 text-sm aria-pressed:bg-brand-graphite aria-pressed:text-white aria-pressed:hover:bg-brand-graphite aria-pressed:hover:text-white"
-            >
-              Anual
-              <span className="rounded-full bg-brand-sage px-2 py-0.5 text-[11px] font-semibold text-brand-teal-ink">
-                2 meses grátis
-              </span>
-            </ToggleGroupItem>
-          </ToggleGroup>
         </Reveal>
 
         <div className="mt-12 grid items-stretch gap-4 lg:grid-cols-3">
@@ -112,12 +78,12 @@ export function PricingSection({ signupHref }: { signupHref: string }) {
 
                   <p className="mt-7 flex items-baseline gap-1">
                     <span className="font-display text-5xl font-semibold tracking-[-0.04em] tabular-nums">
-                      {formatPrice(monthlyPrice(plan, cycle))}
+                      {formatPrice(plan.priceMonthly)}
                     </span>
                     <span className={highlight ? "text-white/60" : "text-muted-foreground"}>/mês</span>
                   </p>
                   <p className={cn("mt-1 h-5 text-sm", highlight ? "text-white/55" : "text-muted-foreground")}>
-                    {cycle === "annual" ? `${formatPrice(plan.priceAnnual)} cobrados uma vez por ano` : "cobrado todo mês"}
+                    cobrado todo mês
                   </p>
 
                   <SiteButton href={signupHref} variant={highlight ? "teal" : "graphite"} block className="mt-7">

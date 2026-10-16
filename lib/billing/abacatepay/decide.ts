@@ -3,9 +3,9 @@
  * Quem chama (lib/billing/engine.ts) descobre a organização e a assinatura guardada; aqui só se decide.
  *
  * Regras:
- *  - completed / trial_started / renewed: assinatura em dia → plano liberado até o fim do período pago. O plano vem do
- *    valor cobrado (cada plano tem um preço por ciclo), senão do checkout que o app criou, senão do que já estava.
- *  - Assinatura nova paga numa organização que já tinha outra ativa (troca de ciclo ou outro cartão): a nova vale e a
+ *  - completed / trial_started / renewed: assinatura em dia → plano liberado até o fim do período pago (+1 mês). O plano vem
+ *    do valor cobrado (cada plano tem uma mensalidade), senão do checkout que o app criou, senão do que já estava.
+ *  - Assinatura nova paga numa organização que já tinha outra ativa (pagou com outro cartão): a nova vale e a
  *    antiga é cancelada na AbacatePay (nunca duas cobranças).
  *  - payment_failed: só avisa; a AbacatePay tenta de novo e, se esgotar, manda cancelled.
  *  - cancelled: o acesso continua até o fim do período já pago; disputa (chargeback) corta na hora.
@@ -67,10 +67,10 @@ function daysInMonth(year: number, month: number) {
   return new Date(Date.UTC(year, month + 1, 0)).getUTCDate()
 }
 
-/** Data + 1 mês (ou + 1 ano), sem pular para o mês seguinte em dias 29–31 (31/01 + 1 mês = 28 ou 29/02). */
-export function addCycle(from: Date, cycle: BillingCycle): Date {
-  const year = from.getUTCFullYear() + (cycle === "annual" ? 1 : 0)
-  const month = from.getUTCMonth() + (cycle === "monthly" ? 1 : 0)
+/** Data + 1 mês, sem pular para o mês seguinte em dias 29–31 (31/01 + 1 mês = 28 ou 29/02). */
+export function addOneMonth(from: Date): Date {
+  const year = from.getUTCFullYear()
+  const month = from.getUTCMonth() + 1
   const targetYear = year + Math.floor(month / 12)
   const targetMonth = month % 12
   const day = Math.min(from.getUTCDate(), daysInMonth(targetYear, targetMonth))
@@ -79,9 +79,9 @@ export function addCycle(from: Date, cycle: BillingCycle): Date {
   )
 }
 
-/** Mensalidade em reais (base do MRR): no anual, o valor do ano dividido por 12. */
-export function monthlyPriceFromAmount(amountCents: number, cycle: BillingCycle): number {
-  return Math.round((cycle === "annual" ? amountCents / 12 : amountCents)) / 100
+/** Mensalidade em reais (base do MRR) a partir do valor cobrado em centavos. */
+export function monthlyPriceFromAmount(amountCents: number): number {
+  return Math.round(amountCents) / 100
 }
 
 /** Disputa/contestação no cartão: cancela o acesso na hora (o dinheiro está sendo devolvido). */
@@ -139,7 +139,7 @@ export function decideBillingEvent(input: {
       const periodEnd =
         event.type === "subscription.trial_started" && subscription.trialEndsAt
           ? subscription.trialEndsAt
-          : addCycle(new Date(paidAt ?? now.toISOString()), cycle).toISOString()
+          : addOneMonth(new Date(paidAt ?? now.toISOString())).toISOString()
       const scheduled = same?.scheduledPlan ?? null
       return {
         kind: "activate",

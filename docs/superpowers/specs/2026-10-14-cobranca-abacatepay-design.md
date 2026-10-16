@@ -3,6 +3,10 @@
 Pedido do Breno: analisar toda a documentação da AbacatePay (https://docs.abacatepay.com, API v2) e preparar a maanu
 para receber a integração. Os produtos Starter, Pro e Escala já foram criados por ele no painel da AbacatePay.
 
+> **Atualização 2026-10-16 (Sessão 23d):** a maanu vende **só o plano mensal** (decisão do Breno). Tudo que esta spec
+> diz sobre o anual (produtos ANNUALLY, troca mensal ↔ anual, seletor) foi removido do código; produtos anuais na
+> AbacatePay são ignorados. O banco ainda aceita `billing_cycle = 'annual'`, sem uso.
+
 ## O que a AbacatePay oferece e o que usamos
 
 - **API v2** (`https://api.abacatepay.com/v2`), `Authorization: Bearer <chave>`. O ambiente vem da chave:

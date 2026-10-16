@@ -1,13 +1,13 @@
 /**
  * Produtos da AbacatePay × planos da maanu (puro, testado em tests/unit/abacatepay.test.ts).
  *
- * Os produtos são criados pelo Breno no painel da AbacatePay. Cada plano e ciclo precisa de um produto ATIVO, com
- * recorrência (MONTHLY = mensal, ANNUALLY = anual) e o mesmo preço da maanu (lib/plans/plans.ts). O plano é reconhecido
- * pela palavra "Starter", "Pro" ou "Escala" no nome ou no externalId (ex.: "Pro", "Plano Pro", "pro_mensal").
+ * Os produtos são criados pelo Breno no painel da AbacatePay. Cada plano precisa de um produto ATIVO com recorrência
+ * MONTHLY (mensal; desde 2026-10-16 a maanu não vende o anual: produtos ANNUALLY são ignorados) e o mesmo preço da maanu
+ * (lib/plans/plans.ts). O plano é reconhecido pela palavra "Starter", "Pro" ou "Escala" no nome ou no externalId.
  * Preço diferente do mostrado no app = produto não é usado (nunca cobrar um valor diferente do anunciado).
  */
 
-import { SELLABLE_PLANS, type BillingCycle, type SellablePlan, type SellablePlanId } from "@/lib/plans/plans"
+import { BILLING_CYCLES, SELLABLE_PLANS, type BillingCycle, type SellablePlan, type SellablePlanId } from "@/lib/plans/plans"
 
 export type AbacateProduct = {
   id: string
@@ -22,23 +22,22 @@ export type AbacateProduct = {
   updatedAt: string | null
 }
 
-export const PROVIDER_CYCLE: Record<BillingCycle, "MONTHLY" | "ANNUALLY"> = { monthly: "MONTHLY", annual: "ANNUALLY" }
+export const PROVIDER_CYCLE: Record<BillingCycle, "MONTHLY"> = { monthly: "MONTHLY" }
 
 export function cycleFromProvider(value: string | null | undefined): BillingCycle | null {
   if (value === "MONTHLY") return "monthly"
-  if (value === "ANNUALLY") return "annual"
   return null
 }
 
-/** Preço do plano no ciclo, em centavos (anual = o total do ano). */
-export function expectedPriceCents(plan: SellablePlan, cycle: BillingCycle): number {
-  return Math.round((cycle === "annual" ? plan.priceAnnual : plan.priceMonthly) * 100)
+/** Mensalidade do plano, em centavos. */
+export function expectedPriceCents(plan: SellablePlan): number {
+  return Math.round(plan.priceMonthly * 100)
 }
 
-/** Plano cujo preço no ciclo é exatamente este valor (o que a AbacatePay cobra). */
+/** Plano cuja mensalidade é exatamente este valor (o que a AbacatePay cobra). */
 export function planFromAmount(amountCents: number | null | undefined, cycle: BillingCycle | null): SellablePlanId | null {
   if (typeof amountCents !== "number" || !cycle) return null
-  return SELLABLE_PLANS.find((plan) => expectedPriceCents(plan, cycle) === amountCents)?.id ?? null
+  return SELLABLE_PLANS.find((plan) => expectedPriceCents(plan) === amountCents)?.id ?? null
 }
 
 function words(text: string | null | undefined): string[] {
@@ -105,8 +104,8 @@ export function matchCatalog(products: readonly AbacateProduct[]): Catalog {
 
   const entries: CatalogEntry[] = []
   for (const plan of SELLABLE_PLANS) {
-    for (const cycle of ["monthly", "annual"] as const) {
-      const expectedCents = expectedPriceCents(plan, cycle)
+    for (const cycle of BILLING_CYCLES) {
+      const expectedCents = expectedPriceCents(plan)
       const candidates = [...(byKey.get(`${plan.id}:${cycle}`) ?? [])].sort(newestFirst)
       const priced = candidates.filter((product) => product.price === expectedCents)
       if (priced.length) {
@@ -131,10 +130,7 @@ export function checkoutAvailability(catalog: Catalog | null): CheckoutAvailabil
   return Object.fromEntries(
     SELLABLE_PLANS.map((plan) => [
       plan.id,
-      {
-        monthly: catalogEntry(catalog, plan.id, "monthly")?.status === "ok",
-        annual: catalogEntry(catalog, plan.id, "annual")?.status === "ok",
-      },
+      { monthly: catalogEntry(catalog, plan.id, "monthly")?.status === "ok" },
     ])
   ) as CheckoutAvailability
 }

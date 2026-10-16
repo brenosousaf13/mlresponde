@@ -3,11 +3,10 @@ import { describe, expect, it } from "vitest"
 import { answersUsageNotice } from "@/lib/access/notices"
 import {
   ADMIN_PLAN,
-  annualSavings,
+  BILLING_CYCLES,
   answersLimit,
   featureAccess,
   formatPrice,
-  monthlyPrice,
   nextPlan,
   organizationIncludes,
   planInfo,
@@ -44,12 +43,10 @@ describe("catálogo de planos (decidido pelo Breno na Sessão 20)", () => {
     expect(SELLABLE_PLANS.filter((plan) => plan.highlight).map((plan) => plan.id)).toEqual(["pro"])
   })
 
-  it("anual = 2 meses grátis (R$ 81, R$ 164 e R$ 331 por mês)", () => {
-    const [starter, pro, escala] = SELLABLE_PLANS
-    expect([starter, pro, escala].map((plan) => plan.priceAnnual)).toEqual([970, 1970, 3970])
-    expect([starter, pro, escala].map((plan) => plain(formatPrice(monthlyPrice(plan, "annual"))))).toEqual(["R$ 81", "R$ 164", "R$ 331"])
-    expect(plain(formatPrice(monthlyPrice(pro, "monthly")))).toBe("R$ 197")
-    expect(annualSavings(pro)).toBe(394)
+  it("só o plano mensal é vendido (R$ 97, R$ 197 e R$ 397)", () => {
+    expect(BILLING_CYCLES).toEqual(["monthly"])
+    expect(SELLABLE_PLANS.map((plan) => plain(formatPrice(plan.priceMonthly)))).toEqual(["R$ 97", "R$ 197", "R$ 397"])
+    expect(SELLABLE_PLANS.every((plan) => !("priceAnnual" in plan))).toBe(true)
   })
 
   it("só os planos vendidos e o interno podem ser atribuídos (sem o antigo Essencial)", () => {

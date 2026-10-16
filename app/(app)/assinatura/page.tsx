@@ -16,7 +16,6 @@ import { getPlanUsage } from "@/lib/dal/plan"
 import { getSubscriptionPageState, type SubscriptionPageState } from "@/lib/dal/subscription"
 import { formatDate, pluralize } from "@/lib/format"
 import {
-  BILLING_CYCLE_LABELS,
   FEATURE_LABELS,
   planName,
   requiredPlanName,
@@ -224,10 +223,10 @@ function SubscriptionCard({ billing, periodEnd }: { billing: SubscriptionPageSta
       <CardContent className="flex flex-col gap-4">
         <dl className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <Row label="Plano">
-            {planName(current.plan)} · {BILLING_CYCLE_LABELS[current.cycle]}
+            {planName(current.plan)} · Mensal
           </Row>
           <Row label="Valor">
-            {formatCents(details.amountCents)} {current.cycle === "annual" ? "por ano" : "por mês"}
+            {formatCents(details.amountCents)} por mês
           </Row>
           <Row label="Forma de pagamento">{card}</Row>
           <Row label={active ? "Próxima cobrança" : "Acesso até"}>{periodEnd ?? "—"}</Row>

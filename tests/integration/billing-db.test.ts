@@ -160,13 +160,13 @@ describe.runIf(enabled)("cobrança no banco (AbacatePay simulada)", () => {
 
   it("assina, renova, troca de plano, recusa cobrança e cancela", async () => {
     // 1. Página de pagamento (Pro mensal).
-    const started = await engine.startCheckout(actor(), "pro", "monthly")
+    const started = await engine.startCheckout(actor(), "pro")
     expect(started).toMatchObject({ ok: true })
     expect(started.ok && started.url).toMatch(/^https:\/\/app\.abacatepay\.com\/pay\//)
     const { data: checkout } = await admin.from("billing_checkouts").select("*").eq("organization_id", organizationId).single()
     expect(checkout).toMatchObject({ status: "pending", plan: "pro", product_id: "prod_qa_pro", amount_cents: 19700, dev_mode: true, customer_id: "cust_qa" })
     // Clicou de novo: mesma página.
-    const again = await engine.startCheckout(actor(), "pro", "monthly")
+    const again = await engine.startCheckout(actor(), "pro")
     expect(again.ok && again.url).toBe(started.ok && started.url)
 
     // 2. Pagamento confirmado (webhook).
@@ -192,7 +192,7 @@ describe.runIf(enabled)("cobrança no banco (AbacatePay simulada)", () => {
     // A mesma entrega de novo: não processa outra vez.
     expect(await engine.processWebhookEvent(completed)).toMatchObject({ status: "duplicate" })
     // Já assina o Pro mensal.
-    expect(await engine.startCheckout(actor(), "pro", "monthly")).toMatchObject({ ok: false })
+    expect(await engine.startCheckout(actor(), "pro")).toMatchObject({ ok: false })
 
     // 3. Subir para o Escala: liberado na hora.
     expect(await engine.requestPlanChange(actor(), "escala")).toMatchObject({ ok: true })

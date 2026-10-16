@@ -36,10 +36,8 @@ export type SellablePlanId = "starter" | "pro" | "escala"
 export type SellablePlan = PlanInfo & {
   id: SellablePlanId
   tagline: string
-  /** Mensalidade no plano mensal, em reais. */
+  /** Mensalidade, em reais (só existe o plano mensal desde 2026-10-16). */
   priceMonthly: number
-  /** Total cobrado no plano anual, em reais (2 meses grátis = 10 mensalidades). */
-  priceAnnual: number
   support: SupportLevel
   highlight?: boolean
 }
@@ -50,7 +48,6 @@ export const SELLABLE_PLANS: readonly SellablePlan[] = [
     name: "Starter",
     tagline: "Para começar a automatizar as respostas.",
     priceMonthly: 97,
-    priceAnnual: 970,
     support: "email",
     features: [],
     limits: { answersPerMonth: 300, mlAccounts: 1, listingImprovementsPerMonth: 0 },
@@ -60,7 +57,6 @@ export const SELLABLE_PLANS: readonly SellablePlan[] = [
     name: "Pro",
     tagline: "Perguntas e pós-venda no automático.",
     priceMonthly: 197,
-    priceAnnual: 1970,
     support: "whatsapp",
     highlight: true,
     features: ["pos_venda", "melhorias_anuncio"],
@@ -71,7 +67,6 @@ export const SELLABLE_PLANS: readonly SellablePlan[] = [
     name: "Escala",
     tagline: "Para várias contas e muito volume.",
     priceMonthly: 397,
-    priceAnnual: 3970,
     support: "priority",
     features: ["pos_venda", "melhorias_anuncio"],
     limits: { answersPerMonth: 5000, mlAccounts: 10, listingImprovementsPerMonth: 100 },
@@ -120,12 +115,12 @@ export const SUPPORT_LABELS: Record<SupportLevel, string> = {
   priority: "Suporte prioritário + configuração com a gente",
 }
 
-export const BILLING_CYCLES = ["monthly", "annual"] as const
+/** Ciclos vendidos: só o mensal (decisão do Breno, 2026-10-16; o banco ainda aceita 'annual', sem uso). */
+export const BILLING_CYCLES = ["monthly"] as const
 export type BillingCycle = (typeof BILLING_CYCLES)[number]
 
 export const BILLING_CYCLE_LABELS: Record<BillingCycle, string> = {
   monthly: "Mensal",
-  annual: "Anual",
 }
 
 export function normalizePlanId(plan: string | null | undefined): string | null {
@@ -203,11 +198,6 @@ export function requiredPlanName(feature: PlanFeature): string {
   return PLANS[FEATURE_PLAN[feature]]?.name ?? FEATURE_PLAN[feature]
 }
 
-/** Valor por mês do plano no ciclo escolhido (anual = total ÷ 12, arredondado para exibir). */
-export function monthlyPrice(plan: SellablePlan, cycle: BillingCycle): number {
-  return cycle === "annual" ? plan.priceAnnual / 12 : plan.priceMonthly
-}
-
 const priceFormat = new Intl.NumberFormat("pt-BR", {
   style: "currency",
   currency: "BRL",
@@ -215,14 +205,9 @@ const priceFormat = new Intl.NumberFormat("pt-BR", {
   maximumFractionDigits: 0,
 })
 
-/** "R$ 197" (preço de vitrine, arredondado para reais inteiros: R$ 970 ÷ 12 = "R$ 81"). */
+/** "R$ 197" (preço de vitrine, em reais inteiros). */
 export function formatPrice(value: number): string {
   return priceFormat.format(Math.round(value))
-}
-
-/** Quanto se economiza por ano no plano anual. */
-export function annualSavings(plan: SellablePlan): number {
-  return plan.priceMonthly * 12 - plan.priceAnnual
 }
 
 /** Limite de respostas automáticas da organização: o definido pelo administrador ou o do plano. */

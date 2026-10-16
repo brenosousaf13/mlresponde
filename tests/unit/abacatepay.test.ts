@@ -10,7 +10,7 @@ import {
 } from "@/lib/billing/abacatepay/catalog"
 import { billingSettings, canUseTestPayments, keyMode } from "@/lib/billing/abacatepay/config"
 import {
-  addCycle,
+  addOneMonth,
   decideBillingEvent,
   isDisputeCancellation,
   monthlyPriceFromAmount,
@@ -172,20 +172,22 @@ describe("produtos da AbacatePay × planos", () => {
     expect(find("starter", "monthly")).toMatchObject({ status: "ok", product: { id: "prod_starter" } })
     expect(find("pro", "monthly")).toMatchObject({ status: "ok", product: { id: "prod_pro" }, duplicates: 1 })
     expect(find("escala", "monthly")).toMatchObject({ status: "price_mismatch", expectedCents: 39700 })
-    expect(find("pro", "annual")).toMatchObject({ status: "ok", product: { id: "prod_pro_anual" } })
-    expect(find("starter", "annual")).toMatchObject({ status: "missing", product: null })
-    expect(catalog.ignored.map((item) => item.reason).sort()).toEqual(["archived", "no_cycle", "no_plan", "unsupported_cycle"])
+    // Só o mensal é vendido: produtos anuais (e semanais) ficam de fora.
+    expect(catalog.entries).toHaveLength(3)
+    expect(catalog.entries.every((entry) => entry.cycle === "monthly")).toBe(true)
+    expect(catalog.ignored.map((item) => item.reason).sort()).toEqual(["archived", "no_cycle", "no_plan", "unsupported_cycle", "unsupported_cycle"])
 
     const availability = checkoutAvailability(catalog)
-    expect(availability.pro).toEqual({ monthly: true, annual: true })
-    expect(availability.escala).toEqual({ monthly: false, annual: false })
-    expect(checkoutAvailability(null).starter).toEqual({ monthly: false, annual: false })
+    expect(availability.pro).toEqual({ monthly: true })
+    expect(availability.escala).toEqual({ monthly: false })
+    expect(checkoutAvailability(null).starter).toEqual({ monthly: false })
   })
 
   it("plano pelo valor cobrado", () => {
     expect(planFromAmount(9700, "monthly")).toBe("starter")
-    expect(planFromAmount(397000, "annual")).toBe("escala")
-    expect(planFromAmount(19700, "annual")).toBeNull()
+    expect(planFromAmount(39700, "monthly")).toBe("escala")
+    expect(planFromAmount(197000, "monthly")).toBeNull()
+    expect(planFromAmount(9700, null)).toBeNull()
     expect(planFromAmount(null, "monthly")).toBeNull()
   })
 })
@@ -365,32 +367,30 @@ describe("decisão de cada evento", () => {
   })
 
   it("datas e valores", () => {
-    expect(addCycle(new Date("2026-01-31T10:00:00Z"), "monthly").toISOString()).toBe("2026-02-28T10:00:00.000Z")
-    expect(addCycle(new Date("2026-12-15T10:00:00Z"), "monthly").toISOString()).toBe("2027-01-15T10:00:00.000Z")
-    expect(addCycle(new Date("2028-02-29T10:00:00Z"), "annual").toISOString()).toBe("2029-02-28T10:00:00.000Z")
-    expect(monthlyPriceFromAmount(19700, "monthly")).toBe(197)
-    expect(monthlyPriceFromAmount(197000, "annual")).toBeCloseTo(164.17)
+    expect(addOneMonth(new Date("2026-01-31T10:00:00Z")).toISOString()).toBe("2026-02-28T10:00:00.000Z")
+    expect(addOneMonth(new Date("2026-12-15T10:00:00Z")).toISOString()).toBe("2027-01-15T10:00:00.000Z")
+    expect(addOneMonth(new Date("2028-01-31T10:00:00Z")).toISOString()).toBe("2028-02-29T10:00:00.000Z")
+    expect(monthlyPriceFromAmount(19700)).toBe(197)
     expect(isDisputeCancellation("dispute_opened")).toBe(true)
     expect(isDisputeCancellation("max_payment_retries_exceeded")).toBe(false)
   })
 })
 
 describe("o que acontece ao escolher um plano", () => {
-  const active = { plan: "pro", cycle: "monthly" as const, status: "active" as const, paymentFailing: false, scheduledPlan: null }
+  const active = { plan: "pro", status: "active" as const, paymentFailing: false, scheduledPlan: null }
 
   it("assinar, trocar, assinar de novo ou já é o atual", () => {
-    expect(planIntent(null, "pro", "monthly")).toBe("subscribe")
-    expect(planIntent({ ...active, status: "cancelled" }, "pro", "monthly")).toBe("subscribe")
-    expect(planIntent(active, "pro", "monthly")).toBe("current")
-    expect(planIntent(active, "escala", "monthly")).toBe("change_plan")
-    expect(planIntent(active, "pro", "annual")).toBe("replace")
-    expect(planIntent({ ...active, paymentFailing: true }, "pro", "monthly")).toBe("replace")
+    expect(planIntent(null, "pro")).toBe("subscribe")
+    expect(planIntent({ ...active, status: "cancelled" }, "pro")).toBe("subscribe")
+    expect(planIntent(active, "pro")).toBe("current")
+    expect(planIntent(active, "escala")).toBe("change_plan")
+    expect(planIntent({ ...active, paymentFailing: true }, "pro")).toBe("replace")
   })
 
   it("subir × descer de plano", () => {
-    expect(isUpgrade("starter", "pro", "monthly")).toBe(true)
-    expect(isUpgrade("escala", "pro", "annual")).toBe(false)
-    expect(isUpgrade("admin", "pro", "monthly")).toBe(false)
+    expect(isUpgrade("starter", "pro")).toBe(true)
+    expect(isUpgrade("escala", "pro")).toBe(false)
+    expect(isUpgrade("admin", "pro")).toBe(false)
   })
 
   it("aviso de cobrança recusada", () => {

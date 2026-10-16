@@ -5,7 +5,6 @@ import { getCatalog } from "@/lib/billing/abacatepay/catalog-store"
 import { billingSettings, canUseTestPayments } from "@/lib/billing/abacatepay/config"
 import type { CurrentSubscription } from "@/lib/billing/subscription"
 import { canManageOrganization, type AppContext } from "@/lib/dal/app-context"
-import type { BillingCycle } from "@/lib/plans/plans"
 import { createClient } from "@/lib/supabase/server"
 
 /** Tudo o que a tela Assinatura precisa da cobrança (leituras com a sessão: o RLS só libera para dono/administrador). */
@@ -83,7 +82,6 @@ export async function getSubscriptionPageState(context: AppContext): Promise<Sub
     current: row
       ? {
           plan: row.plan,
-          cycle: (row.cycle === "annual" ? "annual" : "monthly") as BillingCycle,
           status: row.status === "cancelled" ? "cancelled" : "active",
           paymentFailing: row.status === "active" && Boolean(row.payment_failed_at),
           scheduledPlan: row.scheduled_plan,

@@ -170,7 +170,7 @@ export async function getAdminOrganizationPlan(org: {
   }
   const override = usage.monthly_answers_limit ?? null
   const billingCycle: BillingCycle | null =
-    usage.billing_cycle === "monthly" || usage.billing_cycle === "annual" ? usage.billing_cycle : null
+    usage.billing_cycle === "monthly" ? usage.billing_cycle : null
   return {
     plan,
     period,

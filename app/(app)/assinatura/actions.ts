@@ -11,7 +11,6 @@ import {
   type BillingActor,
 } from "@/lib/billing/engine"
 import { canManageOrganization, requireSection, type AppContext } from "@/lib/dal/app-context"
-import { BILLING_CYCLES } from "@/lib/plans/plans"
 
 /**
  * Assinatura pela AbacatePay. Só o dono ou um administrador da loja contrata, troca ou cancela; o servidor confere de
@@ -19,7 +18,6 @@ import { BILLING_CYCLES } from "@/lib/plans/plans"
  */
 
 const planSchema = z.enum(["starter", "pro", "escala"])
-const cycleSchema = z.enum(BILLING_CYCLES)
 const GENERIC = "Não foi possível concluir agora. Tente de novo em instantes."
 
 function actorOf(context: AppContext): BillingActor {
@@ -50,17 +48,16 @@ async function run(task: () => Promise<BillingActionResult>): Promise<BillingAct
   }
 }
 
-/** Página de pagamento da AbacatePay para assinar (ou assinar de novo). Devolve o endereço para o navegador abrir. */
-export async function subscribeToPlan(plan: string, cycle: string): Promise<BillingActionResult> {
+/** Página de pagamento da AbacatePay para assinar (ou assinar de novo) o plano mensal. Devolve o endereço para o navegador abrir. */
+export async function subscribeToPlan(plan: string): Promise<BillingActionResult> {
   const context = await managerContext()
   if ("ok" in context) return context
   const parsedPlan = planSchema.safeParse(plan)
-  const parsedCycle = cycleSchema.safeParse(cycle)
-  if (!parsedPlan.success || !parsedCycle.success) return { ok: false, message: "Plano inválido." }
-  return run(() => startCheckout(actorOf(context), parsedPlan.data, parsedCycle.data))
+  if (!parsedPlan.success) return { ok: false, message: "Plano inválido." }
+  return run(() => startCheckout(actorOf(context), parsedPlan.data))
 }
 
-/** Troca de plano na assinatura atual (mesma forma de pagamento). */
+/** Troca de plano na assinatura atual. */
 export async function changePlan(plan: string): Promise<BillingActionResult> {
   const context = await managerContext()
   if ("ok" in context) return context
