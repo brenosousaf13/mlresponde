@@ -63,7 +63,11 @@ export default async function AdminBillingPage() {
   const missingEvents = ourWebhooks.length
     ? SUBSCRIPTION_EVENTS.filter((event) => !ourWebhooks.some((webhook) => webhook.events.includes(event)))
     : []
-  const readyProducts = catalog.catalog?.entries.filter((entry) => entry.status === "ok").length ?? 0
+  const ready = (cycle: string) => catalog.catalog?.entries.filter((entry) => entry.cycle === cycle && entry.status === "ok").length ?? 0
+  const monthlyReady = ready("monthly")
+  const annualReady = ready("annual")
+  // Anual é opcional: sem nenhum produto anual, o app só oferece o mensal (o botão Anual some da tela Assinatura).
+  const productsOk = monthlyReady === 3 && (annualReady === 0 || annualReady === 3)
   const keyLabel =
     settings.keyMode === "live" ? "produção" : settings.keyMode === "test" ? "modo de teste" : settings.keyMode === "unknown" ? "formato desconhecido" : null
 
@@ -121,8 +125,10 @@ export default async function AdminBillingPage() {
               Segredo do webhook (<code>ABACATEPAY_WEBHOOK_SECRET</code>):{" "}
               <strong>{settings.webhookSecretValid ? "configurado" : "não configurado (mínimo 32 caracteres)"}</strong>
             </Check>
-            <Check ok={readyProducts === 6}>
-              Produtos prontos para venda: <strong>{readyProducts} de 6</strong> (3 planos × mensal e anual)
+            <Check ok={productsOk}>
+              Produtos prontos para venda: <strong>mensal {monthlyReady} de 3</strong> ·{" "}
+              <strong>anual {annualReady ? `${annualReady} de 3` : "não vendido"}</strong>
+              {annualReady === 0 ? " (para vender o anual, crie os 3 produtos com recorrência anual: R$ 970, R$ 1.970 e R$ 3.970)" : ""}
               {catalog.error ? <span className="text-muted-foreground"> · {catalog.error}</span> : null}
             </Check>
             <Check ok={ourWebhooks.length > 0 && missingEvents.length === 0}>
