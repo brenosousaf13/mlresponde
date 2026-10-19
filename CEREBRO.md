@@ -208,8 +208,9 @@ novas funcionalidades, segurança multi-tenant de verdade — **desenvolvido em 
   (histórico imutável). Nada sai sozinho; nada do que já existia mudou de comportamento. Feito em 2 etapas: etapa 1
   (termômetro, despachos, alertas) no commit `48974e0` da branch `codex/escudo-reputacao`; etapa 2 (reclamações com IA e
   ações) no commit `104b4b4` da branch `codex/escudo-reputacao-reclamacoes` (criada a partir da etapa 1). As duas migrações já
-  estão aplicadas no banco de produção (aditivas). **Ainda não publicado: o merge na `v2` espera a aprovação do Breno**
-  (§13 item 0m). Spec: `docs/superpowers/specs/2026-10-19-escudo-reputacao-design.md`.
+  estão aplicadas no banco de produção (aditivas). **No ar desde 2026-10-19 ~18:44 de Brasília** (Breno: "já pode colocar tudo
+  em produção"; merge das duas etapas na `v2`, deploy `dpl_32h4udM1kZTu5KfZVW4ewzeg1Qsa`; ajuste `d80bc4c`, deploy
+  `dpl_AUsHAQwNcMsAXqWzAKpQdJ9Pq94b`). E-mails ainda desligados até a `RESEND_API_KEY` (§13 item 0m). Spec: `docs/superpowers/specs/2026-10-19-escudo-reputacao-design.md`.
 - **Marca:** **maanu** (decisão do Breno, 2026-10-11). Guia de uso, paleta e arquivos em `docs/brand/README.md`; nome,
   assinatura e slogan em `lib/config/site.ts`; logo só pelos componentes de `components/brand/logo.tsx`.
 - **Criativos sociais:** em 2026-10-15 foram criadas quatro peças 1080×1350 para um carrossel de apresentação da maanu;
@@ -1645,7 +1646,13 @@ webhook do ML validado, fila/reprocessamento de jobs, observabilidade, controle 
   reclamação de teste disponível).
 - QA visual com loja temporária e dados fictícios (desktop e celular; diálogo de reembolso aberto e cancelado nos 2 passos);
   ajustes de textos e de casos (encerrada, em mediação, fila da IA). Loja temporária e usuário apagados (conferido: 0).
-- typecheck, testes (todos), lint e build ok. **Nada publicado: merge na `v2` espera o Breno** (§13 item 0m).
+- typecheck, testes (todos), lint e build ok.
+- **Publicado** (Breno: "já pode colocar tudo em produção"): merge das 2 etapas na `v2` (`2df4bbd`, deploy READY 18:44).
+  Na 1ª rodada real, as lojas grandes tinham ~1.000 reclamações no período; a busca inicial só era marcada como feita no fim da
+  conferência "afeta a reputação" (várias rodadas), então as 10 páginas seriam refeitas a cada minuto. Ajuste `d80bc4c`: busca
+  inicial gravada logo depois de feita, fila do detalhe por prioridade (nunca lidas, alteradas, prazo) só dos tipos listados e
+  rodada em 1 min enquanto houver fila (+1 teste). Deploy READY 18:53. A espera do deploy pela IA travou ~5 min por erro no
+  próprio script de espera (comparava "READY + data" com "READY"); nada a ver com o deploy.
 
 ### 2026-10-19 — Sessão 28b · Clientes só a partir de agora (IA: Claude, via app Codex)
 - Pedido do Breno, ~20 min depois de publicar: "vamos ter que interferir. São muitas vendas e vai lotar muito de
@@ -2506,10 +2513,9 @@ webhook do ML validado, fila/reprocessamento de jobs, observabilidade, controle 
 
 ## 13. Próximos passos
 
-0m. **Escudo de Reputação (Sessão 29) — pronto nas branches, falta publicar.** Etapa 1 = `codex/escudo-reputacao`
-   (`48974e0`); etapa 2 = `codex/escudo-reputacao-reclamacoes` (contém a etapa 1 + este cérebro). Migrações já aplicadas.
-   **Breno:** (a) revisar e aprovar o merge da etapa 1 na `v2` (pode ir junto com a etapa 2: merge só da branch
-   `codex/escudo-reputacao-reclamacoes`); (b) criar no Resend uma chave **só com envio** e o domínio `maanu.com.br` verificado
+0m. **Escudo de Reputação (Sessão 29) — ✅ no ar desde 2026-10-19 ~18:44** (as 2 etapas). **Breno:** (a) ✅ merge aprovado;
+   (b) o Resend do cadastro é o mesmo, com o domínio já verificado, mas a chave dele fica guardada **dentro do Supabase** (SMTP;
+   a API devolve só um resumo, não dá para reaproveitar) e o código na Vercel precisa da própria: criar no Resend uma chave **só com envio** e o domínio `maanu.com.br` verificado
    (remetente `alertas@maanu.com.br`) e colocar `RESEND_API_KEY` (sensível) no projeto Vercel `maanu` (Production) → Redeploy;
    (c) etapa 2: conferir no DevCenter do app da maanu as permissões **"Comunicação pré e pós-venda"** e **"Vendas e envios"** em
    leitura **e escrita** (se faltar, as contas precisam reconectar para as ações de reclamação funcionarem); (d) se tiver uma
@@ -2517,7 +2523,9 @@ webhook do ML validado, fila/reprocessamento de jobs, observabilidade, controle 
    **Próxima IA, depois do merge:** conferir (só leitura) o cron `/api/cron/reputacao` 200, `reputation_sync.last_error` vazio,
    snapshots batendo com a página de métricas do ML de um cliente que autorizar, se os descontos de frete vêm em `/costs` (senão
    o cartão de R$ some e fica a lista do que cada cor tranca) e, na etapa 2, a 1ª análise real da IA (custo em Uso de IA como
-   `reputation_claim_analysis`). Se publicar só a etapa 1, atualizar este cérebro na `v2` (ele está na branch da etapa 2).
+   `reputation_claim_analysis`). Estado ~18:58: cron sem erro, tokens válidos, busca inicial das reclamações feita (~1.000
+   por loja grande); a conferência "afeta a reputação" (40 por rodada) leva algumas dezenas de minutos e só depois começam o
+   detalhe das reclamações e a IA.
 
 0l. ✅ **Aba Clientes no ar (Sessão 28/28b, 2026-10-19), contando só a partir de 2026-10-19 16:09** (ou da conexão da
    conta). Tópico `orders_v2` já chegando (nada a fazer no DevCenter). **Próxima IA:** conferir (só leitura) que as vendas
