@@ -5,6 +5,8 @@ import { parseMessageNotification } from "@/lib/after-sale/notification"
 import { processDueQuestions, processQuestion, reconcileQuestion } from "@/lib/answers/engine"
 import { registerQuestion } from "@/lib/answers/ingest"
 import { parseQuestionNotification } from "@/lib/answers/notification"
+import { handleOrderNotification } from "@/lib/customers/engine"
+import { parseOrderNotification } from "@/lib/customers/notification"
 import { serverEnv } from "@/lib/env"
 import { organizationIncludes } from "@/lib/plans/plans"
 import { createServiceClient } from "@/lib/supabase/admin"
@@ -38,6 +40,12 @@ export async function POST(request: Request) {
   if (message) {
     console.info(`[webhook] mensagem ${message.messageId} da conta ML ${message.mlUserId} (tentativa ${attempts(body)})`)
     after(() => handleMessage(message.mlUserId, message.messageId))
+    return ok()
+  }
+  const order = parseOrderNotification(body, applicationId)
+  if (order) {
+    console.info(`[webhook] venda ${order.orderId} da conta ML ${order.mlUserId} (tentativa ${attempts(body)})`)
+    after(() => handleOrder(order.mlUserId, order.orderId))
     return ok()
   }
   // Tópicos que ainda não usamos (items, shipments...): só o registro, para saber de quais contas o ML está mandando.
@@ -93,6 +101,22 @@ async function handleMessage(mlUserId: number, messageId: string) {
     await processDueConversations(5)
   } catch (error) {
     console.error("[webhook] pós-venda:", error instanceof Error ? error.message : error)
+  }
+}
+
+/** Venda nova ou alterada (aba Clientes, todos os planos). Contas desconectadas e organizações bloqueadas ficam de fora. */
+async function handleOrder(mlUserId: number, orderId: number) {
+  try {
+    const { data: account, error } = await createServiceClient()
+      .from("ml_accounts")
+      .select("id, ml_user_id, status, organizations(trial_ends_at, subscription_status, billing_exempt, current_period_end)")
+      .eq("ml_user_id", mlUserId)
+      .maybeSingle()
+    if (error) throw error
+    if (!account) return
+    await handleOrderNotification(account, orderId)
+  } catch (error) {
+    console.error("[webhook] venda:", error instanceof Error ? error.message : error)
   }
 }
 

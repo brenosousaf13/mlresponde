@@ -10,12 +10,15 @@ export function QuestionSearch({
   clearHref,
   action = "/perguntas",
   placeholder = "Buscar pergunta ou anúncio",
+  name = "busca",
 }: {
   value: string
   hidden: Record<string, string>
   clearHref: string
   action?: string
   placeholder?: string
+  /** Nome do parâmetro da busca na URL. */
+  name?: string
 }) {
   return (
     <Form action={action} className="flex-1">
@@ -26,7 +29,7 @@ export function QuestionSearch({
         <InputGroupAddon>
           <SearchIcon />
         </InputGroupAddon>
-        <InputGroupInput name="busca" defaultValue={value} placeholder={placeholder} aria-label={placeholder} />
+        <InputGroupInput name={name} defaultValue={value} placeholder={placeholder} aria-label={placeholder} />
         {value ? (
           <InputGroupAddon align="inline-end">
             <Link href={clearHref} aria-label="Limpar busca" className="rounded-sm p-0.5 text-muted-foreground hover:text-foreground">

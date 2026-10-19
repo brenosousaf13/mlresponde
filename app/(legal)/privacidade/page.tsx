@@ -19,6 +19,7 @@ const sections: LegalSection[] = [
       "Dados de cadastro: nome, e-mail, WhatsApp e nome da loja ou empresa.",
       "Dados de cobrança: CPF ou CNPJ, nome completo ou razão social e endereço do titular da assinatura. O CPF/CNPJ fica vinculado a uma única conta.",
       "Dados do Mercado Livre que você autoriza: identificação da conta de vendedor, perguntas e respostas dos anúncios, informações dos anúncios e, conforme as funcionalidades usadas, dados de pedidos e mensagens.",
+      "Dados dos seus compradores (aba Clientes): apenas o apelido, o nome e o sobrenome, a cidade e o estado de entrega e as compras feitas na sua loja (produtos, valores, datas e situação). Não guardamos e-mail, telefone, CPF/CNPJ nem o endereço completo dos compradores.",
       "Dados técnicos necessários ao funcionamento, como registros de acesso e cookies essenciais de sessão.",
     ],
   },
@@ -26,6 +27,7 @@ const sections: LegalSection[] = [
     title: "Como usamos os dados",
     paragraphs: [
       "Para criar e manter sua conta, prestar o serviço contratado (incluindo a geração de respostas com inteligência artificial), dar suporte, enviar avisos importantes sobre a conta e cumprir obrigações legais.",
+      `Os dados dos seus compradores são tratados em seu nome, só para você ver no painel quem comprou na sua loja e atender pelo Mercado Livre. Nunca são usados pela ${name} para marketing, contato com o comprador ou qualquer outra finalidade, nem compartilhados com outras lojas.`,
       "Os dados de cobrança são usados para cobrar a assinatura, emitir nota fiscal e evitar contas duplicadas. Podem ser compartilhados com o meio de pagamento (AbacatePay) e com o emissor de notas fiscais, apenas para essas finalidades. Os dados do cartão são digitados na página de pagamento da AbacatePay e não passam pela maanu.",
       "Não vendemos seus dados pessoais.",
     ],

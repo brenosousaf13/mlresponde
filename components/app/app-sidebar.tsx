@@ -13,6 +13,7 @@ import {
   PanelLeftOpenIcon,
   Settings2Icon,
   StoreIcon,
+  UsersIcon,
   type LucideIcon,
 } from "lucide-react"
 import Link from "next/link"
@@ -44,6 +45,7 @@ const ICONS: Record<NavItemConfig["icon"], LucideIcon> = {
   painel: LayoutDashboardIcon,
   perguntas: MessageCircleQuestionIcon,
   pos_venda: MessagesSquareIcon,
+  clientes: UsersIcon,
   melhorias: LightbulbIcon,
   resultados: ChartColumnIncreasingIcon,
   assistente: BotIcon,

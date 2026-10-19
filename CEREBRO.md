@@ -4,7 +4,7 @@
 > inteiro antes de trabalhar e atualizá-lo ao terminar. Se algo aqui divergir do código, o código vence —
 > e este arquivo deve ser corrigido na mesma sessão.
 
-Última atualização: **2026-10-16** (Sessão 27 — **troca de endereços concluída**: `maanu.com.br` = só a página de vendas (indexável; `/institucional` redireciona) e **o app em `app.maanu.com.br`** (`APP_HOST`, Site URL do Supabase), webhooks e retorno do OAuth do ML fixos no domínio principal; Sessão 23d — **só o plano mensal** (decisão do Breno): o anual saiu da Assinatura, da página de vendas, das Dúvidas, do `llms.txt`, dos Termos e do painel; Sessão 23c — **cobrança pela AbacatePay em produção** (chave de produção, produtos mensais e webhook prontos); o anual só aparece quando houver os produtos anuais; Sessão 25c — WhatsApp/telefone `(31) 99263-0934` no rodapé de `/institucional` para a aprovação da AbacatePay; falta o e-mail; Sessão 25b — página de vendas **publicada em `maanu.com.br/institucional`** para o Breno e o sócio revisarem, fora do Google por enquanto; `maanu.com.br/` continua levando ao app; Sessão 26 — quatro criativos 4:5 para carrossel do Instagram salvos em `CRIATIVOS/`; Sessão 25 — página de vendas em `maanu.com.br/` com SEO para Google, Bing e buscas por IA (dados estruturados, `llms.txt`, robots, imagem de compartilhamento, carregamento mais rápido) e app pronto para ir para `app.maanu.com.br` (variável `APP_HOST`), na branch `codex/pagina-de-vendas`, aguardando o Breno; Sessão 24 — cliente sem permissão de administrador vê uma mensagem de acesso restrito com retorno ao painel; Sessão 23b — tela "Levando você para o pagamento seguro" antes da AbacatePay, teste de compra aprovado e dados de teste apagados, falta a chave de produção; Sessão 23 — cobrança pela AbacatePay pronta no código e no banco: assinar, trocar, cancelar e webhooks; falta só a chave de API do Breno; Sessão 22 — perguntas chegando sozinhas: rotina que busca no ML a cada ~10 s + webhook respondendo na hora; foto do anúncio corrigida; Sessão 21 — v1: botão de pausar a IA funcionando, commit `bf56777` na `main`; Sessão 20b — Starter com 300 respostas e espaço nos cards dos planos; Sessão 20 — planos Starter/Pro/Escala com limites, teste grátis e Melhorias de anúncio; Sessão 19 — pesquisa de preços e proposta de 3 planos; Sessão 18 — tour de boas-vindas e avisos de teste/conta ML redesenhados; Sessão 17 — chaves de IA cadastradas e trocadas pelo painel do administrador; Sessão 16 — textos do cadastro sem falar em cobrança; Sessão 15b — Fase 1 da troca preparada)
+Última atualização: **2026-10-19** (Sessão 28 — **aba Clientes** pronta na branch `codex/clientes` (quem comprou em cada conta do ML: compras, total, quem voltou, cidade/UF, perguntas, conversas e observações; sem e-mail/telefone, que o ML não entrega); migração `clientes` **já aplicada** no banco; falta o Breno liberar o merge na `v2` e ligar o tópico Orders no DevCenter (§13 item 0l); Sessão 27 — **troca de endereços concluída**: `maanu.com.br` = só a página de vendas (indexável; `/institucional` redireciona) e **o app em `app.maanu.com.br`** (`APP_HOST`, Site URL do Supabase), webhooks e retorno do OAuth do ML fixos no domínio principal; Sessão 23d — **só o plano mensal** (decisão do Breno): o anual saiu da Assinatura, da página de vendas, das Dúvidas, do `llms.txt`, dos Termos e do painel; Sessão 23c — **cobrança pela AbacatePay em produção** (chave de produção, produtos mensais e webhook prontos); o anual só aparece quando houver os produtos anuais; Sessão 25c — WhatsApp/telefone `(31) 99263-0934` no rodapé de `/institucional` para a aprovação da AbacatePay; falta o e-mail; Sessão 25b — página de vendas **publicada em `maanu.com.br/institucional`** para o Breno e o sócio revisarem, fora do Google por enquanto; `maanu.com.br/` continua levando ao app; Sessão 26 — quatro criativos 4:5 para carrossel do Instagram salvos em `CRIATIVOS/`; Sessão 25 — página de vendas em `maanu.com.br/` com SEO para Google, Bing e buscas por IA (dados estruturados, `llms.txt`, robots, imagem de compartilhamento, carregamento mais rápido) e app pronto para ir para `app.maanu.com.br` (variável `APP_HOST`), na branch `codex/pagina-de-vendas`, aguardando o Breno; Sessão 24 — cliente sem permissão de administrador vê uma mensagem de acesso restrito com retorno ao painel; Sessão 23b — tela "Levando você para o pagamento seguro" antes da AbacatePay, teste de compra aprovado e dados de teste apagados, falta a chave de produção; Sessão 23 — cobrança pela AbacatePay pronta no código e no banco: assinar, trocar, cancelar e webhooks; falta só a chave de API do Breno; Sessão 22 — perguntas chegando sozinhas: rotina que busca no ML a cada ~10 s + webhook respondendo na hora; foto do anúncio corrigida; Sessão 21 — v1: botão de pausar a IA funcionando, commit `bf56777` na `main`; Sessão 20b — Starter com 300 respostas e espaço nos cards dos planos; Sessão 20 — planos Starter/Pro/Escala com limites, teste grátis e Melhorias de anúncio; Sessão 19 — pesquisa de preços e proposta de 3 planos; Sessão 18 — tour de boas-vindas e avisos de teste/conta ML redesenhados; Sessão 17 — chaves de IA cadastradas e trocadas pelo painel do administrador; Sessão 16 — textos do cadastro sem falar em cobrança; Sessão 15b — Fase 1 da troca preparada)
 
 ---
 
@@ -185,6 +185,16 @@ novas funcionalidades, segurança multi-tenant de verdade — **desenvolvido em 
   Supabase; todo o resto de `maanu.com.br` (login, cadastro, painel, links dos e-mails) vai com 307 para o mesmo caminho em
   `app.maanu.com.br` (§13 item 0k). Webhooks do ML e da
   AbacatePay e a URL de retorno do OAuth do ML ficam em `maanu.com.br` (nada a mudar no DevCenter nem na AbacatePay).
+  **Sessão 28 (2026-10-19): aba Clientes** (`/clientes`, **todos os planos**; pedido do Breno: "aba de clientes com e-mail e
+  telefone vindos do ML"). Pesquisa na documentação + conferência na API real: o ML **não entrega e-mail** e o **telefone vem
+  mascarado** ("XXXXXXX"; só aparece de verdade em vendas ME1), e usar contato fora da plataforma é proibido. Decisão do
+  Breno: conhecer os clientes com **dados mínimos** (apelido, nome, sobrenome, cidade/UF e as compras), **12 meses** de
+  vendas importados ao ligar e **observações internas**. Lista com 4 números (clientes, voltaram a comprar, total, novos em
+  30 dias), busca, filtros, ordem e 50 por página; ficha com compras (por carrinho), perguntas que fez, conversas do
+  pós-venda (cadeado sem o plano) e observações. Sincronização: cron `/api/cron/clientes` (importação em janelas de 30 dias,
+  conferência a cada 10 min, cidade/nome) + notificação `orders_v2`. **Estado:** código na branch `codex/clientes` (não
+  publicada), migração `20261019120000_clientes.sql` já aplicada no banco (aditiva; as 3 contas existentes estão com a
+  importação pendente, que começa quando o código entrar na `v2`). Spec: `docs/superpowers/specs/2026-10-19-clientes-design.md`.
 - **Marca:** **maanu** (decisão do Breno, 2026-10-11). Guia de uso, paleta e arquivos em `docs/brand/README.md`; nome,
   assinatura e slogan em `lib/config/site.ts`; logo só pelos componentes de `components/brand/logo.tsx`.
 - **Criativos sociais:** em 2026-10-15 foram criadas quatro peças 1080×1350 para um carrossel de apresentação da maanu;
@@ -285,6 +295,9 @@ app/
     pos-venda/ (+ agente/)        # caixa de entrada do pós-venda e configuração do agente (Pro, Escala e teste grátis)
     melhorias/ (+ [id]/)          # Melhorias de anúncio (Pro/Escala/teste): anúncios com mais perguntas, analisar, análise
     melhorias/actions.ts          # analyzeListing (gasta 1 da cota), setSuggestionDone
+    clientes/ (+ [id]/)           # CLIENTES (Sessão 28, todos os planos): lista (números, busca ?q=, filtro, ordem, 50/página,
+                                  # avisos de importação) e ficha (compras por pack, perguntas, conversas, observações)
+    clientes/actions.ts           # saveCustomerNote (qualquer membro), retryCustomerImport ("Tentar de novo")
     pos-venda/actions.ts          # sendReply (FormData com anexos), generateSuggestion, refreshFromMl, retryWithAgent,
                                   # archive/restoreConversation, syncConversations, setAgentEnabled, updateAgentSettings,
                                   # add/deleteAfterSaleExample, testAfterSaleAgent
@@ -306,6 +319,7 @@ app/
   api/cron/questions/route.ts   # Vercel Cron 1/min (só em produção; Bearer CRON_SECRET): runQuestionRounds = busca as
                                 # perguntas novas no ML a cada ~10 s por ~50 s + fila de novas tentativas (maxDuration 120)
   api/cron/pos-venda/route.ts   # fila do pós-venda (1/min) + a cada 15 min não lidas e conferência (Bearer CRON_SECRET)
+  api/cron/clientes/route.ts    # aba Clientes (1/min, Bearer CRON_SECRET): runCustomerSync = importação + conferência + cidades
   api/pos-venda/anexo/route.ts  # abre anexos das conversas (token do ML só no servidor; confere plano e conversa)
 components/
   ui/                             # shadcn (não editar à toa; regenerar com a CLI)
@@ -429,6 +443,13 @@ lib/
                                   #   engine (fila, sync com o ML, envio, manual, sugestão, teste, não lidas, conferência)
   mercadolivre/messages.ts        # mensagens pós-venda (páginas, detalhe, não lidas, enviar, anexos), packs/vendas, envio
   dal/after-sale.ts               # números do cartão Pós-venda do Painel
+  customers/                      # CLIENTES (puros e testados em tests/unit/customers.test.ts, salvo engine): orders (venda do ML →
+                                  #   ingest, buyerName, PURCHASE_STATUSES, cidade/UF do envio), import (janelas de 30 dias, divisão
+                                  #   acima de 9 mil vendas, offset ≤ 10 mil, conferência), notification (orders_v2), presentation
+                                  #   (URL, filtros, ordens, compras por pack, observações, R$); engine (importAccount, pollAccount,
+                                  #   resolveLocations, runCustomerSync, handleOrderNotification, retryFailedImport)
+  mercadolivre/orders.ts          # /orders/search, /orders/{id}, /shipments/{id} (só leitura)
+  dal/customers.ts                # lista, números (rpc customers_overview), sincronização e ficha do cliente
   migration/v1.ts                 # MIGRAÇÃO v1 → v2 (puro, testado em tests/unit/migration-v1.test.ts): question_jobs →
                                   #   ml_questions, training_examples → ai_examples, CNPJ fictício para testes (§6.3)
   supabase/server.ts              # createClient (sessão) + createAdminClient (legado v1, sem tipos)
@@ -440,14 +461,15 @@ supabase/
                                   # perguntas_escala + resultados + dados_cobranca + modo_responder_sempre + pos_venda +
                                   # painel_admin
   tests/fundacao_rls.sql, respostas_rls.sql, resultados_rls.sql, cobranca_rls.sql, pos_venda_rls.sql, admin_rls.sql,
-       ai_keys_rls.sql
+       ai_keys_rls.sql, clientes_rls.sql
                                   # sucesso = erro "TESTES_..._OK"
 scripts/v1-para-v2/                # exportar.mjs (v1 → JSON, só GET, sem tokens) e importar.mjs (JSON → Supabase de TESTES; trava
                                   #   pelo project ref do .env.local). Saídas com dados de clientes só em docs/v2/privado/ (§6.3)
 tests/unit/                       # vitest: crypto, pkce, access, forms, answers, assistant, inbox, results, billing, after-sale...
 tests/integration/ai-live.test.ts # 22 cenários com a IA real; só roda com RUN_LIVE_AI=1 + OPENAI_API_KEY
 tests/integration/after-sale-live.test.ts # 12 cenários do agente de pós-venda com a IA real (mesmas variáveis)
-vercel.json                       # crons /api/cron/questions e /api/cron/pos-venda a cada minuto (efeito só em produção)
+tests/integration/customers-db.test.ts # aba Clientes no banco real com o ML simulado (RUN_CUSTOMERS_DB=1; loja temporária apagada)
+vercel.json                       # crons /api/cron/questions, /api/cron/pos-venda e /api/cron/clientes a cada minuto (só produção)
 docs/                             # specs (superpowers/specs), db (inventário/snapshot de prod), v2 (referências),
                                   # brand (apresentação e originais da marca, guia README.md, scripts/ para regerar)
 public/brand/                     # maanu-logo(.svg/.png, -branco), maanu-m(.svg, -branco), maanu-icone(.svg, -512.png)
@@ -503,7 +525,7 @@ Projetos Supabase novos podem fornecer chaves no formato novo: `sb_publishable_.
 
 **Projeto Vercel `maanu` (Sessão 15, id `prj_soCke40253xAKpkOu3tNWT1hkmAa`)** = produção da v2: production branch
 **`v2`** (definida pela API `PATCH /v9/projects/{id}/branch`), ignored build step que **só publica a `v2`**, Node 24,
-região `iad1`, Standard Protection (só os domínios próprios são públicos), crons `/api/cron/questions` e
+região `iad1`, Standard Protection (só os domínios próprios são públicos), crons `/api/cron/clientes` (desde a Sessão 28, quando entrar na `v2`), `/api/cron/questions` e
 `/api/cron/pos-venda` a cada minuto. Variáveis de **Production**: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`
 (= chave **publishable**), `SUPABASE_SERVICE_ROLE_KEY` (= chave **secret** `maanu_servidor`), `ML_CLIENT_ID`
 (`8693830632560554`), `ML_REDIRECT_URI` (`https://maanu.com.br/api/auth/callback/mercadolivre`, continua no domínio principal), `NEXT_PUBLIC_SITE_URL` (`https://app.maanu.com.br` desde a Sessão 27; antes `https://maanu.com.br`), `APP_HOST` (`app.maanu.com.br`, Sessão 27), `ML_TOKEN_ENCRYPTION_KEY` (a
@@ -708,6 +730,29 @@ localmente, definir no terminal).
   `monthly_price`), atualizado pelo servidor a cada evento. Testado em `supabase/tests/cobranca_abacatepay_rls.sql`
   (TESTES_COBRANCA_ABACATEPAY_OK).
 
+### 6.1j v2 — Clientes (migração `20261019120000_clientes.sql`, Sessão 28, aditiva; **já aplicada em 2026-10-19**)
+
+- `ml_customers` (1 por conta do ML + comprador, `unique (ml_account_id, buyer_id)`): `nickname`, `first_name`, `last_name`,
+  `full_name` (coluna **gerada**, para busca), `city`, `state` (UF, `^[A-Z]{2}$`), `first_order_at`, `last_order_at`,
+  `purchases_count`, `total_spent`, `currency_id`, `location_pending` + `location_ml_order_id` (de qual venda ler cidade/UF e
+  nome), `notes` (≤ 2.000) + `notes_updated_by`/`notes_updated_at`. **Sem e-mail, telefone, CPF/CNPJ ou endereço.**
+- `ml_orders` (1 por venda, `unique (ml_account_id, ml_order_id)`): `customer_id`, `pack_id`, `buyer_id`, `status`,
+  `ordered_at`, `closed_at`, `ml_last_updated` (versão mais velha não sobrescreve), `total_amount`, `paid_amount`,
+  `currency_id`, `shipment_id`, `mediations_count`, `items` jsonb (≤ 10: id, título, variação, quantidade, preço).
+- `ml_customer_sync` (1 por conta, PK `ml_account_id`): `status` `pending|running|done|failed`, cursor da importação
+  (`import_since`, `window_from`, `window_to`, `window_offset`), `orders_imported`, início/fim, `last_polled_at`,
+  `last_error`, `attempts`, `next_attempt_at`, `locked_until`. Gatilho `ml_accounts_create_customer_sync`: conta nova ganha
+  a linha `pending` (reconectar não reimporta). A migração criou a linha de todas as contas que já existiam.
+- Compra válida = `paid`, `partially_paid`, `partially_refunded` (`ml_order_is_purchase`, espelho de `PURCHASE_STATUSES` em
+  `lib/customers/orders.ts`); compras contam **por pack**; a lista mostra só quem tem ≥ 1 compra válida.
+- Funções só do service role: `ingest_ml_orders(conta, jsonb)` (lote de até 200 vendas no formato de `toIngestOrder`;
+  idempotente; apelido/nome só mudam com venda tão ou mais nova; recalcula os números e a pendência de cidade) e
+  `claim_customer_sync(tipo 'import'|'poll', limite, trava)` (só contas ativas, token válido e organização com acesso,
+  espelho de `computeAccess`; conferência só a cada 10 min). Leitura: `customers_overview(org, conta?)` (security invoker).
+- RLS só leitura por organização (`current_user_organization_ids()`) nas 3 tabelas, `GRANT select` explícito. Índices novos
+  também em `ml_questions (ml_account_id, buyer_id)` e `ml_conversations (ml_account_id, buyer_id)` (ficha do cliente).
+  Testado em `supabase/tests/clientes_rls.sql` (TESTES_CLIENTES_OK).
+
 ### 6.2 v1 — produção (✅ CONFIRMADO em 2026-10-11)
 
 > Fonte: inventário só leitura de prod (`docs/db/inventario-schema.sql`, rodado pelo Breno no SQL Editor).
@@ -895,6 +940,23 @@ exportação só faz GET e a importação recusa qualquer destino que não seja 
 4. Trocar de plano no mesmo ciclo → `changePlan` → `POST /subscriptions/change-plan`; subir grava o plano novo na hora,
    descer grava `scheduled_plan`. Cancelar → `cancelMySubscription` (ou a equipe na ficha do cliente) → `POST
    /subscriptions/cancel` e o mesmo efeito do webhook.
+
+### 7.0c4 v2 — Clientes (Sessão 28, todos os planos)
+1. Conta conectada → linha `pending` em `ml_customer_sync`. Cron `/api/cron/clientes` (1/min, `runCustomerSync`, até 45 s):
+   **importação** — `claim_customer_sync('import')` → `GET /orders/search?seller=&order.date_created.from/to&sort=date_desc&limit=50`
+   em janelas de 30 dias, da mais nova até 365 dias atrás; cada página vai inteira para `ingest_ml_orders`. O ML ordena
+   pela data de fechamento e recusa offset + limit > 10.000: janela com mais de 9.000 vendas é dividida ao meio. Até 10
+   páginas por rodada (divididas entre as contas, mínimo 2) = ~500 vendas/min para uma loja. Falha: 1/2/4/8/16/30 min e,
+   depois de 6 tentativas, `failed` (a tela mostra "Tentar de novo", que continua de onde parou).
+2. **Conferência** (importação concluída, a cada 10 min por conta): `order.date_last_updated.from` = última − 5 min, até 4
+   páginas; filtro recusado (400) → vendas criadas nos últimos 3 dias.
+3. **Cidade/UF e nome** (até 60 chamadas por rodada, quem comprou por último primeiro): `GET /shipments/{id}`
+   (`x-format-new`, só `destination.shipping_address.city.name` e `state.id`) e, se o cliente ainda não tem nome,
+   `GET /orders/{id}` (a busca não traz `first_name`/`last_name`; `buyerName` descarta sobrenome repetido). 403/404 usa o que
+   veio da outra leitura; falha passageira fica para a próxima rodada.
+4. **Notificação `orders_v2`** → webhook 200 na hora → `after()`: conta → `handleOrderNotification` (`GET /orders/{id}`, só se a
+   conta for a vendedora e a organização tiver acesso) → `ingest_ml_orders`. Precisa do tópico Orders ligado no DevCenter.
+5. Telas leem com a sessão (RLS). Observações: `saveCustomerNote` (service role, conferindo a organização).
 
 ### 7.0d v2 — Painel do administrador (`/admin`)
 1. Entrar normalmente em `/login` com o usuário admin → menu do usuário → **Painel do administrador** (ou abrir `/admin`).
@@ -1433,10 +1495,43 @@ webhook do ML validado, fila/reprocessamento de jobs, observabilidade, controle 
 | 2026-10-15 | `TooltipProvider` e `Toaster` (sonner) saíram do layout raiz para os layouts das áreas que usam (`components/providers/app-providers.tsx`); menu do celular da página de vendas carregado só quando tocado | Menos JavaScript para quem chega pelo anúncio no celular (o que mais pesa na nota de velocidade). |
 | 2026-10-15 | Criativos para Instagram usam o formato 1080×1350, direção editorial clean e apenas a paleta/logos oficiais da maanu | Apresentação da marca com leitura rápida no feed; evitar estética genérica ou artificial e manter as peças prontas para avaliação antes de publicar. |
 | 2026-10-14 | Cliente sem `is_platform_admin` abre `/admin/*` → tela **`/acesso-negado`** com mensagem em português e botão de retorno ao painel (substitui o 404 da Sessão 13) | Pedido do Breno. Redirecionamento no servidor, mantendo MFA, proteção das ações e RLS. API estável do Next (`redirect`), sem habilitar `forbidden`/`authInterrupts` experimentais. |
+| 2026-10-19 | Aba **Clientes** com **dados mínimos** do comprador (apelido, nome, sobrenome, cidade/UF e compras); **sem e-mail, telefone, CPF/CNPJ ou endereço completo** | Decisão do Breno. O ML não entrega e-mail, mascara o telefone (fora do ME1) e proíbe usar os dados fora da plataforma (risco de bloqueio do app e da conta do vendedor, LGPD). Atualiza a decisão de 2026-10-11 ("sem dados pessoais do comprador"), que continua valendo para o pós-venda. |
+| 2026-10-19 | Clientes em **todos os planos**, com **observações internas** (um texto por cliente, qualquer membro edita) e sem exportar CSV nesta versão | Decisão do Breno. Conversas do pós-venda na ficha seguem a regra do plano (cadeado com link para Assinatura). |
+| 2026-10-19 | Cliente = **conta do ML + comprador** (o mesmo comprador em 2 lojas da organização = 2 clientes) | Cada loja tem a própria relação com o comprador; perguntas e conversas também são por conta. Juntar por organização fica para depois, se o Breno pedir. |
+| 2026-10-19 | Importação dos **últimos 12 meses** em janelas de 30 dias pelo cron + conferência a cada 10 min + notificação `orders_v2` | Decisão do Breno (12 meses). Janelas pequenas respeitam o limite de offset de 10 mil do ML; o cron segue o padrão de fila no Postgres (sem serviço extra). A conferência cobre notificação perdida, como nas perguntas. |
+| 2026-10-19 | Nome do comprador lido de `/orders/{id}` **junto com a cidade** (1 venda por cliente), não na importação | A busca de vendas não traz o nome (conferido na API em 2026-10-19). Ler cada venda custaria 1 chamada por venda; assim é 1 por cliente, e quem comprou por último é preenchido primeiro. |
+| 2026-10-19 | Aba Clientes na branch `codex/clientes`, migração aplicada antes do merge | Mudança grande (regra do AGENTS.md). A migração é aditiva e não muda nada para a produção atual; o código só começa a importar quando entrar na `v2`. |
 
 ---
 
 ## 12. Diário de sessões (mais recente no topo)
+
+### 2026-10-19 — Sessão 28 · Aba Clientes (IA: Claude, via app Codex)
+- Pedido do Breno: "existe alguma maneira de ter a aba de clientes, que são os que compraram na nossa loja do ML, e ter
+  alguns dados como e-mail e telefone deles vindos do Mercado Livre?"
+- Pesquisa (documentação do ML + API real, só leitura e só a estrutura das respostas, sem guardar dados): `/orders/search`
+  traz o comprador só com `id` e `nickname`; `/orders/{id}` traz também `first_name`/`last_name` (às vezes repetidos) e
+  `billing_info`; nenhum e-mail; `/shipments/{id}` traz cidade/UF e `receiver_phone` **mascarado** ("XXXXXXX") nas vendas
+  Full; a busca ordena pela data de fechamento e recusa offset + limit > 10.000 ("limit.maximum_exceeded"); o filtro
+  `order.date_last_updated.from` funciona. Resposta ao Breno: dá para ter a aba, sem e-mail e sem telefone.
+- Decisões do Breno (perguntas no modo plano): conhecer os clientes (sem contato fora do ML), dados mínimos, últimos 12
+  meses, todos os planos, com observações internas.
+- Banco (produção): migração `20261019120000_clientes.sql` (§6.1j) **ensaiada antes** numa transação desfeita junto com o teste
+  novo (conferido que nada ficou), dry-run, `db push`; os 10 testes SQL passam depois. Tipos regenerados. As 3 contas
+  existentes ficaram com a importação `pending` (nada roda até o código entrar na `v2`).
+- Código (branch `codex/clientes`): `lib/customers/*`, `lib/mercadolivre/orders.ts`, `lib/dal/customers.ts`, cron
+  `/api/cron/clientes` (+ `vercel.json`), tópico `orders_v2` no webhook do ML, seção `clientes` (menu, `AppSection`, títulos,
+  robots), telas `/clientes` e `/clientes/[id]` (shadcn: Card, Table, Badge, Avatar, Alert, Empty, Select, Textarea),
+  `components/clientes/*`, busca reaproveitando `QuestionSearch` (parâmetro `name`), rascunho da Privacidade (dados dos
+  compradores tratados em nome do vendedor, nunca para marketing). Spec `docs/superpowers/specs/2026-10-19-clientes-design.md`.
+- Testes: `tests/unit/customers.test.ts` (38 com o webhook) e o caso `orders_v2` em `webhook.test.ts`; `clientes_rls.sql`;
+  `tests/integration/customers-db.test.ts` (`RUN_CUSTOMERS_DB=1`): importação de 12 meses até concluir, conferência (venda
+  alterada e nova), cidade/nome com envio 404, notificação de outra loja ignorada e números do topo — no banco real com o ML
+  simulado e loja temporária apagada no fim (conferido: nada ficou). QA visual no navegador local (`next start`) com uma loja
+  temporária de dados falsos: lista, paginação, busca, filtro, ordem, ficha, observações, cadeado do pós-venda (Starter),
+  importação em andamento e com falha ("Tentar de novo") e celular (cartões 2 por linha); loja apagada e conferida.
+- Verificação: typecheck, 494 testes, lint e build ok. **Não publicado**: commit na branch `codex/clientes` (push só da
+  branch, que nenhum projeto Vercel publica). Falta o Breno liberar o merge na `v2` e ligar o tópico Orders (§13 0l).
 
 ### 2026-10-16 — Sessão 27 · Troca de endereços: página de vendas na raiz e app em app.maanu.com.br (IA: Claude, via app Codex)
 - Pedido do Breno: "a plataforma vai passar a responder em app.maanu.com.br e o /institucional vai responder no domínio
@@ -2241,6 +2336,15 @@ webhook do ML validado, fila/reprocessamento de jobs, observabilidade, controle 
 ---
 
 ## 13. Próximos passos
+
+0l. **Aba Clientes (Sessão 28) — falta publicar.** Código na branch `codex/clientes` (4 verificações ok); migração já aplicada.
+   (a) **Breno:** revisar e liberar o merge na `v2` (a IA faz o merge, o push e confere o deploy). (b) **Breno:** DevCenter
+   do Mercado Livre → app da v2 (`8693830632560554`) → Notificações → ligar o tópico **Orders** (`orders_v2`), sem mudar a URL
+   (`https://maanu.com.br/api/webhook/mercadolivre`). Sem ele, as vendas novas aparecem em até ~10 min pela conferência.
+   (c) **IA, depois do deploy:** acompanhar a importação das 3 contas (`ml_customer_sync` por SQL só leitura; loja com dezenas
+   de milhares de vendas por ano leva ~2 h para importar e nomes/cidades completam em até ~1 dia, a 60 chamadas/min), conferir
+   numa venda real que nome e cidade chegam, logs do cron `clientes` sem erro e que perguntas e pós-venda seguem normais.
+   Ideias não feitas: exportar CSV, juntar o mesmo comprador de lojas diferentes, "clientes mais valiosos" no Painel.
 
 0k. ✅ **TROCA DE ENDEREÇOS concluída (Sessão 27, 2026-10-16).** `maanu.com.br` = página de vendas (+ termos,
    privacidade, `llms.txt`, robots/sitemap, webhooks e crons); `app.maanu.com.br` = o app (`APP_HOST`). Webhook do ML,

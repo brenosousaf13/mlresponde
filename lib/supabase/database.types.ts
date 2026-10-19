@@ -1194,6 +1194,259 @@ export type Database = {
         }
         Relationships: []
       }
+      ml_customer_sync: {
+        Row: {
+          attempts: number
+          created_at: string
+          import_finished_at: string | null
+          import_since: string | null
+          import_started_at: string | null
+          last_error: string | null
+          last_polled_at: string | null
+          locked_until: string | null
+          ml_account_id: string
+          next_attempt_at: string
+          orders_imported: number
+          organization_id: string
+          status: string
+          updated_at: string
+          window_from: string | null
+          window_offset: number
+          window_to: string | null
+        }
+        Insert: {
+          attempts?: number
+          created_at?: string
+          import_finished_at?: string | null
+          import_since?: string | null
+          import_started_at?: string | null
+          last_error?: string | null
+          last_polled_at?: string | null
+          locked_until?: string | null
+          ml_account_id: string
+          next_attempt_at?: string
+          orders_imported?: number
+          organization_id: string
+          status?: string
+          updated_at?: string
+          window_from?: string | null
+          window_offset?: number
+          window_to?: string | null
+        }
+        Update: {
+          attempts?: number
+          created_at?: string
+          import_finished_at?: string | null
+          import_since?: string | null
+          import_started_at?: string | null
+          last_error?: string | null
+          last_polled_at?: string | null
+          locked_until?: string | null
+          ml_account_id?: string
+          next_attempt_at?: string
+          orders_imported?: number
+          organization_id?: string
+          status?: string
+          updated_at?: string
+          window_from?: string | null
+          window_offset?: number
+          window_to?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ml_customer_sync_ml_account_id_fkey"
+            columns: ["ml_account_id"]
+            isOneToOne: true
+            referencedRelation: "ml_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ml_customer_sync_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ml_customers: {
+        Row: {
+          buyer_id: number
+          city: string | null
+          created_at: string
+          currency_id: string | null
+          first_name: string | null
+          first_order_at: string | null
+          full_name: string | null
+          id: string
+          last_name: string | null
+          last_order_at: string | null
+          location_ml_order_id: number | null
+          location_pending: boolean
+          ml_account_id: string
+          nickname: string | null
+          notes: string
+          notes_updated_at: string | null
+          notes_updated_by: string | null
+          organization_id: string
+          purchases_count: number
+          state: string | null
+          total_spent: number
+          updated_at: string
+        }
+        Insert: {
+          buyer_id: number
+          city?: string | null
+          created_at?: string
+          currency_id?: string | null
+          first_name?: string | null
+          first_order_at?: string | null
+          full_name?: string | null
+          id?: string
+          last_name?: string | null
+          last_order_at?: string | null
+          location_ml_order_id?: number | null
+          location_pending?: boolean
+          ml_account_id: string
+          nickname?: string | null
+          notes?: string
+          notes_updated_at?: string | null
+          notes_updated_by?: string | null
+          organization_id: string
+          purchases_count?: number
+          state?: string | null
+          total_spent?: number
+          updated_at?: string
+        }
+        Update: {
+          buyer_id?: number
+          city?: string | null
+          created_at?: string
+          currency_id?: string | null
+          first_name?: string | null
+          first_order_at?: string | null
+          full_name?: string | null
+          id?: string
+          last_name?: string | null
+          last_order_at?: string | null
+          location_ml_order_id?: number | null
+          location_pending?: boolean
+          ml_account_id?: string
+          nickname?: string | null
+          notes?: string
+          notes_updated_at?: string | null
+          notes_updated_by?: string | null
+          organization_id?: string
+          purchases_count?: number
+          state?: string | null
+          total_spent?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ml_customers_ml_account_id_fkey"
+            columns: ["ml_account_id"]
+            isOneToOne: false
+            referencedRelation: "ml_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ml_customers_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ml_orders: {
+        Row: {
+          buyer_id: number
+          closed_at: string | null
+          created_at: string
+          currency_id: string | null
+          customer_id: string
+          id: string
+          items: Json
+          mediations_count: number
+          ml_account_id: string
+          ml_last_updated: string | null
+          ml_order_id: number
+          ordered_at: string | null
+          organization_id: string
+          pack_id: number | null
+          paid_amount: number | null
+          shipment_id: number | null
+          status: string
+          total_amount: number | null
+          updated_at: string
+        }
+        Insert: {
+          buyer_id: number
+          closed_at?: string | null
+          created_at?: string
+          currency_id?: string | null
+          customer_id: string
+          id?: string
+          items?: Json
+          mediations_count?: number
+          ml_account_id: string
+          ml_last_updated?: string | null
+          ml_order_id: number
+          ordered_at?: string | null
+          organization_id: string
+          pack_id?: number | null
+          paid_amount?: number | null
+          shipment_id?: number | null
+          status: string
+          total_amount?: number | null
+          updated_at?: string
+        }
+        Update: {
+          buyer_id?: number
+          closed_at?: string | null
+          created_at?: string
+          currency_id?: string | null
+          customer_id?: string
+          id?: string
+          items?: Json
+          mediations_count?: number
+          ml_account_id?: string
+          ml_last_updated?: string | null
+          ml_order_id?: number
+          ordered_at?: string | null
+          organization_id?: string
+          pack_id?: number | null
+          paid_amount?: number | null
+          shipment_id?: number | null
+          status?: string
+          total_amount?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ml_orders_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "ml_customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ml_orders_ml_account_id_fkey"
+            columns: ["ml_account_id"]
+            isOneToOne: false
+            referencedRelation: "ml_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ml_orders_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ml_questions: {
         Row: {
           ai_confidence: number | null
@@ -1750,6 +2003,34 @@ export type Database = {
         }
         Returns: Json
       }
+      claim_customer_sync: {
+        Args: { p_kind: string; p_limit?: number; p_lock_seconds?: number }
+        Returns: {
+          attempts: number
+          created_at: string
+          import_finished_at: string | null
+          import_since: string | null
+          import_started_at: string | null
+          last_error: string | null
+          last_polled_at: string | null
+          locked_until: string | null
+          ml_account_id: string
+          next_attempt_at: string
+          orders_imported: number
+          organization_id: string
+          status: string
+          updated_at: string
+          window_from: string | null
+          window_offset: number
+          window_to: string | null
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "ml_customer_sync"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
       claim_ml_conversation: {
         Args: { p_id: string; p_lock_seconds?: number }
         Returns: {
@@ -1857,8 +2138,16 @@ export type Database = {
       }
       current_user_managed_organization_ids: { Args: never; Returns: string[] }
       current_user_organization_ids: { Args: never; Returns: string[] }
+      customers_overview: {
+        Args: { p_ml_account_id?: string; p_organization_id: string }
+        Returns: Json
+      }
       due_ml_conversations: { Args: { p_limit?: number }; Returns: string[] }
       due_ml_questions: { Args: { p_limit?: number }; Returns: string[] }
+      ingest_ml_orders: {
+        Args: { p_ml_account_id: string; p_orders: Json }
+        Returns: number
+      }
       is_org_member: { Args: { p_organization_id: string }; Returns: boolean }
       is_valid_tax_document: {
         Args: { p_document: string; p_type: string }
@@ -1880,6 +2169,28 @@ export type Database = {
           ml_account_id: string
           open_questions: number
           questions: number
+        }[]
+      }
+      ml_order_is_purchase: { Args: { p_status: string }; Returns: boolean }
+      ml_orders_payload: {
+        Args: { p_orders: Json }
+        Returns: {
+          buyer_first_name: string
+          buyer_id: number
+          buyer_last_name: string
+          buyer_nickname: string
+          closed_at: string
+          currency_id: string
+          items: Json
+          mediations_count: number
+          ml_last_updated: string
+          ml_order_id: number
+          ordered_at: string
+          pack_id: number
+          paid_amount: number
+          shipment_id: number
+          status: string
+          total_amount: number
         }[]
       }
       organization_ai_answers: {
