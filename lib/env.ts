@@ -24,4 +24,6 @@ export const serverEnv = {
   aiKeysEncryptionKey: () => process.env.AI_KEYS_ENCRYPTION_KEY?.trim() || null,
   openaiModel: () => process.env.OPENAI_MODEL?.trim() || DEFAULT_ANSWER_MODEL,
   cronSecret: () => process.env.CRON_SECRET || "",
+  /** E-mails de alerta do Escudo de Reputação (Resend). Sem ela, os e-mails ficam desligados. */
+  resendApiKey: () => process.env.RESEND_API_KEY?.trim() || null,
 }

@@ -1767,6 +1767,473 @@ export type Database = {
         }
         Relationships: []
       }
+      reputation_alerts: {
+        Row: {
+          body: string
+          created_at: string
+          data: Json
+          dedupe_key: string
+          email_error: string | null
+          email_status: string | null
+          emailed_at: string | null
+          expires_at: string | null
+          id: string
+          kind: string
+          last_seen_at: string
+          ml_account_id: string
+          opened_at: string
+          organization_id: string
+          resolved_at: string | null
+          severity: string
+          status: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          body?: string
+          created_at?: string
+          data?: Json
+          dedupe_key: string
+          email_error?: string | null
+          email_status?: string | null
+          emailed_at?: string | null
+          expires_at?: string | null
+          id?: string
+          kind: string
+          last_seen_at?: string
+          ml_account_id: string
+          opened_at?: string
+          organization_id: string
+          resolved_at?: string | null
+          severity: string
+          status?: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          body?: string
+          created_at?: string
+          data?: Json
+          dedupe_key?: string
+          email_error?: string | null
+          email_status?: string | null
+          emailed_at?: string | null
+          expires_at?: string | null
+          id?: string
+          kind?: string
+          last_seen_at?: string
+          ml_account_id?: string
+          opened_at?: string
+          organization_id?: string
+          resolved_at?: string | null
+          severity?: string
+          status?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reputation_alerts_ml_account_id_fkey"
+            columns: ["ml_account_id"]
+            isOneToOne: false
+            referencedRelation: "ml_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reputation_alerts_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      reputation_claims: {
+        Row: {
+          affects_checked_at: string | null
+          affects_due_at: string | null
+          affects_reputation: string | null
+          claim_id: number
+          created_at: string
+          enrich_attempts: number
+          fulfilled: boolean | null
+          has_incentive: boolean | null
+          id: string
+          ml_account_id: string
+          ml_created_at: string | null
+          ml_updated_at: string | null
+          next_due_at: string | null
+          organization_id: string
+          quantity_type: string | null
+          reason_id: string | null
+          resolution: Json | null
+          resource: string | null
+          resource_id: number | null
+          sale_at: string | null
+          sale_source: string | null
+          seller_actions: Json
+          stage: string | null
+          status: string
+          type: string
+          updated_at: string
+        }
+        Insert: {
+          affects_checked_at?: string | null
+          affects_due_at?: string | null
+          affects_reputation?: string | null
+          claim_id: number
+          created_at?: string
+          enrich_attempts?: number
+          fulfilled?: boolean | null
+          has_incentive?: boolean | null
+          id?: string
+          ml_account_id: string
+          ml_created_at?: string | null
+          ml_updated_at?: string | null
+          next_due_at?: string | null
+          organization_id: string
+          quantity_type?: string | null
+          reason_id?: string | null
+          resolution?: Json | null
+          resource?: string | null
+          resource_id?: number | null
+          sale_at?: string | null
+          sale_source?: string | null
+          seller_actions?: Json
+          stage?: string | null
+          status: string
+          type: string
+          updated_at?: string
+        }
+        Update: {
+          affects_checked_at?: string | null
+          affects_due_at?: string | null
+          affects_reputation?: string | null
+          claim_id?: number
+          created_at?: string
+          enrich_attempts?: number
+          fulfilled?: boolean | null
+          has_incentive?: boolean | null
+          id?: string
+          ml_account_id?: string
+          ml_created_at?: string | null
+          ml_updated_at?: string | null
+          next_due_at?: string | null
+          organization_id?: string
+          quantity_type?: string | null
+          reason_id?: string | null
+          resolution?: Json | null
+          resource?: string | null
+          resource_id?: number | null
+          sale_at?: string | null
+          sale_source?: string | null
+          seller_actions?: Json
+          stage?: string | null
+          status?: string
+          type?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reputation_claims_ml_account_id_fkey"
+            columns: ["ml_account_id"]
+            isOneToOne: false
+            referencedRelation: "ml_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reputation_claims_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      reputation_settings: {
+        Row: {
+          created_at: string
+          email_alerts: boolean
+          organization_id: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          created_at?: string
+          email_alerts?: boolean
+          organization_id: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          created_at?: string
+          email_alerts?: boolean
+          organization_id?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reputation_settings_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: true
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      reputation_shipments: {
+        Row: {
+          check_attempts: number
+          checked_at: string | null
+          costs_checked_at: string | null
+          created_at: string
+          currency_id: string | null
+          gross_amount: number | null
+          id: string
+          item_title: string | null
+          logistic_type: string | null
+          ml_account_id: string
+          ml_order_id: number | null
+          next_check_at: string
+          ordered_at: string | null
+          organization_id: string
+          pack_id: number | null
+          sender_cost: number | null
+          sender_discount: number | null
+          shipment_id: number
+          shipped_at: string | null
+          sla_expected_at: string | null
+          sla_service: string | null
+          sla_status: string | null
+          stage: string
+          status: string | null
+          substatus: string | null
+          updated_at: string
+        }
+        Insert: {
+          check_attempts?: number
+          checked_at?: string | null
+          costs_checked_at?: string | null
+          created_at?: string
+          currency_id?: string | null
+          gross_amount?: number | null
+          id?: string
+          item_title?: string | null
+          logistic_type?: string | null
+          ml_account_id: string
+          ml_order_id?: number | null
+          next_check_at?: string
+          ordered_at?: string | null
+          organization_id: string
+          pack_id?: number | null
+          sender_cost?: number | null
+          sender_discount?: number | null
+          shipment_id: number
+          shipped_at?: string | null
+          sla_expected_at?: string | null
+          sla_service?: string | null
+          sla_status?: string | null
+          stage?: string
+          status?: string | null
+          substatus?: string | null
+          updated_at?: string
+        }
+        Update: {
+          check_attempts?: number
+          checked_at?: string | null
+          costs_checked_at?: string | null
+          created_at?: string
+          currency_id?: string | null
+          gross_amount?: number | null
+          id?: string
+          item_title?: string | null
+          logistic_type?: string | null
+          ml_account_id?: string
+          ml_order_id?: number | null
+          next_check_at?: string
+          ordered_at?: string | null
+          organization_id?: string
+          pack_id?: number | null
+          sender_cost?: number | null
+          sender_discount?: number | null
+          shipment_id?: number
+          shipped_at?: string | null
+          sla_expected_at?: string | null
+          sla_service?: string | null
+          sla_status?: string | null
+          stage?: string
+          status?: string | null
+          substatus?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reputation_shipments_ml_account_id_fkey"
+            columns: ["ml_account_id"]
+            isOneToOne: false
+            referencedRelation: "ml_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reputation_shipments_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      reputation_snapshots: {
+        Row: {
+          cancellations_rate: number
+          cancellations_value: number
+          captured_at: string
+          claims_rate: number
+          claims_value: number
+          color: string
+          delayed_rate: number
+          delayed_value: number
+          id: string
+          level_id: string | null
+          ml_account_id: string
+          organization_id: string
+          period_days: number | null
+          power_seller_status: string | null
+          protected: boolean
+          protection_end_date: string | null
+          raw: Json
+          real_color: string | null
+          sales_completed: number
+          signature: string
+        }
+        Insert: {
+          cancellations_rate?: number
+          cancellations_value?: number
+          captured_at?: string
+          claims_rate?: number
+          claims_value?: number
+          color: string
+          delayed_rate?: number
+          delayed_value?: number
+          id?: string
+          level_id?: string | null
+          ml_account_id: string
+          organization_id: string
+          period_days?: number | null
+          power_seller_status?: string | null
+          protected?: boolean
+          protection_end_date?: string | null
+          raw?: Json
+          real_color?: string | null
+          sales_completed?: number
+          signature: string
+        }
+        Update: {
+          cancellations_rate?: number
+          cancellations_value?: number
+          captured_at?: string
+          claims_rate?: number
+          claims_value?: number
+          color?: string
+          delayed_rate?: number
+          delayed_value?: number
+          id?: string
+          level_id?: string | null
+          ml_account_id?: string
+          organization_id?: string
+          period_days?: number | null
+          power_seller_status?: string | null
+          protected?: boolean
+          protection_end_date?: string | null
+          raw?: Json
+          real_color?: string | null
+          sales_completed?: number
+          signature?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reputation_snapshots_ml_account_id_fkey"
+            columns: ["ml_account_id"]
+            isOneToOne: false
+            referencedRelation: "ml_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reputation_snapshots_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      reputation_sync: {
+        Row: {
+          claims_backfilled_at: string | null
+          created_at: string
+          last_claims_at: string | null
+          last_error: string | null
+          last_error_at: string | null
+          last_reputation_at: string | null
+          last_shipments_at: string | null
+          locked_until: string | null
+          ml_account_id: string
+          next_claims_at: string
+          next_reputation_at: string
+          next_shipments_at: string
+          organization_id: string
+          updated_at: string
+        }
+        Insert: {
+          claims_backfilled_at?: string | null
+          created_at?: string
+          last_claims_at?: string | null
+          last_error?: string | null
+          last_error_at?: string | null
+          last_reputation_at?: string | null
+          last_shipments_at?: string | null
+          locked_until?: string | null
+          ml_account_id: string
+          next_claims_at?: string
+          next_reputation_at?: string
+          next_shipments_at?: string
+          organization_id: string
+          updated_at?: string
+        }
+        Update: {
+          claims_backfilled_at?: string | null
+          created_at?: string
+          last_claims_at?: string | null
+          last_error?: string | null
+          last_error_at?: string | null
+          last_reputation_at?: string | null
+          last_shipments_at?: string | null
+          locked_until?: string | null
+          ml_account_id?: string
+          next_claims_at?: string
+          next_reputation_at?: string
+          next_shipments_at?: string
+          organization_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reputation_sync_ml_account_id_fkey"
+            columns: ["ml_account_id"]
+            isOneToOne: true
+            referencedRelation: "ml_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reputation_sync_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       training_examples: {
         Row: {
           answer_text: string
@@ -2132,6 +2599,35 @@ export type Database = {
         SetofOptions: {
           from: "*"
           to: "ml_questions"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
+      claim_reputation_sync: {
+        Args: {
+          p_limit?: number
+          p_lock_seconds?: number
+          p_ml_account_id?: string
+        }
+        Returns: {
+          claims_backfilled_at: string | null
+          created_at: string
+          last_claims_at: string | null
+          last_error: string | null
+          last_error_at: string | null
+          last_reputation_at: string | null
+          last_shipments_at: string | null
+          locked_until: string | null
+          ml_account_id: string
+          next_claims_at: string
+          next_reputation_at: string
+          next_shipments_at: string
+          organization_id: string
+          updated_at: string
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "reputation_sync"
           isOneToOne: false
           isSetofReturn: true
         }

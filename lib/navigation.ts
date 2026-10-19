@@ -4,7 +4,18 @@ export type NavItemConfig = {
   section: AppSection
   title: string
   href: string
-  icon: "painel" | "perguntas" | "pos_venda" | "clientes" | "melhorias" | "resultados" | "assistente" | "contas" | "assinatura" | "configuracoes"
+  icon:
+    | "painel"
+    | "perguntas"
+    | "pos_venda"
+    | "clientes"
+    | "reputacao"
+    | "melhorias"
+    | "resultados"
+    | "assistente"
+    | "contas"
+    | "assinatura"
+    | "configuracoes"
 }
 
 export const NAV_ITEMS: readonly NavItemConfig[] = [
@@ -12,6 +23,7 @@ export const NAV_ITEMS: readonly NavItemConfig[] = [
   { section: "perguntas", title: "Perguntas", href: "/perguntas", icon: "perguntas" },
   { section: "pos_venda", title: "Pós-venda", href: "/pos-venda", icon: "pos_venda" },
   { section: "clientes", title: "Clientes", href: "/clientes", icon: "clientes" },
+  { section: "reputacao", title: "Reputação", href: "/reputacao", icon: "reputacao" },
   { section: "resultados", title: "Resultados", href: "/resultados", icon: "resultados" },
   { section: "melhorias", title: "Melhorias de anúncio", href: "/melhorias", icon: "melhorias" },
   { section: "assistente", title: "Assistente de IA", href: "/assistente", icon: "assistente" },
@@ -26,6 +38,7 @@ export const PAGE_TITLES: Record<string, string> = {
   "/pos-venda/agente": "Agente de pós-venda",
   "/pos-venda": "Pós-venda",
   "/clientes": "Clientes",
+  "/reputacao": "Reputação",
   "/resultados": "Resultados",
   "/melhorias": "Melhorias de anúncio",
   "/assistente": "Assistente de IA",

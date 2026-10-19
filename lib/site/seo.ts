@@ -45,6 +45,7 @@ export const PRIVATE_PATHS = [
   "/resultados",
   "/pos-venda",
   "/clientes",
+  "/reputacao",
   "/melhorias",
   "/contas",
   "/assinatura",

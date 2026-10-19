@@ -23,7 +23,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const hasActiveMlAccount = context.mlAccounts.active > 0
 
   const supabase = await createClient()
-  const [{ count: reviewCount }, { count: afterSaleCount }, platformAiPaused, usage] = await Promise.all([
+  const [{ count: reviewCount }, { count: afterSaleCount }, platformAiPaused, usage, { count: reputationCount }] = await Promise.all([
     supabase
       .from("ml_questions")
       .select("id", { count: "exact", head: true })
@@ -44,10 +44,18 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           console.error("[app] uso do plano:", error instanceof Error ? error.message : error)
           return null
         }),
+    // Escudo de Reputação: alertas urgentes em aberto (selo do menu "Reputação").
+    supabase
+      .from("reputation_alerts")
+      .select("id", { count: "exact", head: true })
+      .eq("organization_id", context.organization.id)
+      .eq("status", "open")
+      .eq("severity", "urgent"),
   ])
   const badges: Partial<Record<SidebarNavItem["section"], number>> = {
     perguntas: reviewCount ?? 0,
     pos_venda: afterSaleCount ?? 0,
+    reputacao: reputationCount ?? 0,
   }
 
   const items = NAV_ITEMS.flatMap((item): SidebarNavItem[] => {
