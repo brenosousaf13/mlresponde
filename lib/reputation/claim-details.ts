@@ -55,6 +55,9 @@ export function reasonGroup(reasonId: string | null | undefined): string | null 
   return null
 }
 
+/** Tipos que aparecem na aba Reclamações e recebem detalhe e IA (cancelamentos ficam de fora). */
+export const LISTED_CLAIM_TYPES = ["mediations", "returns", "change", "fulfillment", "ml_case"] as const
+
 export function claimTypeLabel(type: string): string {
   return CLAIM_TYPE_LABELS[type] ?? "Reclamação"
 }

@@ -25,7 +25,7 @@ import {
   validateAttachments,
   validateClaimMessage,
 } from "@/lib/reputation/claim-details"
-import { needsDetails } from "@/lib/reputation/claims-engine"
+import { detailsQueue, needsDetails } from "@/lib/reputation/claims-engine"
 import { EXCLUSION_CASE_IDS } from "@/lib/reputation/exclusions"
 import { claimLink, reputationUrl } from "@/lib/reputation/email"
 import { actionResponsibleLabel, affectsInfo, claimHref, dueState } from "@/lib/reputation/presentation"
@@ -215,6 +215,28 @@ describe("leitura do ML", () => {
     const old = new Date(NOW.getTime() - 31 * 60 * 1000).toISOString()
     expect(needsDetails({ status: "opened", details_synced_at: old, ml_updated_at: null }, NOW)).toBe(true)
     expect(needsDetails({ status: "closed", details_synced_at: old, ml_updated_at: null }, NOW)).toBe(false)
+  })
+})
+
+describe("fila do detalhe", () => {
+  it("nunca lidas primeiro, depois as que mudaram, depois as abertas a atualizar; abertas e prazo curto na frente", () => {
+    const ago = (minutes: number) => new Date(NOW.getTime() - minutes * 60 * 1000).toISOString()
+    const ahead = (hours: number) => new Date(NOW.getTime() + hours * HOUR).toISOString()
+    const rows = [
+      { id: "fresca", status: "opened", details_synced_at: ago(5), ml_updated_at: ago(60), next_due_at: ahead(1) },
+      { id: "velha-aberta", status: "opened", details_synced_at: ago(40), ml_updated_at: ago(60), next_due_at: ahead(2) },
+      { id: "mudou", status: "opened", details_synced_at: ago(20), ml_updated_at: ago(10), next_due_at: ahead(30) },
+      { id: "nova-encerrada", status: "closed", details_synced_at: null, ml_updated_at: ago(30), next_due_at: null },
+      { id: "nova-prazo-longo", status: "opened", details_synced_at: null, ml_updated_at: ago(30), next_due_at: ahead(48) },
+      { id: "nova-prazo-curto", status: "opened", details_synced_at: null, ml_updated_at: ago(30), next_due_at: ahead(3) },
+    ]
+    expect(detailsQueue(rows, NOW).map((row) => row.id)).toEqual([
+      "nova-prazo-curto",
+      "nova-prazo-longo",
+      "nova-encerrada",
+      "mudou",
+      "velha-aberta",
+    ])
   })
 })
 

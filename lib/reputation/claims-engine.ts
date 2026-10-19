@@ -24,6 +24,7 @@ import {
 import { CLAIM_ALERT_KINDS, claimAlerts } from "@/lib/reputation/alerts"
 import { readClaimAnalysis, suggestsExclusion, type ClaimPromptInput } from "@/lib/reputation/claim-ai"
 import {
+  LISTED_CLAIM_TYPES,
   MAX_CLAIM_ANALYSES,
   claimActions,
   claimInputHash,
@@ -90,6 +91,27 @@ export function needsDetails(row: Pick<ClaimRow, "status" | "details_synced_at" 
   const synced = Date.parse(row.details_synced_at)
   if (row.ml_updated_at && Date.parse(row.ml_updated_at) > synced) return true
   return row.status === "opened" && now.getTime() - synced > OPEN_REFRESH_MS
+}
+
+type DetailsCandidate = Pick<ClaimRow, "status" | "details_synced_at" | "ml_updated_at" | "next_due_at">
+
+/**
+ * Ordem do detalhe (lojas grandes têm centenas de reclamações e só cabem algumas por rodada): nunca lidas, depois as que
+ * mudaram no ML, depois as abertas a atualizar; em cada grupo, abertas antes de encerradas e o prazo mais curto primeiro.
+ */
+export function detailsQueue<T extends DetailsCandidate>(rows: readonly T[], now: Date): T[] {
+  const group = (row: T) =>
+    !row.details_synced_at ? 0 : row.ml_updated_at && Date.parse(row.ml_updated_at) > Date.parse(row.details_synced_at) ? 1 : 2
+  const due = (row: T) => (row.next_due_at ? Date.parse(row.next_due_at) : Number.POSITIVE_INFINITY)
+  return rows
+    .filter((row) => needsDetails(row, now))
+    .sort(
+      (a, b) =>
+        group(a) - group(b) ||
+        Number(a.status !== "opened") - Number(b.status !== "opened") ||
+        due(a) - due(b) ||
+        Date.parse(b.ml_updated_at ?? "") - Date.parse(a.ml_updated_at ?? "")
+    )
 }
 
 /** Lê no ML tudo o que a tela e a IA precisam de uma reclamação e grava. Mudou = análise nova na fila (até 8). */
@@ -214,21 +236,26 @@ export async function syncClaimDetails(
 
 const CLAIM_COLUMNS = "*"
 
-/** Gancho das rodadas (depois da busca de reclamações): detalhe das abertas/alteradas e os alertas de reclamação. */
-export async function claimsHook(account: ReputationAccount, _changed: unknown, budget: CallBudget, now: Date) {
+/**
+ * Gancho das rodadas (depois da busca de reclamações): detalhe das abertas/alteradas e os alertas de reclamação.
+ * Devolve true quando ficou reclamação esperando detalhe (a rodada volta em 1 minuto, não em 5).
+ */
+export async function claimsHook(account: ReputationAccount, _changed: unknown, budget: CallBudget, now: Date): Promise<boolean> {
   const admin = createServiceClient()
   const recent = new Date(now.getTime() - RECENT_DAYS * DAY).toISOString()
   const { data: candidates, error } = await admin
     .from("reputation_claims")
     .select(CLAIM_COLUMNS)
     .eq("ml_account_id", account.id)
+    .in("type", [...LISTED_CLAIM_TYPES])
     .or("status.eq.opened,ml_updated_at.gt." + recent)
-    .order("next_due_at", { ascending: true, nullsFirst: false })
-    .limit(100)
+    .order("details_synced_at", { ascending: true, nullsFirst: true })
+    .limit(400)
   if (error) throw error
   const reasons = new Map<string, string | null>()
   let stop: unknown = null
-  for (const claim of candidates.filter((row) => needsDetails(row, now)).slice(0, DETAILS_PER_RUN)) {
+  const queue = detailsQueue(candidates, now)
+  for (const claim of queue.slice(0, DETAILS_PER_RUN)) {
     try {
       await syncClaimDetails(account, claim, budget, now, reasons)
     } catch (syncError) {
@@ -243,6 +270,7 @@ export async function claimsHook(account: ReputationAccount, _changed: unknown, 
   }
   await refreshClaimAlerts(account, now)
   if (stop) throw stop
+  return queue.length > DETAILS_PER_RUN
 }
 
 /** Alertas de reclamação (nova, prazo vencendo, possível exclusão, deixou de contar) com o que está gravado. */

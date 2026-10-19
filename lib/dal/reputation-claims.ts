@@ -1,14 +1,17 @@
 import "server-only"
 
 import { readClaimAnalysis } from "@/lib/reputation/claim-ai"
-import { claimActions, type ClaimDetail, type ExpectedResolution, type OrderSummary } from "@/lib/reputation/claim-details"
+import {
+  LISTED_CLAIM_TYPES,
+  claimActions,
+  type ClaimDetail,
+  type ExpectedResolution,
+  type OrderSummary,
+} from "@/lib/reputation/claim-details"
 import type { SellerAction } from "@/lib/reputation/claims"
 import { createClient } from "@/lib/supabase/server"
 
 // Leituras das reclamações do Escudo de Reputação (RLS: só a própria organização).
-
-/** Tipos que aparecem na lista de reclamações (cancelamentos ficam de fora). */
-export const LISTED_CLAIM_TYPES = ["mediations", "returns", "change", "fulfillment", "ml_case"] as const
 
 export const CLAIM_FILTERS = {
   precisam: { label: "Precisam de você" },

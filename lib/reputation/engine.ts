@@ -501,6 +501,15 @@ export async function syncClaims(
   }
   // Na busca inicial, mais de 1.000 reclamações no período: fica com as mais recentes (o resto é antigo demais).
   if (backfill && !searchDone) console.warn("[reputação] conta " + account.id + ": mais de 1.000 reclamações no período")
+  // Busca inicial feita: grava já, para a conferência "afeta a reputação" (que pode levar várias rodadas em lojas grandes)
+  // não refazer as 10 páginas a cada minuto. As próximas buscas são só das alteradas desde agora.
+  if (backfill) {
+    const { error: backfillError } = await admin
+      .from("reputation_sync")
+      .update({ claims_backfilled_at: now.toISOString(), last_claims_at: now.toISOString() })
+      .eq("ml_account_id", account.id)
+    if (backfillError) throw backfillError
+  }
 
   // Tipos que não contam na reputação (cancelamentos, trocas, Full...): não precisam de conferência.
   const { error: otherError } = await admin
@@ -600,7 +609,7 @@ const PARTS: readonly Part[] = [
 ]
 
 /** Ganchos da etapa 2 (reclamações com IA) rodam depois das reclamações; vazio na etapa 1. */
-export type ClaimsHook = (account: ReputationAccount, changed: ClaimRow[], budget: CallBudget, now: Date) => Promise<void>
+export type ClaimsHook = (account: ReputationAccount, changed: ClaimRow[], budget: CallBudget, now: Date) => Promise<boolean | void>
 
 /**
  * Uma conta (já reservada): roda as partes vencidas (ou todas, com force) até o limite de chamadas ou de tempo e solta a
@@ -632,7 +641,7 @@ export async function syncAccount(
         const result = await syncClaims(account, row, budget, now)
         complete = result.complete
         if (!row.claims_backfilled_at) update.claims_backfilled_at = now.toISOString()
-        if (options.claimsHook) await options.claimsHook(account, result.changed, budget, now)
+        if (options.claimsHook && (await options.claimsHook(account, result.changed, budget, now)) === true) complete = false
       }
       update[part.last] = now.toISOString()
       update[part.next] = iso(now.getTime() + (complete ? part.interval : INTERVALS.unfinished))
