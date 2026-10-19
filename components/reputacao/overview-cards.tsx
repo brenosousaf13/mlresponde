@@ -47,15 +47,26 @@ function claimRowId(data: unknown): string | null {
   return typeof value === "string" ? value : null
 }
 
-/** "Precisa de você agora": alertas abertos da conta (urgentes primeiro). */
-export function AlertsCard({ alerts, accountId }: { alerts: ReputationPageData["alerts"]; accountId: string }) {
+/**
+ * "Precisa de você agora": alertas abertos da conta (urgentes primeiro). No computador, ao lado do termômetro, a lista
+ * rola dentro do cartão para a coluna não ficar mais alta que o termômetro.
+ */
+export function AlertsCard({
+  alerts,
+  accountId,
+  className,
+}: {
+  alerts: ReputationPageData["alerts"]
+  accountId: string
+  className?: string
+}) {
   return (
-    <Card>
+    <Card className={className}>
       <CardHeader>
         <CardTitle>Precisa de você agora</CardTitle>
         <CardDescription>Os alertas somem sozinhos quando a situação acaba.</CardDescription>
       </CardHeader>
-      <CardContent>
+      <CardContent className="xl:min-h-0 xl:flex-1 xl:overflow-y-auto">
         {alerts.length === 0 ? (
           <div className="flex items-center gap-3 rounded-xl border border-dashed p-4">
             <CheckCircle2Icon className="size-5 shrink-0 text-emerald-600" />
@@ -65,7 +76,7 @@ export function AlertsCard({ alerts, accountId }: { alerts: ReputationPageData["
             </div>
           </div>
         ) : (
-          <ItemGroup className="gap-2">
+          <ItemGroup className="max-h-[26rem] gap-2 overflow-y-auto xl:max-h-none">
             {alerts.map((alert) => {
               const Icon = ALERT_ICONS[alert.kind] ?? GaugeIcon
               const urgent = alert.severity === "urgent"
@@ -135,7 +146,7 @@ export function ShipmentsCard({ shipments, now }: { shipments: ReputationPageDat
             <p className="text-sm text-muted-foreground">Nenhum envio esperando despacho agora.</p>
           </div>
         ) : (
-          <ul className="divide-y">
+          <ul className="max-h-[26rem] divide-y overflow-y-auto">
             {rows.slice(0, 30).map((row) => {
               const url = mlSaleUrl(row.pack_id ?? row.ml_order_id)
               const logistic = logisticLabel(row.logistic_type)
@@ -216,21 +227,23 @@ export function ForecastCard({
             </p>
           </div>
         ) : (
-          <ol className="relative flex flex-col gap-3 border-l pl-4">
-            {forecast.entries.slice(0, 12).map((entry) => (
-              <li key={entry.day} className="relative">
-                <span className="absolute top-1.5 -left-[21px] size-2.5 rounded-full border-2 border-card bg-primary" />
-                <p className="text-sm font-medium">{formatDate(entry.date)}</p>
-                <p className="text-sm text-muted-foreground">
-                  Sai{entry.claims.length > 1 ? "em" : ""} {entry.claims.length}{" "}
-                  {entry.claims.length === 1 ? labels.singular : labels.plural} ·{" "}
-                  {entry.remaining === 0
-                    ? "nenhuma continua contando"
-                    : entry.remaining + (entry.remaining === 1 ? " continua contando" : " continuam contando")}
-                </p>
-              </li>
-            ))}
-          </ol>
+          <div className="-ml-1.5 max-h-[26rem] overflow-y-auto pl-1.5">
+            <ol className="relative flex flex-col gap-3 border-l pl-4">
+              {forecast.entries.slice(0, 12).map((entry) => (
+                <li key={entry.day} className="relative">
+                  <span className="absolute top-1.5 -left-[21px] size-2.5 rounded-full border-2 border-card bg-primary" />
+                  <p className="text-sm font-medium">{formatDate(entry.date)}</p>
+                  <p className="text-sm text-muted-foreground">
+                    Sai{entry.claims.length > 1 ? "em" : ""} {entry.claims.length}{" "}
+                    {entry.claims.length === 1 ? labels.singular : labels.plural} ·{" "}
+                    {entry.remaining === 0
+                      ? "nenhuma continua contando"
+                      : entry.remaining + (entry.remaining === 1 ? " continua contando" : " continuam contando")}
+                  </p>
+                </li>
+              ))}
+            </ol>
+          </div>
         )}
         {!searching && forecast.counted > 0 && claimsValue > forecast.counted ? (
           <p className="text-xs text-muted-foreground">
@@ -243,10 +256,11 @@ export function ForecastCard({
 }
 
 /** Quanto a cor vale em R$ (desconto do frete) ou, sem dados, o que cada cor tranca. */
-export function ColorValueCard({ value }: { value: ReputationPageData["colorValue"] }) {
+export function ColorValueCard({ value, className }: { value: ReputationPageData["colorValue"]; className?: string }) {
   const hasValue = value.discount > 0
   return (
-    <Card className={cn(hasValue && "bg-linear-to-t from-primary/[0.06] to-card")}>
+    // Ao lado do termômetro: com o valor em R$ o cartão fica inteiro; a lista "o que cada cor libera" pode rolar por dentro.
+    <Card className={cn(hasValue ? "bg-linear-to-t from-primary/[0.06] to-card xl:shrink-0" : "xl:min-h-0", className)}>
       <CardHeader>
         <CardDescription className="flex items-center gap-2">
           <BadgePercentIcon className="size-4" />
@@ -265,7 +279,7 @@ export function ColorValueCard({ value }: { value: ReputationPageData["colorValu
           <CardTitle>O que cada cor libera</CardTitle>
         )}
       </CardHeader>
-      <CardContent>
+      <CardContent className={cn(!hasValue && "xl:min-h-0 xl:flex-1 xl:overflow-y-auto")}>
         {hasValue ? (
           <div className="rounded-xl border bg-card p-4">
             <p className="text-sm">

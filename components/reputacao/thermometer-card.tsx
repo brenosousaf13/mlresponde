@@ -17,11 +17,19 @@ import { BAND_LABELS, COLOR_LABELS, METRIC_LABELS, MIN_SALES_FOR_REPUTATION } fr
 import { cn } from "@/lib/utils"
 
 /** Termômetro do ML com a folga de cada métrica (quantos problemas cabem antes de cair de cor). */
-export function ThermometerCard({ reading, slack }: { reading: ReputationReading; slack: ReputationSlack }) {
+export function ThermometerCard({
+  reading,
+  slack,
+  className,
+}: {
+  reading: ReputationReading
+  slack: ReputationSlack
+  className?: string
+}) {
   const leader = powerSellerLabel(reading.powerSellerStatus)
   const period = reading.periodDays
   return (
-    <Card className="bg-linear-to-t from-primary/[0.04] to-card">
+    <Card className={cn("bg-linear-to-t from-primary/[0.04] to-card", className)}>
       <CardHeader>
         <CardDescription className="flex items-center gap-2">
           <GaugeIcon className="size-4" />

@@ -124,38 +124,44 @@ export default async function ReputationPage({ searchParams }: PageProps<"/reput
         />
       ) : null}
 
-      {tab === "visao" && data.reading && data.slack ? (
-        <div className="grid items-start gap-4 xl:grid-cols-3">
-          <div className="xl:col-span-2">
-            <ThermometerCard reading={data.reading} slack={data.slack} />
-          </div>
-          <AlertsCard alerts={data.alerts} accountId={account.id} />
-        </div>
-      ) : tab === "visao" ? (
-        <Card>
-          <Empty className="py-12">
-            <EmptyHeader>
-              <EmptyMedia variant="icon">
-                <LoaderIcon />
-              </EmptyMedia>
-              <EmptyTitle>Lendo a reputação desta conta</EmptyTitle>
-              <EmptyDescription>
-                A maanu busca o termômetro, os envios e as reclamações no Mercado Livre. Leva cerca de um minuto na primeira
-                vez.
-              </EmptyDescription>
-            </EmptyHeader>
-            {account.usable ? (
-              <EmptyContent>
-                <RefreshReputationButton accountId={account.id} />
-              </EmptyContent>
-            ) : null}
-          </Empty>
-        </Card>
-      ) : null}
-
       {tab === "visao" ? (
         <>
-          <div className="grid items-start gap-4 lg:grid-cols-2">
+          {/* Termômetro à esquerda; alertas e valor da cor à direita, as duas colunas com a mesma altura. */}
+          <div className="grid gap-4 xl:grid-cols-3">
+            {data.reading && data.slack ? (
+              <ThermometerCard reading={data.reading} slack={data.slack} className="xl:col-span-2" />
+            ) : (
+              <Card className="justify-center xl:col-span-2">
+                <Empty className="py-12">
+                  <EmptyHeader>
+                    <EmptyMedia variant="icon">
+                      <LoaderIcon />
+                    </EmptyMedia>
+                    <EmptyTitle>Lendo a reputação desta conta</EmptyTitle>
+                    <EmptyDescription>
+                      A maanu busca o termômetro, os envios e as reclamações no Mercado Livre. Leva cerca de um minuto na primeira
+                      vez.
+                    </EmptyDescription>
+                  </EmptyHeader>
+                  {account.usable ? (
+                    <EmptyContent>
+                      <RefreshReputationButton accountId={account.id} />
+                    </EmptyContent>
+                  ) : null}
+                </Empty>
+              </Card>
+            )}
+            {/* No computador, a coluna da direita tem exatamente a altura do termômetro: os alertas ocupam o que sobra
+                (mínimo 13rem) e as listas rolam por dentro. Em telas médias, os dois cartões ficam lado a lado. */}
+            <div className="xl:relative xl:min-h-[32rem]">
+              <div className="grid gap-4 md:grid-cols-2 xl:absolute xl:inset-0 xl:flex xl:flex-col">
+                <AlertsCard alerts={data.alerts} accountId={account.id} className="xl:min-h-52 xl:flex-1" />
+                <ColorValueCard value={data.colorValue} />
+              </div>
+            </div>
+          </div>
+
+          <div className="grid gap-4 lg:grid-cols-2">
             <ShipmentsCard shipments={data.shipments} now={now} />
             <ForecastCard
               forecast={data.forecast}
@@ -165,12 +171,7 @@ export default async function ReputationPage({ searchParams }: PageProps<"/reput
             />
           </div>
 
-          <div className="grid items-start gap-4 xl:grid-cols-3">
-            <ColorValueCard value={data.colorValue} />
-            <div className="xl:col-span-2">
-              <HowItWorks />
-            </div>
-          </div>
+          <HowItWorks />
         </>
       ) : null}
     </>
