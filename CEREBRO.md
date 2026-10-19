@@ -1653,6 +1653,13 @@ webhook do ML validado, fila/reprocessamento de jobs, observabilidade, controle 
   inicial gravada logo depois de feita, fila do detalhe por prioridade (nunca lidas, alteradas, prazo) só dos tipos listados e
   rodada em 1 min enquanto houver fila (+1 teste). Deploy READY 18:53. A espera do deploy pela IA travou ~5 min por erro no
   próprio script de espera (comparava "READY + data" com "READY"); nada a ver com o deploy.
+- Ajuste de layout pedido pelo Breno (print com os espaços vazios): na Visão geral, "Quanto vale a sua cor" foi para o lado do
+  termômetro, embaixo de "Precisa de você agora" (a coluna da direita tem a altura do termômetro; os alertas ocupam o que sobra
+  e rolam por dentro); Despachos e "Quando as reclamações saem da conta" com a mesma altura; "Como funciona" na largura toda.
+  Conferido com loja temporária (computador, tela média e celular; com e sem alertas; com e sem o valor em R$), apagada depois.
+  Commit `3c0ec9c`. O webhook do GitHub para a Vercel atrasou (~6 min sem deploy); a IA criou o deploy de produção do mesmo
+  commit pela API (`dpl_82w4ygxNX6wAjyMtDSmEn1A8X9Ba`, READY 19:26, `app.maanu.com.br` apontando para ele). O deploy do
+  webhook chegou depois (mesmo commit, sem efeito).
 
 ### 2026-10-19 — Sessão 28b · Clientes só a partir de agora (IA: Claude, via app Codex)
 - Pedido do Breno, ~20 min depois de publicar: "vamos ter que interferir. São muitas vendas e vai lotar muito de
