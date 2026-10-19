@@ -1660,6 +1660,14 @@ webhook do ML validado, fila/reprocessamento de jobs, observabilidade, controle 
   Commit `3c0ec9c`. O webhook do GitHub para a Vercel atrasou (~6 min sem deploy); a IA criou o deploy de produção do mesmo
   commit pela API (`dpl_82w4ygxNX6wAjyMtDSmEn1A8X9Ba`, READY 19:26, `app.maanu.com.br` apontando para ele). O deploy do
   webhook chegou depois (mesmo commit, sem efeito).
+- Conversa da reclamação (print do Breno): as mensagens do **mediador do ML vêm em HTML** do editor deles (`<p>`, spans com
+  espaços, `<b><strong>`, `<a>`, listas, `&nbsp;`/`&eacute;`). Nova `claimMessageText` (`lib/reputation/claim-details.ts`)
+  converte para texto (parágrafos, "•" nas listas, links como "texto (endereço)", entidades decodificadas, espaços arrumados);
+  usada ao gravar (`parseClaimMessages`; a assinatura própria continua pelo texto original), na tela (cobre as já gravadas) e no
+  prompt da IA. Na tela, só nas mensagens do mediador os endereços viram link (mostra o domínio). Conferido nas 76 mensagens
+  reais gravadas (só leitura): 11 tinham HTML, 0 tags ou entidades sobrando, nenhuma ficou vazia. +4 testes. Commit
+  `cceff53`, deploy `dpl_GX4LF3htaginvPgLkBVY1WFK1c4H` READY. (O teste antigo `tests/unit/ai-keys.test.ts` falhou 1 vez por
+  acaso: o texto cifrado aleatório pode conter "sk-"; passou na repetição. Corrigir quando mexerem nele.)
 
 ### 2026-10-19 — Sessão 28b · Clientes só a partir de agora (IA: Claude, via app Codex)
 - Pedido do Breno, ~20 min depois de publicar: "vamos ter que interferir. São muitas vendas e vai lotar muito de
