@@ -1532,6 +1532,10 @@ webhook do ML validado, fila/reprocessamento de jobs, observabilidade, controle 
   `date_created.from = tracking_since`, tela com "Contando as compras feitas a partir de …" e o cartão "Compras desde …".
   Testes refeitos (unitários, SQL e integração: só vendas desde o início da contagem; venda antiga notificada é ignorada;
   loja temporária apagada, conferido). typecheck, 489 testes, lint e build ok.
+- Publicado: commit `348e3c1` na `v2` → deploy `dpl_FpmLjyCSE8GzFM1FrUNvvFXPXsXc` READY. Conferido (~16:27 de Brasília): crons
+  `clientes`, `questions` e `pos-venda` 200, webhook 200, Descomplicasa já com 2 vendas novas, **nenhuma venda anterior a
+  `tracking_since`**. A conferência da loja de jeans levou 1 vez `local_rate_limited` (429 do ML) às 16:20, efeito das chamadas
+  da importação; tentou de novo sozinha e passou às 16:26. Perguntas sem erro e sem fila no período.
 
 ### 2026-10-19 — Sessão 28 · Aba Clientes (IA: Claude, via app Codex)
 - Pedido do Breno: "existe alguma maneira de ter a aba de clientes, que são os que compraram na nossa loja do ML, e ter
