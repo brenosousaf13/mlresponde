@@ -199,6 +199,17 @@ novas funcionalidades, segurança multi-tenant de verdade — **desenvolvido em 
   ~4.200 vendas e ~3.600 clientes importados foram apagados. Não existe mais importação do histórico.
   **No ar desde 2026-10-19 ~15:50** (merge do Breno; deploy `dpl_BeoiBihtDFyxX1kLPGmcMfh4uppa`). Spec:
   `docs/superpowers/specs/2026-10-19-clientes-design.md`.
+  **Sessão 29 (2026-10-19): Escudo de Reputação** (menu **Reputação**, `/reputacao`, **todos os planos**; pedido do Breno:
+  "uma feature com diferencial, que resolva dor do vendedor do ML"). Protege a cor do termômetro: mostra **quanto falta para
+  cair de cor** (folga por métrica com os limites oficiais), **despachos perto do prazo**, **quando cada reclamação sai da conta**,
+  **quanto a cor vale em R$** (descontos de frete) e alertas no app e por e-mail (só urgentes, Resend). Na aba **Reclamações**,
+  a IA lê cada reclamação e prepara a melhor saída, os rascunhos (comprador/mediador) e o caso de exclusão; o vendedor responde
+  com anexos e, **só dono/admin com 2 confirmações**, a maanu executa reembolso total/parcial, devolução ou mediação no ML
+  (histórico imutável). Nada sai sozinho; nada do que já existia mudou de comportamento. Feito em 2 etapas: etapa 1
+  (termômetro, despachos, alertas) no commit `48974e0` da branch `codex/escudo-reputacao`; etapa 2 (reclamações com IA e
+  ações) no commit `104b4b4` da branch `codex/escudo-reputacao-reclamacoes` (criada a partir da etapa 1). As duas migrações já
+  estão aplicadas no banco de produção (aditivas). **Ainda não publicado: o merge na `v2` espera a aprovação do Breno**
+  (§13 item 0m). Spec: `docs/superpowers/specs/2026-10-19-escudo-reputacao-design.md`.
 - **Marca:** **maanu** (decisão do Breno, 2026-10-11). Guia de uso, paleta e arquivos em `docs/brand/README.md`; nome,
   assinatura e slogan em `lib/config/site.ts`; logo só pelos componentes de `components/brand/logo.tsx`.
 - **Criativos sociais:** em 2026-10-15 foram criadas quatro peças 1080×1350 para um carrossel de apresentação da maanu;
@@ -302,6 +313,15 @@ app/
     clientes/ (+ [id]/)           # CLIENTES (Sessão 28, todos os planos): lista (números, busca ?q=, filtro, ordem, 50/página,
                                   # "contando desde") e ficha (compras por pack, perguntas, conversas, observações)
     clientes/actions.ts           # saveCustomerNote (qualquer membro)
+    reputacao/                    # ESCUDO DE REPUTAÇÃO (Sessão 29, todos os planos): abas por link ?aba= (Visão geral: termômetro
+                                  # com folga, "Precisa de você agora", despachos, previsão, valor da cor, "Como funciona";
+                                  # Reclamações: filtros ?filtro=precisam|mediacao|abertas|encerradas). maxDuration 60
+    reputacao/actions.ts          # refreshReputation (≤ 1x a cada 2 min por conta), setEmailAlerts (só dono/admin)
+    reputacao/reclamacoes/[id]/   # página da reclamação: situação/prazo/afeta, o que aconteceu, conversa + composer com o
+                                  # rascunho da IA, análise da IA, "O que fazer", tirar da reputação, histórico na maanu
+    reputacao/reclamacoes/actions.ts # sendClaimMessageAction (qualquer membro; anexos ≤ 4 MB no total), claimMoneyAction
+                                  # (dono/admin, confirmed), loadPartialRefundOffers, markExclusionAction, analyzeClaimAction,
+                                  # syncClaimAction (≤ 1x/min)
     pos-venda/actions.ts          # sendReply (FormData com anexos), generateSuggestion, refreshFromMl, retryWithAgent,
                                   # archive/restoreConversation, syncConversations, setAgentEnabled, updateAgentSettings,
                                   # add/deleteAfterSaleExample, testAfterSaleAgent
@@ -324,6 +344,8 @@ app/
                                 # perguntas novas no ML a cada ~10 s por ~50 s + fila de novas tentativas (maxDuration 120)
   api/cron/pos-venda/route.ts   # fila do pós-venda (1/min) + a cada 15 min não lidas e conferência (Bearer CRON_SECRET)
   api/cron/clientes/route.ts    # aba Clientes (1/min, Bearer CRON_SECRET): runCustomerSync = conferência + cidade/nome
+  api/cron/reputacao/route.ts   # Escudo (1/min, Bearer CRON_SECRET): runReputationSync({ claimsHook }) (termômetro 30 min,
+                                # despachos 10 min, reclamações 5 min, e-mails) + processClaimAnalyses (até 3 análises da IA)
   api/pos-venda/anexo/route.ts  # abre anexos das conversas (token do ML só no servidor; confere plano e conversa)
 components/
   ui/                             # shadcn (não editar à toa; regenerar com a CLI)
@@ -453,6 +475,17 @@ lib/
                                   #   observações, R$, trackingSince); engine (pollAccount, resolveLocations, runCustomerSync,
                                   #   handleOrderNotification). Sem importação do histórico desde a Sessão 28b
   mercadolivre/orders.ts          # /orders/search, /orders/{id}, /shipments/{id} (só leitura)
+  reputation/                     # ESCUDO DE REPUTAÇÃO (puros e testados em tests/unit/reputation.test.ts e
+                                  #   reputation-claims.test.ts, salvo engine/claims-engine/claim-model): thresholds (limites
+                                  #   oficiais com fonte e data), exclusions (11 casos), metrics (seller_reputation → folga e cor),
+                                  #   claims (busca, previsão, affects), shipments (risco de despacho), alerts, email, presentation,
+                                  #   claim-details (rótulos, ações liberadas, mensagens, venda, ofertas parciais, anexos), claim-ai
+                                  #   (prompt, JSON Schema, validação), claim-model (IA via trackedCompletion), engine (rodadas,
+                                  #   alertas, e-mails), claims-engine (detalhe/mensagens, fila da IA, ações do vendedor, exclusão)
+  mercadolivre/reputation.ts      # cliente do Escudo: /users, /shipments (+/sla, /costs), /post-purchase/v1/claims (busca,
+                                  #   detalhe, mensagens, affects, ofertas e as ações POST). **Nunca marca o token como inválido**
+  email/resend.ts                 # e-mail pelo Resend (remetente maanu <alertas@maanu.com.br>; sem RESEND_API_KEY = desligado)
+  dal/reputation.ts, dal/reputation-claims.ts # leituras das telas do Escudo (RLS)
   dal/customers.ts                # lista, números (rpc customers_overview), sincronização e ficha do cliente
   migration/v1.ts                 # MIGRAÇÃO v1 → v2 (puro, testado em tests/unit/migration-v1.test.ts): question_jobs →
                                   #   ml_questions, training_examples → ai_examples, CNPJ fictício para testes (§6.3)
@@ -465,7 +498,7 @@ supabase/
                                   # perguntas_escala + resultados + dados_cobranca + modo_responder_sempre + pos_venda +
                                   # painel_admin
   tests/fundacao_rls.sql, respostas_rls.sql, resultados_rls.sql, cobranca_rls.sql, pos_venda_rls.sql, admin_rls.sql,
-       ai_keys_rls.sql, clientes_rls.sql
+       ai_keys_rls.sql, clientes_rls.sql, reputacao_rls.sql, reputacao_reclamacoes_rls.sql
                                   # sucesso = erro "TESTES_..._OK"
 scripts/v1-para-v2/                # exportar.mjs (v1 → JSON, só GET, sem tokens) e importar.mjs (JSON → Supabase de TESTES; trava
                                   #   pelo project ref do .env.local). Saídas com dados de clientes só em docs/v2/privado/ (§6.3)
@@ -473,7 +506,8 @@ tests/unit/                       # vitest: crypto, pkce, access, forms, answers
 tests/integration/ai-live.test.ts # 22 cenários com a IA real; só roda com RUN_LIVE_AI=1 + OPENAI_API_KEY
 tests/integration/after-sale-live.test.ts # 12 cenários do agente de pós-venda com a IA real (mesmas variáveis)
 tests/integration/customers-db.test.ts # aba Clientes no banco real com o ML simulado (RUN_CUSTOMERS_DB=1; loja temporária apagada)
-vercel.json                       # crons /api/cron/questions, /api/cron/pos-venda e /api/cron/clientes a cada minuto (só produção)
+tests/integration/reputation-db.test.ts # Escudo no banco real com o ML simulado (RUN_REPUTATION_DB=1; loja temporária apagada)
+vercel.json                       # crons /api/cron/questions, /pos-venda, /clientes e /reputacao a cada minuto (só produção)
 docs/                             # specs (superpowers/specs), db (inventário/snapshot de prod), v2 (referências),
                                   # brand (apresentação e originais da marca, guia README.md, scripts/ para regerar)
 public/brand/                     # maanu-logo(.svg/.png, -branco), maanu-m(.svg, -branco), maanu-icone(.svg, -512.png)
@@ -510,6 +544,7 @@ Novas na v2:
 | `APP_HOST` | opcional (Sessão 25). Endereço próprio do app, ex.: `app.maanu.com.br`. Sem ela, `maanu.com.br/` é a página de vendas e o app continua no mesmo endereço. Com ela, o domínio principal só serve a página de vendas, `/termos`, `/privacidade`, robots/sitemap e `/api/webhook/*` e `/api/cron/*`; o resto vai (307) para o mesmo caminho e busca em `APP_HOST`, e no endereço do app `/` leva a `/painel`. Junto com ela, `NEXT_PUBLIC_SITE_URL` vira o endereço do app; `ML_REDIRECT_URI` pode ficar no domínio principal (o retorno do OAuth é redirecionado). Webhooks cadastrados fora (AbacatePay) usam `webhookBaseUrl` = domínio principal quando ela existe. **Existe desde a Sessão 27** no projeto `maanu` (Production): `app.maanu.com.br`. |
 | `GOOGLE_SITE_VERIFICATION` | opcional (Sessão 25). Código da meta tag do Google Search Console (só o valor do `content`). Desnecessária se a propriedade for verificada pelo DNS (recomendado). Hoje **não** existe na Vercel. |
 | `BING_SITE_VERIFICATION` | opcional (Sessão 25). Código da meta tag `msvalidate.01` do Bing Webmaster Tools. Desnecessária se o site for importado do Search Console. Hoje **não** existe na Vercel. |
+| `RESEND_API_KEY` | Sessão 29 (Escudo de Reputação). Chave do Resend **só com permissão de envio** (Sending access), para os e-mails dos alertas urgentes (remetente `maanu <alertas@maanu.com.br>`; o domínio precisa estar verificado no Resend). **Sensível**, só no projeto `maanu` (Production). Sem ela os e-mails ficam desligados (os alertas são marcados "skipped") e o resto funciona. **Falta o Breno criar** (§13 item 0m). |
 | `ADMIN_HOST` | opcional (Sessão 13). Endereço próprio do painel do administrador, ex.: `admin.maanu.com.br`. Com ele, `/admin` só abre nesse endereço (no domínio do app vira 404) e o endereço só serve o painel e o login. Sem ele, o painel fica em `/admin` do próprio app. Hoje **não** existe na Vercel (sem domínio próprio). |
 
 Obsoletas (citadas no `instructions.md`, não usadas): `ANTHROPIC_API_KEY`, `NEXT_PUBLIC_APP_URL`.
@@ -763,6 +798,39 @@ localmente, definir no terminal).
   também em `ml_questions (ml_account_id, buyer_id)` e `ml_conversations (ml_account_id, buyer_id)` (ficha do cliente).
   Testado em `supabase/tests/clientes_rls.sql` (TESTES_CLIENTES_OK).
 
+### 6.1k v2 — Escudo de Reputação (migrações `20261019230000_reputacao.sql` e `20261019233000_reputacao_reclamacoes.sql`, Sessão 29, aplicadas em 2026-10-19)
+
+- Tudo **aditivo**; RLS só leitura por organização (`current_user_organization_ids()`), `GRANT select` explícito para
+  `authenticated`, escrita só pelo service role. Testes: `supabase/tests/reputacao_rls.sql` (TESTES_REPUTACAO_OK) e
+  `reputacao_reclamacoes_rls.sql` (TESTES_REPUTACAO_RECLAMACOES_OK). O Escudo **só lê** `ml_accounts` e `ml_orders`.
+- `reputation_settings` (1 por organização): `email_alerts` (padrão ligado), `updated_by`.
+- `reputation_sync` (1 por conta, PK `ml_account_id`): `next_reputation_at`/`next_shipments_at`/`next_claims_at`, os
+  `last_*_at` correspondentes, `claims_backfilled_at` (reclamações do período já buscadas uma vez), `locked_until`,
+  `last_error`/`last_error_at`. A função
+  `claim_reputation_sync(p_limit, p_lock_seconds, p_ml_account_id)` cria as linhas que faltam sozinha (sem gatilho) e só entrega
+  contas ativas, com token válido e organização com acesso (qualquer plano).
+- `reputation_snapshots`: leitura do `/users/{id}` (cor, MercadoLíder, protegido, período, vendas, quantidades e taxas,
+  `raw` reduzido). 1 por dia + 1 a cada mudança (`signature`).
+- `reputation_shipments`: envios das vendas pagas dos últimos 15 dias (de `ml_orders`) esperando despacho, com SLA, tipo de
+  logística, situação e os descontos de frete (`/costs`, lido uma vez por envio despachado).
+- `reputation_claims` (`unique (ml_account_id, claim_id)`): busca (tipo, etapa, situação, motivo, ações do vendedor, prazo,
+  venda) + `affects_reputation`/`has_incentive`/`affects_due_at`; etapa 2: `detail`, `reason_detail`,
+  `expected_resolutions`, `order_summary` (itens, valor, data; sem dados do comprador além do apelido), `shipping`,
+  `buyer_nickname`, mensagens (contagem, última), IA (`ai_status` idle|pending|processing|ready|failed|skipped, `ai_result`,
+  `ai_model`, `ai_analyses` ≤ 8, `ai_input_hash`, `ai_locked_until`, `ai_error`) e exclusão (`exclusion_requested_at/by`).
+- `reputation_claim_messages` (`unique (claim_row_id, hash)`, cascade com a reclamação): mensagens como estão no ML (papel,
+  texto ≤ 5.000, data, moderação, nomes dos anexos).
+- `reputation_claim_actions`: **histórico imutável** (gatilho impede update/delete; **sem FK** de propósito, para sobreviver):
+  quem, quando, ação (`send_message|refund|partial_refund|allow_return|open_dispute|exclusion_requested`), destinatário, detalhes,
+  `success|failed`, status e resposta do ML, erro. **Não gravar nada de teste aqui no banco de produção.** Apagar uma loja
+  não apaga o histórico dela (gatilho `REPUTATION_CLAIM_ACTIONS_IMMUTABLE` bloqueia update/delete/truncate); um pedido de
+  exclusão de dados (LGPD) exige desligar o gatilho numa migração aprovada pelo Breno.
+- `reputation_alerts` (`unique (ml_account_id, dedupe_key)`): `kind` (shipment_late, shipment_at_risk, margin_low,
+  color_dropped, color_recovered, claim_new, claim_due_soon, claim_exclusion, claim_excluded), `severity` urgent|info, `status`
+  open|resolved, `data` (ex.: `claim_row_id`), e-mail (`email_status` pending|sent|skipped|failed ou null = só no app,
+  `emailed_at`, erro).
+- `ai_usage_events.feature` aceita **`reputation_claim_analysis`** (CHECK recriado com os mesmos valores + esse).
+
 ### 6.2 v1 — produção (✅ CONFIRMADO em 2026-10-11)
 
 > Fonte: inventário só leitura de prod (`docs/db/inventario-schema.sql`, rodado pelo Breno no SQL Editor).
@@ -964,6 +1032,33 @@ exportação só faz GET e a importação recusa qualquer destino que não seja 
 4. **Notificação `orders_v2`** → webhook 200 na hora → `after()`: conta → `handleOrderNotification` (`GET /orders/{id}`, só se a
    conta for a vendedora e a organização tiver acesso) → `ingest_ml_orders`. Precisa do tópico Orders ligado no DevCenter.
 5. Telas leem com a sessão (RLS). Observações: `saveCustomerNote` (service role, conferindo a organização).
+
+### 7.0c5 v2 — Escudo de Reputação (Sessão 29, todos os planos)
+1. Cron `/api/cron/reputacao` (1/min, `runReputationSync`): até 20 contas, **80 chamadas ao ML** e ~45 s por rodada, rodízio por
+   `claim_reputation_sync`. Cliente próprio (`lib/mercadolivre/reputation.ts`) que **não marca token inválido** (o
+   `/claims/{id}/detail` responde 401 para reclamações antigas, Claims 1.0, mesmo com o token válido).
+2. **Termômetro** a cada 30 min: `GET /users/{id}` → `seller_reputation` (protegido usa `excluded.real_*`) → folga = limite ×
+   vendas − problemas (arredondada para baixo; pior métrica define a cor; atrasos sobre o total de vendas = "aprox."). Limites
+   em `lib/reputation/thresholds.ts` (fonte e data; se o ML mudar, atualizar à mão).
+3. **Despachos** a cada 10 min: vendas pagas dos últimos 15 dias em `ml_orders` → `/shipments/{id}` + `/sla` (Full,
+   despachado e cancelado ficam de fora) → atrasado / vence em até 4 h ou hoje / no prazo. Envios despachados dos últimos 30
+   dias: `/costs` 1 vez → "quanto vale sua cor".
+4. **Reclamações** a cada 5 min: `/post-purchase/v1/claims/search?player_role=respondent&player_user_id=` (os filtros
+   `players.*` da doc são ignorados pelo ML) com `range=date_created:after:` (1ª vez, período da reputação) e
+   `range=last_updated:after:`; `affects-reputation` de cada uma. Gancho da etapa 2 (`claimsHook`): até 6 reclamações novas,
+   alteradas ou abertas há 30 min por rodada → detalhe, motivo, mensagens, expectativas, venda (`/orders/{id}`) e envio;
+   mudou (`claimInputHash`) → IA na fila (até 8 análises por reclamação).
+5. **IA** (no fim da rodada, até 3, só se couber: ≥ 25 s): `runClaimAnalysisModel` (modelo do `OPENAI_MODEL`, raciocínio
+   "low", JSON Schema estrito) → `normalizeClaimAnalysis` (opções inválidas viram valores seguros; rascunho com contato
+   externo é descartado). Custo em Uso de IA como `reputation_claim_analysis`; **não conta na cota de respostas**.
+6. **Alertas** (chave única por evento; resolvem sozinhos): urgentes vão por e-mail ao dono e administradores (no máximo 1 por
+   conta e tipo a cada 30 min, vários juntos). Link: `/reputacao?conta=` (reclamação única → a página dela).
+7. **Ações** (tela da reclamação): só as que o ML lista em `available_actions`; antes de executar a maanu lê a reclamação de
+   novo e confere se a ação continua liberada; grava no histórico imutável (sucesso ou falha) e sincroniza de novo. Mensagem:
+   anexos sobem em `/attachments` e vão no `/actions/send-message`. Dinheiro e mediação (`/expected-resolutions/refund|
+   partial-refund|allow-return`, `/actions/open-dispute`): só dono/admin, 2 confirmações na tela e `confirmed: true` na action.
+8. **Exclusão**: o ML não tem API → "Copiar texto", link das regras e "Pedi a exclusão" (a maanu passa a acompanhar o
+   `affects-reputation` e avisa quando deixar de contar).
 
 ### 7.0d v2 — Painel do administrador (`/admin`)
 1. Entrar normalmente em `/login` com o usuário admin → menu do usuário → **Painel do administrador** (ou abrir `/admin`).
@@ -1510,10 +1605,47 @@ webhook do ML validado, fila/reprocessamento de jobs, observabilidade, controle 
 | 2026-10-19 | Nome do comprador lido de `/orders/{id}` **junto com a cidade** (1 venda por cliente), não na importação | A busca de vendas não traz o nome (conferido na API em 2026-10-19). Ler cada venda custaria 1 chamada por venda; assim é 1 por cliente, e quem comprou por último é preenchido primeiro. |
 | 2026-10-19 | Aba Clientes feita na branch `codex/clientes`, migração aplicada antes do merge; merge na `v2` liberado pelo Breno no mesmo dia | Mudança grande (regra do AGENTS.md). A migração é aditiva e não mudava nada para a produção; o código só começou a importar quando entrou na `v2`. |
 | 2026-10-19 | Cidade/nome até **60 chamadas ao ML por minuto** | O app tem 18.000 chamadas/h (300/min) para tudo e as perguntas usam até 100/min. Sem histórico, as vendas novas do dia cabem com folga. |
+| 2026-10-19 | Feature nova **Escudo de Reputação** (menu Reputação), em **todos os planos**, sem mudar nada do que já existe | Proposta da IA aprovada pelo Breno (Sessão 29): a reputação é o que mais custa ao vendedor do ML (frete, visibilidade, Flex, Ads, campanhas) e nenhum concorrente mostra "quanto falta para cair de cor" nem cuida das reclamações com IA. Todos os planos para ser o motivo de ficar na maanu. |
+| 2026-10-19 | **IA prepara, vendedor aprova**; reembolso total/parcial, devolução e mediação **executados pela maanu depois do clique**, só dono/admin, com **2 confirmações** e **histórico imutável** | Decisão do Breno. Ação de dinheiro errada não tem volta; o histórico protege a loja e a maanu em qualquer disputa. Mensagens: qualquer membro. |
+| 2026-10-19 | Alertas no app + **e-mail só dos urgentes** (Resend, `alertas@maanu.com.br`), no máximo 1 por conta e tipo a cada 30 min | Decisão do Breno. E-mail de tudo vira spam; despacho atrasando e reclamação nova precisam de ação na hora. Sem `RESEND_API_KEY` o resto funciona. |
+| 2026-10-19 | Cliente do ML **próprio do Escudo**, que **nunca marca o token como inválido** | Incidente da Sessão 29: `/claims/{id}/detail` responde 401 para reclamações antigas (Claims 1.0) com o token válido, e o `mlRequest` comum marcou a conta do Breno como desconectada por ~1 min (restaurado na hora). Um 401 de um endpoint não pode derrubar as respostas automáticas. |
+| 2026-10-19 | Reclamações **sem webhook** (busca a cada 5 min) | Não mexer no webhook que já funciona (regra do Breno: nada existente muda). 5 min é suficiente: os prazos do ML são de horas/dias. |
+| 2026-10-19 | Limites oficiais da reputação **fixos no código** (`lib/reputation/thresholds.ts`, com fonte e data) | O ML não tem API dos limites. Se mudarem, atualizar a tabela (a tela mostra a data da conferência). |
+| 2026-10-19 | Análise da IA: no máximo **8 por reclamação**, **não conta na cota de respostas**, só começa se couber na rodada (≥ 25 s) | Custo baixo e previsível (gpt com raciocínio "low"); a função do cron tem 60 s e uma análise leva até ~20 s. |
+| 2026-10-19 | Anexos das mensagens de reclamação até **4 MB no total** (o ML aceita 5 MB por arquivo) | Limite das Server Actions (4,5 MB no `next.config`, por causa da Vercel). |
+| 2026-10-19 | Escudo publicado em **2 etapas** (branches `codex/escudo-reputacao` e `codex/escudo-reputacao-reclamacoes`), migrações aplicadas antes do merge | Decisão do Breno. Migrações aditivas não mudam nada em produção sem o código; o merge de cada etapa na `v2` depende da revisão dele. Fora deste projeto: Shopee, WhatsApp, resumo diário, cartão no Painel e página de vendas. |
 
 ---
 
 ## 12. Diário de sessões (mais recente no topo)
+
+### 2026-10-19 — Sessão 29 · Escudo de Reputação (IA: Claude, via app Codex)
+- Pedido do Breno: uma feature com diferencial, que resolva dor de verdade do vendedor do ML e faça o cliente pagar. A IA
+  analisou a maanu e o mercado e propôs o **Escudo de Reputação**; o Breno aprovou o plano (todos os planos, nada existente
+  muda, IA prepara e vendedor aprova, ações de dinheiro executadas pela maanu após o clique, alertas no app + e-mail só dos
+  urgentes, menu "Reputação", 2 etapas). Spec: `docs/superpowers/specs/2026-10-19-escudo-reputacao-design.md`.
+- Pesquisa (documentação + API real, só leitura, conta SOUSABRENO30): `seller_reputation` do `/users/{id}` (taxas em fração,
+  período "60 days"/"365 days", `excluded.real_*` quando protegido); busca de reclamações só funciona com
+  `player_role=respondent&player_user_id=` (+ `range=date_created|last_updated:after:`); `/shipments/{id}/costs` traz os
+  descontos em `senders[].discounts[].promoted_amount`; `/sla` 404 para Full/cancelado. Limites oficiais (nota da Central de
+  Vendedores, set/2026) e os 11 casos de exclusão no código. A Shopee fechou a Chat API para terceiros (só via gerente de contas).
+- **Incidente:** `/claims/{id}/detail` deu 401 (reclamação Claims 1.0) e o `mlRequest` comum marcou a conta do Breno como token
+  inválido por ~1 min. Restaurado direto no banco (`token_status = 'valid'`, erros nulos) e conferido. Por isso o Escudo tem
+  cliente próprio que nunca marca token inválido (decisão no §11).
+- **Etapa 1** (commit `48974e0`, branch `codex/escudo-reputacao`): migração `20261019230000_reputacao.sql` (ensaio em transação
+  desfeita com o teste, dry-run, `db push`), termômetro com folga, despachos, previsão, valor da cor, alertas + e-mail (Resend),
+  cron `/api/cron/reputacao`, menu com selo dos alertas urgentes. Testes: 28 unitários + integração no banco real com ML simulado
+  (loja temporária apagada). Conferência real na conta do Breno: snapshot cinza (0 vendas) gravado, sem erros, token ok.
+- **Etapa 2** (commit `104b4b4`, branch `codex/escudo-reputacao-reclamacoes`, criada a partir da etapa 1): migração
+  `20261019233000_reputacao_reclamacoes.sql` (mesmo ensaio; `reputation_claim_messages`, `reputation_claim_actions` imutável,
+  colunas novas e o CHECK de `ai_usage_events`), detalhe/mensagens/venda das reclamações, fila da IA, aba Reclamações com filtros,
+  página da reclamação (conversa com anexos e rascunho da IA, ações de dinheiro com 2 confirmações, exclusão, histórico), alertas
+  de reclamação (e-mail leva direto à reclamação). 27 testes unitários novos (`tests/unit/reputation-claims.test.ts`). A IA real
+  não foi testada localmente (sem `OPENAI_API_KEY` no `.env.local`); ações de dinheiro **não** foram executadas (nenhuma
+  reclamação de teste disponível).
+- QA visual com loja temporária e dados fictícios (desktop e celular; diálogo de reembolso aberto e cancelado nos 2 passos);
+  ajustes de textos e de casos (encerrada, em mediação, fila da IA). Loja temporária e usuário apagados (conferido: 0).
+- typecheck, testes (todos), lint e build ok. **Nada publicado: merge na `v2` espera o Breno** (§13 item 0m).
 
 ### 2026-10-19 — Sessão 28b · Clientes só a partir de agora (IA: Claude, via app Codex)
 - Pedido do Breno, ~20 min depois de publicar: "vamos ter que interferir. São muitas vendas e vai lotar muito de
@@ -2373,6 +2505,19 @@ webhook do ML validado, fila/reprocessamento de jobs, observabilidade, controle 
 ---
 
 ## 13. Próximos passos
+
+0m. **Escudo de Reputação (Sessão 29) — pronto nas branches, falta publicar.** Etapa 1 = `codex/escudo-reputacao`
+   (`48974e0`); etapa 2 = `codex/escudo-reputacao-reclamacoes` (contém a etapa 1 + este cérebro). Migrações já aplicadas.
+   **Breno:** (a) revisar e aprovar o merge da etapa 1 na `v2` (pode ir junto com a etapa 2: merge só da branch
+   `codex/escudo-reputacao-reclamacoes`); (b) criar no Resend uma chave **só com envio** e o domínio `maanu.com.br` verificado
+   (remetente `alertas@maanu.com.br`) e colocar `RESEND_API_KEY` (sensível) no projeto Vercel `maanu` (Production) → Redeploy;
+   (c) etapa 2: conferir no DevCenter do app da maanu as permissões **"Comunicação pré e pós-venda"** e **"Vendas e envios"** em
+   leitura **e escrita** (se faltar, as contas precisam reconectar para as ações de reclamação funcionarem); (d) se tiver uma
+   venda de teste com reclamação, testar uma ação de dinheiro nela (nunca em reclamação real de cliente sem o clique dele).
+   **Próxima IA, depois do merge:** conferir (só leitura) o cron `/api/cron/reputacao` 200, `reputation_sync.last_error` vazio,
+   snapshots batendo com a página de métricas do ML de um cliente que autorizar, se os descontos de frete vêm em `/costs` (senão
+   o cartão de R$ some e fica a lista do que cada cor tranca) e, na etapa 2, a 1ª análise real da IA (custo em Uso de IA como
+   `reputation_claim_analysis`). Se publicar só a etapa 1, atualizar este cérebro na `v2` (ele está na branch da etapa 2).
 
 0l. ✅ **Aba Clientes no ar (Sessão 28/28b, 2026-10-19), contando só a partir de 2026-10-19 16:09** (ou da conexão da
    conta). Tópico `orders_v2` já chegando (nada a fazer no DevCenter). **Próxima IA:** conferir (só leitura) que as vendas
