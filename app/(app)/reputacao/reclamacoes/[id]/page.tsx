@@ -38,6 +38,7 @@ import {
   EXPECTED_STATUS_LABELS,
   MAX_CLAIM_ANALYSES,
   ROLE_LABELS,
+  claimMessageText,
   claimTypeLabel,
   isRestrictedAction,
   reasonGroup,
@@ -416,6 +417,7 @@ function Conversation({
               const mine = message.sender_role === "respondent"
               const mediator = message.sender_role === "mediator"
               const moderation = moderationLabel(message.moderation_status)
+              const body = claimMessageText(message.message)
               const attachments = Array.isArray(message.attachments)
                 ? (message.attachments as { filename?: string; original_filename?: string | null }[])
                 : []
@@ -427,7 +429,7 @@ function Conversation({
                   </span>
                   <div
                     className={cn(
-                      "max-w-[85%] rounded-2xl px-3.5 py-2.5 leading-relaxed whitespace-pre-wrap",
+                      "max-w-[85%] rounded-2xl px-3.5 py-2.5 leading-relaxed break-words whitespace-pre-line",
                       mine
                         ? "rounded-br-sm bg-primary/10"
                         : mediator
@@ -435,7 +437,11 @@ function Conversation({
                           : "rounded-bl-sm bg-muted"
                     )}
                   >
-                    {message.message || <span className="text-muted-foreground italic">Sem texto</span>}
+                    {body ? (
+                      <MessageText text={body} links={mediator} />
+                    ) : (
+                      <span className="text-muted-foreground italic">Sem texto</span>
+                    )}
                     {attachments.length ? (
                       <span className="mt-2 flex flex-wrap gap-1.5">
                         {attachments.map((attachment, index) => (
@@ -472,6 +478,43 @@ function Conversation({
         )}
       </CardContent>
     </Card>
+  )
+}
+
+const URL_PATTERN = /(https?:\/\/[^\s<>()"']+[^\s<>()"'.,;:!?])/g
+
+/** Endereço curto para mostrar no link (só o domínio); o link leva ao endereço completo. */
+function linkLabel(url: string): string {
+  try {
+    return new URL(url).hostname.replace(/^www\./, "")
+  } catch {
+    return url
+  }
+}
+
+/** Texto da mensagem; nas do mediador do ML, os endereços viram links (as do comprador ficam só como texto). */
+function MessageText({ text, links }: { text: string; links: boolean }) {
+  if (!links) return <>{text}</>
+  const parts = text.split(URL_PATTERN)
+  return (
+    <>
+      {parts.map((part, index) =>
+        index % 2 === 1 ? (
+          <a
+            key={index}
+            href={part}
+            title={part}
+            target="_blank"
+            rel="noreferrer noopener nofollow"
+            className="text-primary underline underline-offset-2 [overflow-wrap:anywhere]"
+          >
+            {linkLabel(part)}
+          </a>
+        ) : (
+          part
+        )
+      )}
+    </>
   )
 }
 

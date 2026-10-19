@@ -192,19 +192,73 @@ export function shortHash(value: string): string {
   return hash.toString(16).padStart(8, "0")
 }
 
+// ---------------------------------------------------------------------------------------------- texto das mensagens
+
+const HTML_TAG = /<\s*\/?\s*(p|span|br|div|section|article|b|strong|i|em|u|a|ul|ol|li|code|h[1-6]|table|tr|td|font)\b[^>]*>/i
+
+const NAMED_ENTITIES: Record<string, string> = {
+  nbsp: " ", amp: "&", lt: "<", gt: ">", quot: '"', apos: "'", hellip: "…", ndash: "–", mdash: "—", bull: "•",
+  laquo: "«", raquo: "»", ordm: "º", ordf: "ª", deg: "°", copy: "©", reg: "®",
+  aacute: "á", eacute: "é", iacute: "í", oacute: "ó", uacute: "ú", Aacute: "Á", Eacute: "É", Iacute: "Í", Oacute: "Ó", Uacute: "Ú",
+  agrave: "à", Agrave: "À", acirc: "â", ecirc: "ê", ocirc: "ô", Acirc: "Â", Ecirc: "Ê", Ocirc: "Ô",
+  atilde: "ã", otilde: "õ", Atilde: "Ã", Otilde: "Õ", ccedil: "ç", Ccedil: "Ç", uuml: "ü", Uuml: "Ü",
+}
+
+function decodeEntities(value: string): string {
+  return value.replace(/&(#x[0-9a-f]+|#[0-9]+|[a-z]+);/gi, (match, code: string) => {
+    if (code[0] === "#") {
+      const point = code[1] === "x" || code[1] === "X" ? parseInt(code.slice(2), 16) : parseInt(code.slice(1), 10)
+      return Number.isFinite(point) && point > 0 && point <= 0x10ffff ? String.fromCodePoint(point) : match
+    }
+    return NAMED_ENTITIES[code] ?? match
+  })
+}
+
+/**
+ * Texto de uma mensagem de reclamação como a pessoa leria. O mediador do ML escreve num editor que manda HTML (parágrafos,
+ * spans com espaços, negrito, links, listas, entidades como &nbsp;): vira texto com quebras de linha, links como
+ * "texto (endereço)" e listas com "•". Texto comum só tem as entidades decodificadas e os espaços arrumados.
+ */
+export function claimMessageText(raw: string | null | undefined): string {
+  if (!raw) return ""
+  let value = raw.replace(/\r\n?/g, "\n")
+  if (HTML_TAG.test(value)) {
+    value = value
+      .replace(/<\s*(script|style)\b[^>]*>[\s\S]*?<\s*\/\s*\1\s*>/gi, "")
+      .replace(/\n/g, " ")
+      .replace(/<\s*br\s*\/?\s*>/gi, "\n")
+      .replace(/<\s*li\b[^>]*>/gi, "\n• ")
+      .replace(/<\s*\/\s*(p|div|section|article|h[1-6]|ul|ol|tr|table)\s*>/gi, "\n")
+      .replace(/<\s*a\b[^>]*?href\s*=\s*("([^"]*)"|'([^']*)')[^>]*>([\s\S]*?)<\s*\/\s*a\s*>/gi, (_match, _q, double, single, label) => {
+        const href = decodeEntities(String(double ?? single ?? "")).trim()
+        const text = String(label).replace(/<[^>]*>/g, "").trim()
+        if (!/^https?:\/\//i.test(href)) return text
+        return text && decodeEntities(text) !== href ? text + " (" + href + ")" : href
+      })
+      .replace(/<[^>]*>/g, "")
+  }
+  return decodeEntities(value)
+    .split("\n")
+    .map((line) => line.replace(/[\s\u00a0]+/g, " ").trim())
+    .join("\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim()
+}
+
 export function parseClaimMessages(raw: readonly MlClaimMessage[] | null | undefined): ClaimMessageRow[] {
   const rows = new Map<string, ClaimMessageRow>()
   for (const [index, message] of (raw ?? []).entries()) {
     const at = isoDate(message.message_date ?? message.date_created)
-    const body = typeof message.message === "string" ? message.message.trim().slice(0, 5000) : ""
+    const original = typeof message.message === "string" ? message.message.trim().slice(0, 5000) : ""
+    // A assinatura própria (quando o ML não manda hash) usa o texto original, para não mudar se a limpeza mudar.
     const hash =
       text(message.hash, 200) ??
-      "maanu:" + shortHash((at ?? "") + "|" + (message.sender_role ?? "") + "|" + body + "|" + index)
+      "maanu:" + shortHash((at ?? "") + "|" + (message.sender_role ?? "") + "|" + original + "|" + index)
     rows.set(hash, {
       hash,
       sender_role: text(message.sender_role, 40),
       receiver_role: text(message.receiver_role, 40),
-      message: body,
+      message: claimMessageText(typeof message.message === "string" ? message.message : "").slice(0, 5000),
       message_at: at,
       stage: text(message.stage, 40),
       status: text(message.status, 40),

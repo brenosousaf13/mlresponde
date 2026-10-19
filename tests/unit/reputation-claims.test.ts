@@ -13,6 +13,7 @@ import {
   MAX_CLAIM_ANALYSES,
   claimActions,
   claimInputHash,
+  claimMessageText,
   isRestrictedAction,
   orderSummaryFromMl,
   orderSummaryFromRow,
@@ -215,6 +216,58 @@ describe("leitura do ML", () => {
     const old = new Date(NOW.getTime() - 31 * 60 * 1000).toISOString()
     expect(needsDetails({ status: "opened", details_synced_at: old, ml_updated_at: null }, NOW)).toBe(true)
     expect(needsDetails({ status: "closed", details_synced_at: old, ml_updated_at: null }, NOW)).toBe(false)
+  })
+})
+
+describe("texto das mensagens", () => {
+  it("HTML do mediador vira texto com parágrafos, link e negrito sem as tags", () => {
+    const html =
+      '<p dir="ltr"><span style="white-space: pre-wrap;">Olá, equipe, sou Dafnie Assistente da Mercado Livre; é um prazer atendê-lo hoje.</span>' +
+      '<span style="white-space: pre-wrap;"> </span><span style="white-space: pre-wrap;"> </span></p>' +
+      '<p><span style="white-space: pre-wrap;"> </span></p><p><br></p>' +
+      '<p dir="ltr"><span style="white-space: pre-wrap;">Verifiquei que o pacote ainda está a caminho.</span></p>' +
+      '<p dir="ltr"><span style="white-space: pre-wrap;">Você pode acompanhar diretamente no </span>' +
+      '<a href="https://www2.correios.com.br/sistemas/rastreamento/default.cfm"><span style="white-space: pre-wrap;">site dos Correios</span></a>' +
+      '<span style="white-space: pre-wrap;"> através do código &nbsp; </span><b><strong class="coco-editor-textBold">MM48031482570BRSP02</strong></b>' +
+      '<span style="white-space: pre-wrap;">.&nbsp;</span></p><p dir="ltr"><br></p>' +
+      '<p dir="ltr"><span>Entrarei em contato no dia 28/10, pois essa &eacute; a data final de entrega</span></p>'
+    expect(claimMessageText(html)).toBe(
+      [
+        "Olá, equipe, sou Dafnie Assistente da Mercado Livre; é um prazer atendê-lo hoje.",
+        "",
+        "Verifiquei que o pacote ainda está a caminho.",
+        "Você pode acompanhar diretamente no site dos Correios (https://www2.correios.com.br/sistemas/rastreamento/default.cfm) através do código MM48031482570BRSP02.",
+        "",
+        "Entrarei em contato no dia 28/10, pois essa é a data final de entrega",
+      ].join("\n")
+    )
+  })
+
+  it("listas viram marcadores e entidades numéricas são decodificadas", () => {
+    expect(claimMessageText("<p>Envie:</p><ul><li>Fotos do produto</li><li>Nota fiscal &#8211; PDF</li></ul>")).toBe(
+      "Envie:\n\n• Fotos do produto\n• Nota fiscal – PDF"
+    )
+    expect(claimMessageText('<p>Veja <a href="https://www.mercadolivre.com.br/ajuda">https://www.mercadolivre.com.br/ajuda</a></p>')).toBe(
+      "Veja https://www.mercadolivre.com.br/ajuda"
+    )
+    expect(claimMessageText('<p><a href="javascript:alert(1)">clique</a></p><script>alert(1)</script>')).toBe("clique")
+  })
+
+  it("texto comum fica igual (com < e & no meio) e as quebras de linha são mantidas", () => {
+    expect(claimMessageText("O preço < 100 & frete grátis?\nObrigado")).toBe("O preço < 100 & frete grátis?\nObrigado")
+    expect(claimMessageText("  Não recebi   o produto  ")).toBe("Não recebi o produto")
+    expect(claimMessageText(null)).toBe("")
+  })
+
+  it("a mensagem gravada já vem limpa e a assinatura própria não muda com a limpeza", () => {
+    const [row] = parseClaimMessages([
+      { sender_role: "mediator", message: "<p>Olá, <b>vendedor</b>.</p>", date_created: "2026-10-18T10:00:00.000Z" },
+    ])
+    expect(row.message).toBe("Olá, vendedor.")
+    const [again] = parseClaimMessages([
+      { sender_role: "mediator", message: "<p>Olá, <b>vendedor</b>.</p>", date_created: "2026-10-18T10:00:00.000Z" },
+    ])
+    expect(again.hash).toBe(row.hash)
   })
 })
 

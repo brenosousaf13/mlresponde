@@ -4,6 +4,7 @@ import {
   CLAIM_STAGE_LABELS,
   EXPECTED_RESOLUTION_LABELS,
   ROLE_LABELS,
+  claimMessageText,
   claimTypeLabel,
   reasonGroup,
   type ClaimActionKind,
@@ -196,7 +197,7 @@ export function buildClaimUserPrompt(input: ClaimPromptInput): string {
             (ROLE_LABELS[message.sender_role ?? ""] ?? message.sender_role ?? "?") +
             (message.message_at ? " · " + message.message_at : "") +
             "] " +
-            message.message.replace(/\s+/g, " ").slice(0, MESSAGE_CHARS)
+            claimMessageText(message.message).replace(/\s+/g, " ").slice(0, MESSAGE_CHARS)
         )
       : ["(nenhuma mensagem)"]),
     "",
