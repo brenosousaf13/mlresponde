@@ -4,7 +4,7 @@
 > inteiro antes de trabalhar e atualizá-lo ao terminar. Se algo aqui divergir do código, o código vence —
 > e este arquivo deve ser corrigido na mesma sessão.
 
-Última atualização: **2026-10-19** (Sessão 28 — **aba Clientes** pronta na branch `codex/clientes` (quem comprou em cada conta do ML: compras, total, quem voltou, cidade/UF, perguntas, conversas e observações; sem e-mail/telefone, que o ML não entrega); migração `clientes` **já aplicada** no banco; falta o Breno liberar o merge na `v2` e ligar o tópico Orders no DevCenter (§13 item 0l); Sessão 27 — **troca de endereços concluída**: `maanu.com.br` = só a página de vendas (indexável; `/institucional` redireciona) e **o app em `app.maanu.com.br`** (`APP_HOST`, Site URL do Supabase), webhooks e retorno do OAuth do ML fixos no domínio principal; Sessão 23d — **só o plano mensal** (decisão do Breno): o anual saiu da Assinatura, da página de vendas, das Dúvidas, do `llms.txt`, dos Termos e do painel; Sessão 23c — **cobrança pela AbacatePay em produção** (chave de produção, produtos mensais e webhook prontos); o anual só aparece quando houver os produtos anuais; Sessão 25c — WhatsApp/telefone `(31) 99263-0934` no rodapé de `/institucional` para a aprovação da AbacatePay; falta o e-mail; Sessão 25b — página de vendas **publicada em `maanu.com.br/institucional`** para o Breno e o sócio revisarem, fora do Google por enquanto; `maanu.com.br/` continua levando ao app; Sessão 26 — quatro criativos 4:5 para carrossel do Instagram salvos em `CRIATIVOS/`; Sessão 25 — página de vendas em `maanu.com.br/` com SEO para Google, Bing e buscas por IA (dados estruturados, `llms.txt`, robots, imagem de compartilhamento, carregamento mais rápido) e app pronto para ir para `app.maanu.com.br` (variável `APP_HOST`), na branch `codex/pagina-de-vendas`, aguardando o Breno; Sessão 24 — cliente sem permissão de administrador vê uma mensagem de acesso restrito com retorno ao painel; Sessão 23b — tela "Levando você para o pagamento seguro" antes da AbacatePay, teste de compra aprovado e dados de teste apagados, falta a chave de produção; Sessão 23 — cobrança pela AbacatePay pronta no código e no banco: assinar, trocar, cancelar e webhooks; falta só a chave de API do Breno; Sessão 22 — perguntas chegando sozinhas: rotina que busca no ML a cada ~10 s + webhook respondendo na hora; foto do anúncio corrigida; Sessão 21 — v1: botão de pausar a IA funcionando, commit `bf56777` na `main`; Sessão 20b — Starter com 300 respostas e espaço nos cards dos planos; Sessão 20 — planos Starter/Pro/Escala com limites, teste grátis e Melhorias de anúncio; Sessão 19 — pesquisa de preços e proposta de 3 planos; Sessão 18 — tour de boas-vindas e avisos de teste/conta ML redesenhados; Sessão 17 — chaves de IA cadastradas e trocadas pelo painel do administrador; Sessão 16 — textos do cadastro sem falar em cobrança; Sessão 15b — Fase 1 da troca preparada)
+Última atualização: **2026-10-19** (Sessão 28 — **aba Clientes no ar** (quem comprou em cada conta do ML: compras, total, quem voltou, cidade/UF, perguntas, conversas e observações; sem e-mail/telefone, que o ML não entrega); importando os últimos 12 meses das contas (§13 item 0l); Sessão 27 — **troca de endereços concluída**: `maanu.com.br` = só a página de vendas (indexável; `/institucional` redireciona) e **o app em `app.maanu.com.br`** (`APP_HOST`, Site URL do Supabase), webhooks e retorno do OAuth do ML fixos no domínio principal; Sessão 23d — **só o plano mensal** (decisão do Breno): o anual saiu da Assinatura, da página de vendas, das Dúvidas, do `llms.txt`, dos Termos e do painel; Sessão 23c — **cobrança pela AbacatePay em produção** (chave de produção, produtos mensais e webhook prontos); o anual só aparece quando houver os produtos anuais; Sessão 25c — WhatsApp/telefone `(31) 99263-0934` no rodapé de `/institucional` para a aprovação da AbacatePay; falta o e-mail; Sessão 25b — página de vendas **publicada em `maanu.com.br/institucional`** para o Breno e o sócio revisarem, fora do Google por enquanto; `maanu.com.br/` continua levando ao app; Sessão 26 — quatro criativos 4:5 para carrossel do Instagram salvos em `CRIATIVOS/`; Sessão 25 — página de vendas em `maanu.com.br/` com SEO para Google, Bing e buscas por IA (dados estruturados, `llms.txt`, robots, imagem de compartilhamento, carregamento mais rápido) e app pronto para ir para `app.maanu.com.br` (variável `APP_HOST`), na branch `codex/pagina-de-vendas`, aguardando o Breno; Sessão 24 — cliente sem permissão de administrador vê uma mensagem de acesso restrito com retorno ao painel; Sessão 23b — tela "Levando você para o pagamento seguro" antes da AbacatePay, teste de compra aprovado e dados de teste apagados, falta a chave de produção; Sessão 23 — cobrança pela AbacatePay pronta no código e no banco: assinar, trocar, cancelar e webhooks; falta só a chave de API do Breno; Sessão 22 — perguntas chegando sozinhas: rotina que busca no ML a cada ~10 s + webhook respondendo na hora; foto do anúncio corrigida; Sessão 21 — v1: botão de pausar a IA funcionando, commit `bf56777` na `main`; Sessão 20b — Starter com 300 respostas e espaço nos cards dos planos; Sessão 20 — planos Starter/Pro/Escala com limites, teste grátis e Melhorias de anúncio; Sessão 19 — pesquisa de preços e proposta de 3 planos; Sessão 18 — tour de boas-vindas e avisos de teste/conta ML redesenhados; Sessão 17 — chaves de IA cadastradas e trocadas pelo painel do administrador; Sessão 16 — textos do cadastro sem falar em cobrança; Sessão 15b — Fase 1 da troca preparada)
 
 ---
 
@@ -192,9 +192,9 @@ novas funcionalidades, segurança multi-tenant de verdade — **desenvolvido em 
   vendas importados ao ligar e **observações internas**. Lista com 4 números (clientes, voltaram a comprar, total, novos em
   30 dias), busca, filtros, ordem e 50 por página; ficha com compras (por carrinho), perguntas que fez, conversas do
   pós-venda (cadeado sem o plano) e observações. Sincronização: cron `/api/cron/clientes` (importação em janelas de 30 dias,
-  conferência a cada 10 min, cidade/nome) + notificação `orders_v2`. **Estado:** código na branch `codex/clientes` (não
-  publicada), migração `20261019120000_clientes.sql` já aplicada no banco (aditiva; as 3 contas existentes estão com a
-  importação pendente, que começa quando o código entrar na `v2`). Spec: `docs/superpowers/specs/2026-10-19-clientes-design.md`.
+  conferência a cada 10 min, cidade/nome) + notificação `orders_v2` (o tópico Orders já estava ligado no app do ML).
+  **No ar desde 2026-10-19 ~15:50** (merge do Breno; deploy `dpl_BeoiBihtDFyxX1kLPGmcMfh4uppa`). Spec:
+  `docs/superpowers/specs/2026-10-19-clientes-design.md`.
 - **Marca:** **maanu** (decisão do Breno, 2026-10-11). Guia de uso, paleta e arquivos em `docs/brand/README.md`; nome,
   assinatura e slogan em `lib/config/site.ts`; logo só pelos componentes de `components/brand/logo.tsx`.
 - **Criativos sociais:** em 2026-10-15 foram criadas quatro peças 1080×1350 para um carrossel de apresentação da maanu;
@@ -1500,7 +1500,8 @@ webhook do ML validado, fila/reprocessamento de jobs, observabilidade, controle 
 | 2026-10-19 | Cliente = **conta do ML + comprador** (o mesmo comprador em 2 lojas da organização = 2 clientes) | Cada loja tem a própria relação com o comprador; perguntas e conversas também são por conta. Juntar por organização fica para depois, se o Breno pedir. |
 | 2026-10-19 | Importação dos **últimos 12 meses** em janelas de 30 dias pelo cron + conferência a cada 10 min + notificação `orders_v2` | Decisão do Breno (12 meses). Janelas pequenas respeitam o limite de offset de 10 mil do ML; o cron segue o padrão de fila no Postgres (sem serviço extra). A conferência cobre notificação perdida, como nas perguntas. |
 | 2026-10-19 | Nome do comprador lido de `/orders/{id}` **junto com a cidade** (1 venda por cliente), não na importação | A busca de vendas não traz o nome (conferido na API em 2026-10-19). Ler cada venda custaria 1 chamada por venda; assim é 1 por cliente, e quem comprou por último é preenchido primeiro. |
-| 2026-10-19 | Aba Clientes na branch `codex/clientes`, migração aplicada antes do merge | Mudança grande (regra do AGENTS.md). A migração é aditiva e não muda nada para a produção atual; o código só começa a importar quando entrar na `v2`. |
+| 2026-10-19 | Aba Clientes feita na branch `codex/clientes`, migração aplicada antes do merge; merge na `v2` liberado pelo Breno no mesmo dia | Mudança grande (regra do AGENTS.md). A migração é aditiva e não mudava nada para a produção; o código só começou a importar quando entrou na `v2`. |
+| 2026-10-19 | Cidade/nome a **60 chamadas ao ML por minuto** (≈ 30 clientes/min), sem acelerar | O app tem 18.000 chamadas/h (300/min) para tudo e as perguntas usam até 100/min; mais que isso arrisca 429 nas perguntas, que são o principal. Lojas grandes completam em 1 a 2 dias, começando por quem comprou por último (o topo da lista). |
 
 ---
 
@@ -1530,8 +1531,14 @@ webhook do ML validado, fila/reprocessamento de jobs, observabilidade, controle 
   simulado e loja temporária apagada no fim (conferido: nada ficou). QA visual no navegador local (`next start`) com uma loja
   temporária de dados falsos: lista, paginação, busca, filtro, ordem, ficha, observações, cadeado do pós-venda (Starter),
   importação em andamento e com falha ("Tentar de novo") e celular (cartões 2 por linha); loja apagada e conferida.
-- Verificação: typecheck, 494 testes, lint e build ok. **Não publicado**: commit na branch `codex/clientes` (push só da
-  branch, que nenhum projeto Vercel publica). Falta o Breno liberar o merge na `v2` e ligar o tópico Orders (§13 0l).
+- Verificação: typecheck, 494 testes, lint e build ok. Commit `2cc6afa` na branch `codex/clientes`; o Breno liberou ("pode
+  publicar") e a `v2` foi adiantada para ele (fast-forward, código idêntico ao testado) → deploy de produção
+  `dpl_BeoiBihtDFyxX1kLPGmcMfh4uppa` **READY**.
+- Conferido em produção: `/api/cron/clientes` sem segredo 401 e o cron 200 a cada minuto; `app.maanu.com.br/clientes` →
+  login; webhook do ML 200; crons de perguntas e pós-venda 200; **nenhum erro ou aviso** nos logs. O ML **já manda o tópico
+  `orders_v2`** (logs "[webhook] venda ..."), e as vendas notificadas foram gravadas — o Breno não precisa mexer no DevCenter.
+  Importação (~8 min depois): conta admin concluída (1 venda); as 2 lojas com 1.000 vendas cada, ~880 clientes cada, nomes e
+  cidades chegando (~30 clientes/min no total), sem erro. Ritmo: ~250 vendas/min por loja enquanto as duas importam.
 
 ### 2026-10-16 — Sessão 27 · Troca de endereços: página de vendas na raiz e app em app.maanu.com.br (IA: Claude, via app Codex)
 - Pedido do Breno: "a plataforma vai passar a responder em app.maanu.com.br e o /institucional vai responder no domínio
@@ -2337,14 +2344,12 @@ webhook do ML validado, fila/reprocessamento de jobs, observabilidade, controle 
 
 ## 13. Próximos passos
 
-0l. **Aba Clientes (Sessão 28) — falta publicar.** Código na branch `codex/clientes` (4 verificações ok); migração já aplicada.
-   (a) **Breno:** revisar e liberar o merge na `v2` (a IA faz o merge, o push e confere o deploy). (b) **Breno:** DevCenter
-   do Mercado Livre → app da v2 (`8693830632560554`) → Notificações → ligar o tópico **Orders** (`orders_v2`), sem mudar a URL
-   (`https://maanu.com.br/api/webhook/mercadolivre`). Sem ele, as vendas novas aparecem em até ~10 min pela conferência.
-   (c) **IA, depois do deploy:** acompanhar a importação das 3 contas (`ml_customer_sync` por SQL só leitura; loja com dezenas
-   de milhares de vendas por ano leva ~2 h para importar e nomes/cidades completam em até ~1 dia, a 60 chamadas/min), conferir
-   numa venda real que nome e cidade chegam, logs do cron `clientes` sem erro e que perguntas e pós-venda seguem normais.
-   Ideias não feitas: exportar CSV, juntar o mesmo comprador de lojas diferentes, "clientes mais valiosos" no Painel.
+0l. ✅ **Aba Clientes no ar (Sessão 28, 2026-10-19).** Tópico `orders_v2` já chegando (nada a fazer no DevCenter).
+   **Próxima IA:** conferir que a importação terminou (`select a.nickname, s.status, s.orders_imported, s.last_error from
+   ml_customer_sync s join ml_accounts a on a.id = s.ml_account_id`, só leitura): as 2 lojas grandes devem chegar a `done` em
+   ~4 h (a de jeans tem ~55 mil vendas/ano); `status = 'failed'` ou `last_error` repetido = investigar. Nomes e cidades
+   (`location_pending`) completam em 1 a 2 dias. **Breno:** abrir Clientes em `app.maanu.com.br/clientes` e dizer se quer
+   ajustes. Ideias não feitas: exportar CSV, juntar o mesmo comprador de lojas diferentes, "clientes mais valiosos" no Painel.
 
 0k. ✅ **TROCA DE ENDEREÇOS concluída (Sessão 27, 2026-10-16).** `maanu.com.br` = página de vendas (+ termos,
    privacidade, `llms.txt`, robots/sitemap, webhooks e crons); `app.maanu.com.br` = o app (`APP_HOST`). Webhook do ML,
