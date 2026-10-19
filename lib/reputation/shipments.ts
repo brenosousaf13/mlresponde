@@ -14,6 +14,7 @@ export type MlShipmentInfo = {
   logistic?: { mode?: string | null; type?: string | null } | null
   /** Formato antigo. */
   logistic_type?: string | null
+  tracking_number?: string | null
 }
 
 export type MlShipmentSla = {

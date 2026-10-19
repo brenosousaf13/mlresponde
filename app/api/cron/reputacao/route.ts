@@ -3,6 +3,7 @@ import { timingSafeEqual } from "node:crypto"
 import { NextResponse, type NextRequest } from "next/server"
 
 import { serverEnv } from "@/lib/env"
+import { claimsHook, processClaimAnalyses } from "@/lib/reputation/claims-engine"
 import { runReputationSync } from "@/lib/reputation/engine"
 
 export const dynamic = "force-dynamic"
@@ -18,9 +19,18 @@ function authorized(request: NextRequest) {
 
 /**
  * Escudo de Reputação (Vercel Cron a cada minuto, só em produção): termômetro (30 min por conta), despachos (10 min),
- * reclamações (5 min) e os e-mails dos alertas urgentes (lib/reputation/engine.ts). Até 80 chamadas ao ML por rodada.
+ * reclamações (5 min, com detalhe e mensagens das abertas), os e-mails dos alertas urgentes (lib/reputation/engine.ts) e a
+ * fila da IA das reclamações (até 3 análises, lib/reputation/claims-engine.ts). Até 80 chamadas ao ML por rodada.
  */
 export async function GET(request: NextRequest) {
   if (!authorized(request)) return NextResponse.json({ error: "unauthorized" }, { status: 401 })
-  return NextResponse.json(await runReputationSync())
+  const startedAt = Date.now()
+  const result = await runReputationSync({ claimsHook })
+  let analyses = 0
+  try {
+    analyses = await processClaimAnalyses(startedAt + 55_000)
+  } catch (error) {
+    console.error("[reputação] fila da IA:", error instanceof Error ? error.message : error)
+  }
+  return NextResponse.json({ ...result, analyses })
 }

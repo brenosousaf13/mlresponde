@@ -1848,23 +1848,167 @@ export type Database = {
           },
         ]
       }
+      reputation_claim_actions: {
+        Row: {
+          action: string
+          claim_id: number
+          claim_row_id: string
+          details: Json
+          error: string | null
+          id: string
+          ml_account_id: string
+          ml_response: Json | null
+          ml_status: number | null
+          organization_id: string
+          performed_at: string
+          performed_by: string
+          receiver_role: string | null
+          status: string
+        }
+        Insert: {
+          action: string
+          claim_id: number
+          claim_row_id: string
+          details?: Json
+          error?: string | null
+          id?: string
+          ml_account_id: string
+          ml_response?: Json | null
+          ml_status?: number | null
+          organization_id: string
+          performed_at?: string
+          performed_by: string
+          receiver_role?: string | null
+          status: string
+        }
+        Update: {
+          action?: string
+          claim_id?: number
+          claim_row_id?: string
+          details?: Json
+          error?: string | null
+          id?: string
+          ml_account_id?: string
+          ml_response?: Json | null
+          ml_status?: number | null
+          organization_id?: string
+          performed_at?: string
+          performed_by?: string
+          receiver_role?: string | null
+          status?: string
+        }
+        Relationships: []
+      }
+      reputation_claim_messages: {
+        Row: {
+          attachments: Json
+          claim_row_id: string
+          created_at: string
+          hash: string
+          id: string
+          message: string
+          message_at: string | null
+          ml_account_id: string
+          moderation_status: string | null
+          organization_id: string
+          receiver_role: string | null
+          sender_role: string | null
+          stage: string | null
+          status: string | null
+        }
+        Insert: {
+          attachments?: Json
+          claim_row_id: string
+          created_at?: string
+          hash: string
+          id?: string
+          message?: string
+          message_at?: string | null
+          ml_account_id: string
+          moderation_status?: string | null
+          organization_id: string
+          receiver_role?: string | null
+          sender_role?: string | null
+          stage?: string | null
+          status?: string | null
+        }
+        Update: {
+          attachments?: Json
+          claim_row_id?: string
+          created_at?: string
+          hash?: string
+          id?: string
+          message?: string
+          message_at?: string | null
+          ml_account_id?: string
+          moderation_status?: string | null
+          organization_id?: string
+          receiver_role?: string | null
+          sender_role?: string | null
+          stage?: string | null
+          status?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reputation_claim_messages_claim_row_id_fkey"
+            columns: ["claim_row_id"]
+            isOneToOne: false
+            referencedRelation: "reputation_claims"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reputation_claim_messages_ml_account_id_fkey"
+            columns: ["ml_account_id"]
+            isOneToOne: false
+            referencedRelation: "ml_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reputation_claim_messages_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       reputation_claims: {
         Row: {
           affects_checked_at: string | null
           affects_due_at: string | null
           affects_reputation: string | null
+          ai_analyses: number
+          ai_analyzed_at: string | null
+          ai_error: string | null
+          ai_input_hash: string | null
+          ai_locked_until: string | null
+          ai_model: string | null
+          ai_result: Json | null
+          ai_status: string
+          buyer_nickname: string | null
           claim_id: number
+          claim_version: string | null
           created_at: string
+          detail: Json | null
+          details_synced_at: string | null
           enrich_attempts: number
+          exclusion_requested_at: string | null
+          exclusion_requested_by: string | null
+          expected_resolutions: Json
           fulfilled: boolean | null
           has_incentive: boolean | null
           id: string
+          last_message_at: string | null
+          last_message_from: string | null
+          messages_count: number
           ml_account_id: string
           ml_created_at: string | null
           ml_updated_at: string | null
           next_due_at: string | null
+          order_summary: Json | null
           organization_id: string
           quantity_type: string | null
+          reason_detail: string | null
           reason_id: string | null
           resolution: Json | null
           resource: string | null
@@ -1872,6 +2016,7 @@ export type Database = {
           sale_at: string | null
           sale_source: string | null
           seller_actions: Json
+          shipping: Json | null
           stage: string | null
           status: string
           type: string
@@ -1881,18 +2026,38 @@ export type Database = {
           affects_checked_at?: string | null
           affects_due_at?: string | null
           affects_reputation?: string | null
+          ai_analyses?: number
+          ai_analyzed_at?: string | null
+          ai_error?: string | null
+          ai_input_hash?: string | null
+          ai_locked_until?: string | null
+          ai_model?: string | null
+          ai_result?: Json | null
+          ai_status?: string
+          buyer_nickname?: string | null
           claim_id: number
+          claim_version?: string | null
           created_at?: string
+          detail?: Json | null
+          details_synced_at?: string | null
           enrich_attempts?: number
+          exclusion_requested_at?: string | null
+          exclusion_requested_by?: string | null
+          expected_resolutions?: Json
           fulfilled?: boolean | null
           has_incentive?: boolean | null
           id?: string
+          last_message_at?: string | null
+          last_message_from?: string | null
+          messages_count?: number
           ml_account_id: string
           ml_created_at?: string | null
           ml_updated_at?: string | null
           next_due_at?: string | null
+          order_summary?: Json | null
           organization_id: string
           quantity_type?: string | null
+          reason_detail?: string | null
           reason_id?: string | null
           resolution?: Json | null
           resource?: string | null
@@ -1900,6 +2065,7 @@ export type Database = {
           sale_at?: string | null
           sale_source?: string | null
           seller_actions?: Json
+          shipping?: Json | null
           stage?: string | null
           status: string
           type: string
@@ -1909,18 +2075,38 @@ export type Database = {
           affects_checked_at?: string | null
           affects_due_at?: string | null
           affects_reputation?: string | null
+          ai_analyses?: number
+          ai_analyzed_at?: string | null
+          ai_error?: string | null
+          ai_input_hash?: string | null
+          ai_locked_until?: string | null
+          ai_model?: string | null
+          ai_result?: Json | null
+          ai_status?: string
+          buyer_nickname?: string | null
           claim_id?: number
+          claim_version?: string | null
           created_at?: string
+          detail?: Json | null
+          details_synced_at?: string | null
           enrich_attempts?: number
+          exclusion_requested_at?: string | null
+          exclusion_requested_by?: string | null
+          expected_resolutions?: Json
           fulfilled?: boolean | null
           has_incentive?: boolean | null
           id?: string
+          last_message_at?: string | null
+          last_message_from?: string | null
+          messages_count?: number
           ml_account_id?: string
           ml_created_at?: string | null
           ml_updated_at?: string | null
           next_due_at?: string | null
+          order_summary?: Json | null
           organization_id?: string
           quantity_type?: string | null
+          reason_detail?: string | null
           reason_id?: string | null
           resolution?: Json | null
           resource?: string | null
@@ -1928,6 +2114,7 @@ export type Database = {
           sale_at?: string | null
           sale_source?: string | null
           seller_actions?: Json
+          shipping?: Json | null
           stage?: string | null
           status?: string
           type?: string

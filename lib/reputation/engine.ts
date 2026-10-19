@@ -38,7 +38,7 @@ import {
   toClaimRow,
   type ClaimRow,
 } from "@/lib/reputation/claims"
-import { buildAlertEmail, reputationUrl } from "@/lib/reputation/email"
+import { buildAlertEmail, claimLink, reputationUrl } from "@/lib/reputation/email"
 import { computeSlack, readReputation, reputationRaw, reputationSignature } from "@/lib/reputation/metrics"
 import { classifyShipment, nextShipmentCheck, readShipmentCosts, readSla, shipmentRisk } from "@/lib/reputation/shipments"
 import type { ReputationColor } from "@/lib/reputation/thresholds"
@@ -94,7 +94,7 @@ function errorMessage(error: unknown) {
 }
 
 /** Interrompe a parte e a conta: limite de chamadas, 429 ou conta sem token. */
-function isStopError(error: unknown) {
+export function isStopError(error: unknown) {
   return (
     error instanceof BudgetExhaustedError ||
     error instanceof MlAccountUnavailableError ||
@@ -103,7 +103,7 @@ function isStopError(error: unknown) {
 }
 
 /** Erro 4xx definitivo do ML (não adianta tentar de novo agora). */
-function isClientError(error: unknown) {
+export function isClientError(error: unknown) {
   return error instanceof MlApiError && error.status >= 400 && error.status < 500 && error.status !== 429
 }
 
@@ -661,7 +661,7 @@ export async function syncAccount(
   if (error) throw error
 }
 
-async function loadAccounts(ids: string[]) {
+export async function loadAccounts(ids: string[]) {
   if (!ids.length) return new Map<string, ReputationAccount>()
   const { data, error } = await createServiceClient()
     .from("ml_accounts")
@@ -725,7 +725,7 @@ export async function sendPendingEmails(deadline: number, now: Date = new Date()
 
   const { data: pending, error } = await admin
     .from("reputation_alerts")
-    .select("id, organization_id, ml_account_id, kind, status, created_at, opened_at, title, body")
+    .select("id, organization_id, ml_account_id, kind, status, created_at, opened_at, title, body, data")
     .eq("email_status", "pending")
     .order("created_at", { ascending: true })
     .limit(200)
@@ -782,7 +782,7 @@ export async function sendPendingEmails(deadline: number, now: Date = new Date()
       accountName: accountName.get(group.accountId) ?? "sua conta",
       storeName: storeName.get(group.organizationId) ?? "sua loja",
       items: group.ids.map((id) => ({ title: byId.get(id)?.title ?? "", body: byId.get(id)?.body ?? "" })),
-      url: reputationUrl(siteUrl, group.accountId),
+      url: reputationUrl(siteUrl, group.accountId, claimLink(group.kind, group.ids.map((id) => byId.get(id)?.data))),
     })
     const results = await Promise.all(
       to.map((address, index) => sendEmail({ to: address, ...email, idempotencyKey: "reputacao-" + group.ids[0] + "-" + index }))

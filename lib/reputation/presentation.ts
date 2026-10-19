@@ -1,3 +1,4 @@
+import type { ClaimRisk } from "@/lib/reputation/claim-ai"
 import type { ShipmentRisk } from "@/lib/reputation/shipments"
 import type { Band, ReputationColor } from "@/lib/reputation/thresholds"
 
@@ -89,4 +90,74 @@ export const LOGISTIC_LABELS: Record<string, string> = {
 export function logisticLabel(type: string | null | undefined): string | null {
   if (!type) return null
   return LOGISTIC_LABELS[type] ?? null
+}
+
+// ---------------------------------------------------------------------------------------------- reclamações
+
+/** Selo "afeta / não afeta a reputação" (resposta de /claims/{id}/affects-reputation). */
+export function affectsInfo(value: string | null | undefined): { label: string; className: string } {
+  if (value === "affected") return { label: "Afeta a reputação", className: "bg-red-500/10 text-red-700 dark:text-red-300" }
+  if (value === "not_affected") {
+    return { label: "Não afeta a reputação", className: "bg-emerald-600/10 text-emerald-700 dark:text-emerald-300" }
+  }
+  if (value === "not_applies") return { label: "Não conta na reputação", className: "bg-muted text-muted-foreground" }
+  return { label: "Conferindo a reputação", className: "bg-muted text-muted-foreground" }
+}
+
+export const CLAIM_RISK_BADGE: Record<ClaimRisk, string> = {
+  high: "bg-red-500/10 text-red-700 dark:text-red-300",
+  medium: "bg-amber-500/15 text-amber-800 dark:text-amber-200",
+  low: "bg-emerald-600/10 text-emerald-700 dark:text-emerald-300",
+}
+
+/** Prazo da próxima ação: vencido, vence em até 24 h ou com folga. */
+export function dueState(dueAt: string | null | undefined, now: Date): "overdue" | "soon" | "later" | "none" {
+  if (!dueAt) return "none"
+  const due = Date.parse(dueAt)
+  if (!Number.isFinite(due)) return "none"
+  if (due <= now.getTime()) return "overdue"
+  return due - now.getTime() <= 24 * 60 * 60 * 1000 ? "soon" : "later"
+}
+
+export const DUE_TEXT: Record<"overdue" | "soon" | "later" | "none", string> = {
+  overdue: "text-red-700 dark:text-red-300",
+  soon: "text-amber-800 dark:text-amber-200",
+  later: "text-muted-foreground",
+  none: "text-muted-foreground",
+}
+
+/** Página da reclamação dentro da maanu. */
+export function claimHref(claimRowId: string, accountId?: string | null): string {
+  return "/reputacao/reclamacoes/" + claimRowId + (accountId ? "?conta=" + encodeURIComponent(accountId) : "")
+}
+
+
+export const SHIPPING_STATUS_LABELS: Record<string, string> = {
+  pending: "Pendente",
+  handling: "Em preparação",
+  ready_to_ship: "Pronto para despachar",
+  shipped: "A caminho",
+  delivered: "Entregue",
+  not_delivered: "Não entregue",
+  cancelled: "Cancelado",
+}
+
+/** Quem precisa agir agora na reclamação (campo action_responsible do ML). */
+export function actionResponsibleLabel(value: string | null | undefined): string | null {
+  if (!value) return null
+  const labels: Record<string, string> = {
+    seller: "Você",
+    respondent: "Você",
+    buyer: "O comprador",
+    complainant: "O comprador",
+    mediator: "O Mercado Livre",
+  }
+  return labels[value] ?? null
+}
+
+/** Mensagem moderada pelo ML (não chegou ao destinatário ou ainda está em análise). */
+export function moderationLabel(status: string | null | undefined): string | null {
+  if (status === "rejected") return "Bloqueada pelo Mercado Livre"
+  if (status === "pending") return "Em análise pelo Mercado Livre"
+  return null
 }

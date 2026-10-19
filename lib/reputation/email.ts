@@ -105,7 +105,22 @@ export function buildAlertEmail(input: {
   return { subject, html, text }
 }
 
-/** Link da tela Reputação de uma conta. */
-export function reputationUrl(siteUrl: string, accountId: string): string {
-  return siteUrl.replace(/\/$/, "") + "/reputacao?conta=" + encodeURIComponent(accountId)
+/**
+ * Link da tela Reputação de uma conta. Alertas de reclamação levam à aba Reclamações ou, quando o e-mail é de uma
+ * reclamação só, direto para ela.
+ */
+export function reputationUrl(siteUrl: string, accountId: string, claim?: { tab: true } | { claimRowId: string }): string {
+  const base = siteUrl.replace(/\/$/, "")
+  const conta = "conta=" + encodeURIComponent(accountId)
+  if (claim && "claimRowId" in claim) return base + "/reputacao/reclamacoes/" + encodeURIComponent(claim.claimRowId) + "?" + conta
+  return base + "/reputacao?" + conta + (claim ? "&aba=reclamacoes" : "")
+}
+
+/** Para onde o e-mail de um alerta de reclamação leva: a própria reclamação (se for uma só) ou a aba Reclamações. */
+export function claimLink(kind: string, data: readonly unknown[]): { tab: true } | { claimRowId: string } | undefined {
+  if (!kind.startsWith("claim_")) return undefined
+  const ids = data.map((item) =>
+    item && typeof item === "object" ? (item as { claim_row_id?: unknown }).claim_row_id : null
+  )
+  return ids.length === 1 && typeof ids[0] === "string" ? { claimRowId: ids[0] } : { tab: true }
 }

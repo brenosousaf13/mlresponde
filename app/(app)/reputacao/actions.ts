@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache"
 import { z } from "zod"
 
 import { canManageOrganization, requireSection } from "@/lib/dal/app-context"
+import { claimsHook } from "@/lib/reputation/claims-engine"
 import { syncAccountNow } from "@/lib/reputation/engine"
 import { createServiceClient } from "@/lib/supabase/admin"
 
@@ -37,7 +38,7 @@ export async function refreshReputation(accountId: string): Promise<ReputationAc
     return { ok: false, message: "Acabou de atualizar. Dá para pedir de novo em 2 minutos." }
   }
   try {
-    const status = await syncAccountNow(accountId)
+    const status = await syncAccountNow(accountId, { claimsHook })
     if (status === "busy") return { ok: false, message: "A atualização desta conta já está em andamento. Aguarde um instante." }
     if (status === "unavailable") return { ok: false, message: "Esta conta não pode ser atualizada agora." }
   } catch (refreshError) {

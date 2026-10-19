@@ -11,6 +11,7 @@ import {
   TruckIcon,
   type LucideIcon,
 } from "lucide-react"
+import Link from "next/link"
 
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Item, ItemContent, ItemDescription, ItemGroup, ItemMedia, ItemTitle } from "@/components/ui/item"
@@ -21,6 +22,7 @@ import {
   RISK_BADGE,
   RISK_LABELS,
   RISK_ORDER,
+  claimHref,
   logisticLabel,
   mlSaleUrl,
 } from "@/lib/reputation/presentation"
@@ -40,8 +42,13 @@ const ALERT_ICONS: Record<string, LucideIcon> = {
   claim_excluded: CheckCircle2Icon,
 }
 
+function claimRowId(data: unknown): string | null {
+  const value = data && typeof data === "object" ? (data as { claim_row_id?: unknown }).claim_row_id : null
+  return typeof value === "string" ? value : null
+}
+
 /** "Precisa de você agora": alertas abertos da conta (urgentes primeiro). */
-export function AlertsCard({ alerts }: { alerts: ReputationPageData["alerts"] }) {
+export function AlertsCard({ alerts, accountId }: { alerts: ReputationPageData["alerts"]; accountId: string }) {
   return (
     <Card>
       <CardHeader>
@@ -75,7 +82,14 @@ export function AlertsCard({ alerts }: { alerts: ReputationPageData["alerts"] })
                   <ItemContent>
                     <ItemTitle className="line-clamp-none">{alert.title}</ItemTitle>
                     <ItemDescription className="line-clamp-none">{alert.body}</ItemDescription>
-                    <span className="text-xs text-muted-foreground">{timeAgo(alert.opened_at)}</span>
+                    <span className="flex flex-wrap items-center gap-x-3 text-xs text-muted-foreground">
+                      {timeAgo(alert.opened_at)}
+                      {claimRowId(alert.data) ? (
+                        <Link href={claimHref(claimRowId(alert.data) as string, accountId)} className="font-medium text-primary hover:underline">
+                          Abrir reclamação
+                        </Link>
+                      ) : null}
+                    </span>
                   </ItemContent>
                 </Item>
               )

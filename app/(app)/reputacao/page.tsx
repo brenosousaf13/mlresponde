@@ -3,16 +3,19 @@ import type { Metadata } from "next"
 
 import { AccountSelect } from "@/components/app/account-select"
 import { PageHeader } from "@/components/app/page-header"
+import { ClaimsList } from "@/components/reputacao/claims-list"
 import { EmailAlertsSwitch } from "@/components/reputacao/email-alerts-switch"
 import { HowItWorks } from "@/components/reputacao/how-it-works"
 import { AlertsCard, ColorValueCard, ForecastCard, ShipmentsCard } from "@/components/reputacao/overview-cards"
 import { RefreshReputationButton } from "@/components/reputacao/refresh-button"
+import { ReputationTabs, parseReputationTab, type ReputationTab } from "@/components/reputacao/reputation-tabs"
 import { ThermometerCard } from "@/components/reputacao/thermometer-card"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Card } from "@/components/ui/card"
 import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty"
 import { canManageOrganization, requireSection } from "@/lib/dal/app-context"
 import { getReputationPage } from "@/lib/dal/reputation"
+import { countOpenClaims, getClaimsTab, parseClaimFilter, type ClaimFilter } from "@/lib/dal/reputation-claims"
 import { timeAgo } from "@/lib/format"
 import { createClient } from "@/lib/supabase/server"
 
@@ -42,8 +45,26 @@ export default async function ReputationPage({ searchParams }: PageProps<"/reput
   if (!account) return null
 
   const now = new Date()
-  const data = await getReputationPage(organizationId, account.id, now)
+  const tab = parseReputationTab(params.aba)
+  const filter = parseClaimFilter(params.filtro)
+  const [data, claimCounts, claimsTab] = await Promise.all([
+    getReputationPage(organizationId, account.id, now),
+    countOpenClaims(account.id),
+    tab === "reclamacoes" ? getClaimsTab(account.id, filter) : null,
+  ])
   const updatedAt = data.sync?.last_reputation_at ?? data.snapshot?.captured_at ?? null
+
+  /** Link para outra aba ou filtro, mantendo a conta escolhida. */
+  function href(next: { tab: ReputationTab; filter?: ClaimFilter }) {
+    const query = new URLSearchParams()
+    if (accounts.length > 1) query.set("conta", account.id)
+    if (next.tab === "reclamacoes") {
+      query.set("aba", "reclamacoes")
+      if (next.filter && next.filter !== "precisam") query.set("filtro", next.filter)
+    }
+    const search = query.toString()
+    return search ? "/reputacao?" + search : "/reputacao"
+  }
 
   return (
     <>
@@ -52,7 +73,7 @@ export default async function ReputationPage({ searchParams }: PageProps<"/reput
         description="Quanto falta para a sua cor cair, os despachos perto do prazo e quando cada reclamação sai da conta."
         actions={
           <>
-            {accounts.length > 1 ? <AccountSelect accounts={accounts} value={account.id} resetParams={[]} /> : null}
+            {accounts.length > 1 ? <AccountSelect accounts={accounts} value={account.id} resetParams={["filtro"]} /> : null}
             <RefreshReputationButton accountId={account.id} disabled={!account.usable} />
           </>
         }
@@ -65,6 +86,13 @@ export default async function ReputationPage({ searchParams }: PageProps<"/reput
         </span>
         <EmailAlertsSwitch enabled={data.emailAlerts} canManage={canManageOrganization(context.role)} />
       </div>
+
+      <ReputationTabs
+        active={tab}
+        openClaims={claimCounts.open}
+        needsYou={claimCounts.needsYou > 0}
+        hrefFor={(key) => href({ tab: key })}
+      />
 
       {!account.usable ? (
         <Alert>
@@ -84,14 +112,26 @@ export default async function ReputationPage({ searchParams }: PageProps<"/reput
         </Alert>
       ) : null}
 
-      {data.reading && data.slack ? (
+      {claimsTab ? (
+        <ClaimsList
+          rows={claimsTab.rows}
+          counts={claimsTab.counts}
+          filter={filter}
+          accountId={account.id}
+          searching={!data.sync?.claims_backfilled_at}
+          now={now}
+          hrefFor={(key) => href({ tab: "reclamacoes", filter: key })}
+        />
+      ) : null}
+
+      {tab === "visao" && data.reading && data.slack ? (
         <div className="grid items-start gap-4 xl:grid-cols-3">
           <div className="xl:col-span-2">
             <ThermometerCard reading={data.reading} slack={data.slack} />
           </div>
-          <AlertsCard alerts={data.alerts} />
+          <AlertsCard alerts={data.alerts} accountId={account.id} />
         </div>
-      ) : (
+      ) : tab === "visao" ? (
         <Card>
           <Empty className="py-12">
             <EmptyHeader>
@@ -111,24 +151,28 @@ export default async function ReputationPage({ searchParams }: PageProps<"/reput
             ) : null}
           </Empty>
         </Card>
-      )}
+      ) : null}
 
-      <div className="grid items-start gap-4 lg:grid-cols-2">
-        <ShipmentsCard shipments={data.shipments} now={now} />
-        <ForecastCard
-          forecast={data.forecast}
-          claimsValue={data.reading?.metrics.claims.value ?? 0}
-          periodDays={data.reading?.periodDays ?? null}
-          searching={!data.sync?.claims_backfilled_at}
-        />
-      </div>
+      {tab === "visao" ? (
+        <>
+          <div className="grid items-start gap-4 lg:grid-cols-2">
+            <ShipmentsCard shipments={data.shipments} now={now} />
+            <ForecastCard
+              forecast={data.forecast}
+              claimsValue={data.reading?.metrics.claims.value ?? 0}
+              periodDays={data.reading?.periodDays ?? null}
+              searching={!data.sync?.claims_backfilled_at}
+            />
+          </div>
 
-      <div className="grid items-start gap-4 xl:grid-cols-3">
-        <ColorValueCard value={data.colorValue} />
-        <div className="xl:col-span-2">
-          <HowItWorks />
-        </div>
-      </div>
+          <div className="grid items-start gap-4 xl:grid-cols-3">
+            <ColorValueCard value={data.colorValue} />
+            <div className="xl:col-span-2">
+              <HowItWorks />
+            </div>
+          </div>
+        </>
+      ) : null}
     </>
   )
 }

@@ -35,6 +35,7 @@ export const ALERT_SEVERITY: Record<AlertKind, AlertSeverity> = {
 
 export const REPUTATION_ALERT_KINDS: readonly AlertKind[] = ["margin_low", "color_dropped", "color_recovered"]
 export const SHIPMENT_ALERT_KINDS: readonly AlertKind[] = ["shipment_late", "shipment_at_risk"]
+export const CLAIM_ALERT_KINDS: readonly AlertKind[] = ["claim_new", "claim_due_soon", "claim_exclusion", "claim_excluded"]
 
 export type AlertDraft = {
   kind: AlertKind
@@ -177,6 +178,80 @@ export function shipmentAlerts(shipments: readonly WaitingShipment[], now: Date 
       },
     ]
   })
+}
+
+export type ClaimAlertInput = {
+  id: string
+  claim_id: number
+  type: string
+  status: string
+  ml_created_at: string | null
+  next_due_at: string | null
+  affects_reputation: string | null
+  exclusion_requested_at: string | null
+  /** O que mostrar no título: o produto ou o motivo. */
+  label: string
+  reason: string | null
+  exclusionLabel: string | null
+  suggestsExclusion: boolean
+}
+
+/** Reclamação "nova" = aberta há até 3 dias (as do histórico, buscadas na primeira vez, não viram alerta). */
+export const NEW_CLAIM_WINDOW_MS = 3 * DAY
+/** Ação obrigatória vencendo em menos de 24 horas. */
+export const CLAIM_DUE_WINDOW_MS = DAY
+/** "Deixou de contar" fica visível por 14 dias depois do pedido de exclusão. */
+export const EXCLUDED_WINDOW_MS = 14 * DAY
+
+export function claimAlerts(claims: readonly ClaimAlertInput[], now: Date = new Date()): AlertDraft[] {
+  const drafts: AlertDraft[] = []
+  for (const claim of claims) {
+    const label = truncate(claim.label, 90)
+    const data = { claim_row_id: claim.id, claim_id: claim.claim_id }
+    const open = claim.status === "opened"
+    const created = claim.ml_created_at ? Date.parse(claim.ml_created_at) : NaN
+    if (open && (claim.type === "mediations" || claim.type === "returns") && now.getTime() - created <= NEW_CLAIM_WINDOW_MS) {
+      drafts.push({
+        kind: "claim_new",
+        key: "claim_new:" + claim.claim_id,
+        title: "Reclamação nova: " + label,
+        body:
+          (claim.reason ? claim.reason + ". " : "") +
+          (claim.next_due_at ? "Responda até " + formatDateTime(claim.next_due_at) + "." : "Veja e responda pelo Escudo de Reputação."),
+        data,
+      })
+    }
+    const due = claim.next_due_at ? Date.parse(claim.next_due_at) : NaN
+    if (open && Number.isFinite(due) && due > now.getTime() && due - now.getTime() <= CLAIM_DUE_WINDOW_MS) {
+      drafts.push({
+        kind: "claim_due_soon",
+        key: "claim_due:" + claim.claim_id + ":" + new Date(due).toISOString(),
+        title: "Prazo vencendo: " + label,
+        body: "A reclamação tem uma ação obrigatória até " + formatDateTime(new Date(due)) + ". Depois disso o ML pode decidir contra você.",
+        data,
+      })
+    }
+    if (claim.affects_reputation === "affected" && claim.suggestsExclusion && !claim.exclusion_requested_at) {
+      drafts.push({
+        kind: "claim_exclusion",
+        key: "claim_exclusion:" + claim.claim_id,
+        title: "Possível exclusão: " + label,
+        body: (claim.exclusionLabel ? "Parece o caso: " + claim.exclusionLabel + " " : "") + "Dá para pedir ao ML que ela não conte na reputação.",
+        data,
+      })
+    }
+    const requested = claim.exclusion_requested_at ? Date.parse(claim.exclusion_requested_at) : NaN
+    if (claim.affects_reputation === "not_affected" && now.getTime() - requested <= EXCLUDED_WINDOW_MS) {
+      drafts.push({
+        kind: "claim_excluded",
+        key: "claim_excluded:" + claim.claim_id,
+        title: "Reclamação deixou de contar: " + label,
+        body: "O Mercado Livre informa que esta reclamação não afeta mais a sua reputação.",
+        data,
+      })
+    }
+  }
+  return drafts
 }
 
 // ---------------------------------------------------------------------------------------------- mudanças
