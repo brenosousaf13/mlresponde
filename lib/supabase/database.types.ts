@@ -1209,6 +1209,7 @@ export type Database = {
           orders_imported: number
           organization_id: string
           status: string
+          tracking_since: string
           updated_at: string
           window_from: string | null
           window_offset: number
@@ -1228,6 +1229,7 @@ export type Database = {
           orders_imported?: number
           organization_id: string
           status?: string
+          tracking_since?: string
           updated_at?: string
           window_from?: string | null
           window_offset?: number
@@ -1247,6 +1249,7 @@ export type Database = {
           orders_imported?: number
           organization_id?: string
           status?: string
+          tracking_since?: string
           updated_at?: string
           window_from?: string | null
           window_offset?: number
@@ -2019,6 +2022,7 @@ export type Database = {
           orders_imported: number
           organization_id: string
           status: string
+          tracking_since: string
           updated_at: string
           window_from: string | null
           window_offset: number

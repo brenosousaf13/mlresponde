@@ -1,11 +1,10 @@
-import { ChevronRightIcon, RepeatIcon, ShieldCheckIcon, SparklesIcon, UsersIcon, WalletIcon, type LucideIcon } from "lucide-react"
+import { CalendarClockIcon, ChevronRightIcon, RepeatIcon, ShieldCheckIcon, SparklesIcon, UsersIcon, WalletIcon, type LucideIcon } from "lucide-react"
 import type { Metadata } from "next"
 import Link from "next/link"
 import { redirect } from "next/navigation"
 
 import { AccountSelect } from "@/components/app/account-select"
 import { PageHeader } from "@/components/app/page-header"
-import { ImportStatus } from "@/components/clientes/import-status"
 import { OrderSelect } from "@/components/clientes/order-select"
 import { InboxListFooter } from "@/components/perguntas/inbox-list"
 import { QuestionSearch } from "@/components/perguntas/question-search"
@@ -14,7 +13,6 @@ import { Badge } from "@/components/ui/badge"
 import { buttonVariants } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty"
-import { Spinner } from "@/components/ui/spinner"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { requireSection } from "@/lib/dal/app-context"
 import { getCustomerSyncRows, getCustomersOverview, listCustomers } from "@/lib/dal/customers"
@@ -30,7 +28,7 @@ import {
   parseCustomerFilter,
   parseCustomerOrder,
   returningRate,
-  summarizeSync,
+  trackingSince,
   type CustomerFilter,
   type CustomerOrder,
   type CustomersState,
@@ -83,7 +81,8 @@ export default async function CustomersPage({ searchParams }: PageProps<"/client
   if (list.error?.code === "PGRST103" && state.page > 1) redirect(href({ page: 1 }))
   if (list.error) throw list.error
 
-  const sync = summarizeSync(syncRows, scopedAccounts)
+  const since = trackingSince(syncRows, scopedAccounts.map((account) => account.id))
+  const sinceText = since ? formatDate(since) : null
   const { from, to, totalPages } = pageRange(state.page, CUSTOMERS_PAGE_SIZE, list.total)
   const rate = returningRate(overview.customers, overview.returning)
   const average = overview.customers > 0 ? overview.totalSpent / overview.customers : 0
@@ -95,7 +94,7 @@ export default async function CustomersPage({ searchParams }: PageProps<"/client
       icon: UsersIcon,
       value: formatNumber(overview.customers),
       headline: "Compraram pelo menos uma vez",
-      detail: "Vendas dos últimos 12 meses e as novas",
+      detail: sinceText ? "Compras desde " + sinceText : "Compras a partir de agora",
     },
     {
       label: "Voltaram a comprar",
@@ -138,7 +137,12 @@ export default async function CustomersPage({ searchParams }: PageProps<"/client
         }
       />
 
-      <ImportStatus importing={sync.importing} ordersImported={sync.ordersImported} failed={sync.failed} />
+      {sinceText ? (
+        <p className="-mt-3 flex items-center gap-1.5 text-xs text-muted-foreground">
+          <CalendarClockIcon className="size-3.5" />
+          Contando as compras feitas a partir de {sinceText}. As vendas anteriores não entram.
+        </p>
+      ) : null}
 
       <div className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
         {kpis.map((kpi) => (
@@ -219,10 +223,10 @@ export default async function CustomersPage({ searchParams }: PageProps<"/client
         {list.rows.length === 0 ? (
           <Empty className="py-12">
             <EmptyHeader>
-              <EmptyMedia variant="icon">{sync.importing && !filtered ? <Spinner /> : <UsersIcon />}</EmptyMedia>
-              <EmptyTitle>
-                {filtered ? "Nenhum cliente encontrado" : sync.importing ? "Importando suas vendas" : "Nenhum cliente ainda"}
-              </EmptyTitle>
+              <EmptyMedia variant="icon">
+                <UsersIcon />
+              </EmptyMedia>
+              <EmptyTitle>{filtered ? "Nenhum cliente encontrado" : "Nenhum cliente ainda"}</EmptyTitle>
               <EmptyDescription>
                 {filtered ? (
                   <>
@@ -232,10 +236,8 @@ export default async function CustomersPage({ searchParams }: PageProps<"/client
                     </Link>
                     .
                   </>
-                ) : sync.importing ? (
-                  "Os clientes aparecem aqui conforme as vendas dos últimos 12 meses chegam do Mercado Livre."
                 ) : (
-                  "Quando alguém comprar nos seus anúncios, o cliente aparece aqui com as compras e as conversas."
+                  "Quando alguém comprar nos seus anúncios, o cliente aparece aqui em poucos minutos, com as compras e as conversas."
                 )}
               </EmptyDescription>
             </EmptyHeader>

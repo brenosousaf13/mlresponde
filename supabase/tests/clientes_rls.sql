@@ -36,11 +36,21 @@ begin
   insert into public.ml_accounts (organization_id, ml_user_id, nickname) values (v_org_b, 930000002, 'LOJA B')
     returning id into v_acc_b;
 
-  -- Conta nova ganha a linha de sincronização pendente.
+  -- Conta nova ganha a linha de sincronização, sem importação, contando a partir da conexão.
   select * into v_sync from public.ml_customer_sync where ml_account_id = v_acc_a;
-  if v_sync is null or v_sync.status <> 'pending' or v_sync.organization_id <> v_org_a then
-    raise exception 'FALHA: conta nova sem sincronização pendente';
+  if v_sync is null or v_sync.status <> 'done' or v_sync.organization_id <> v_org_a or v_sync.tracking_since <> now() then
+    raise exception 'FALHA: conta nova sem sincronização contando a partir de agora';
   end if;
+
+  -- Venda feita antes do início da contagem é ignorada.
+  v_changed := public.ingest_ml_orders(v_acc_a, jsonb_build_array(
+    jsonb_build_object('ml_order_id', 999, 'buyer_id', 599, 'status', 'paid', 'ordered_at', now() - interval '1 day',
+      'ml_last_updated', now(), 'total_amount', 10, 'items', '[]'::jsonb)));
+  select count(*) into v_count from public.ml_customers where ml_account_id = v_acc_a;
+  if v_changed <> 0 or v_count <> 0 then raise exception 'FALHA: venda de antes do início da contagem foi gravada'; end if;
+
+  -- Daqui para baixo as vendas de teste são de 2026: a contagem das duas contas começa em 1/1/2026.
+  update public.ml_customer_sync set tracking_since = '2026-01-01T00:00:00Z' where ml_account_id in (v_acc_a, v_acc_b);
 
   -- Lote da loja A:
   --  * comprador 501: pack 9001 com 2 vendas pagas (100 + 50) e 1 venda cancelada (30) depois;
@@ -178,27 +188,18 @@ begin
     if sqlerrm <> 'INGEST_INVALID_PAYLOAD' then raise; end if;
   end;
 
-  -- Reserva: importação das duas contas (organizações com acesso), uma vez só.
+  -- Sem importação: nenhuma conta entra na fila de importação.
   select count(*) into v_count from public.claim_customer_sync('import', 100) c
    where c.ml_account_id in (v_acc_a, v_acc_b);
-  if v_count <> 2 then raise exception 'FALHA: claim de importação reservou % contas (esperado 2)', v_count; end if;
-  select count(*) into v_count from public.claim_customer_sync('import', 100) c
-   where c.ml_account_id in (v_acc_a, v_acc_b);
-  if v_count <> 0 then raise exception 'FALHA: claim reservou a mesma conta duas vezes'; end if;
-  select * into v_sync from public.ml_customer_sync where ml_account_id = v_acc_a;
-  if v_sync.status <> 'running' or v_sync.attempts <> 1 then
-    raise exception 'FALHA: claim de importação (situação %, tentativas %)', v_sync.status, v_sync.attempts;
-  end if;
+  if v_count <> 0 then raise exception 'FALHA: conta nova entrou na fila de importação'; end if;
 
-  -- Conferência só para importação concluída; conta desconectada e organização bloqueada ficam de fora.
-  update public.ml_customer_sync set status = 'done', locked_until = null, last_polled_at = null
-   where ml_account_id in (v_acc_a, v_acc_b);
+  -- Conferência (uma vez só); conta desconectada e organização bloqueada ficam de fora.
   update public.ml_accounts set status = 'disconnected' where id = v_acc_b;
-  select count(*) into v_count from public.claim_customer_sync('import', 100) c
-   where c.ml_account_id in (v_acc_a, v_acc_b);
-  if v_count <> 0 then raise exception 'FALHA: importação concluída voltou para a fila'; end if;
   select count(*) into v_count from public.claim_customer_sync('poll', 100) c where c.ml_account_id = v_acc_a;
   if v_count <> 1 then raise exception 'FALHA: conferência não reservou a conta A'; end if;
+  select count(*) into v_count from public.claim_customer_sync('poll', 100) c where c.ml_account_id = v_acc_a;
+  if v_count <> 0 then raise exception 'FALHA: conferência reservou a mesma conta duas vezes'; end if;
+  update public.ml_customer_sync set locked_until = null where ml_account_id = v_acc_a;
   select count(*) into v_count from public.claim_customer_sync('poll', 100) c where c.ml_account_id = v_acc_b;
   if v_count <> 0 then raise exception 'FALHA: conta desconectada foi reservada'; end if;
   update public.ml_customer_sync set locked_until = null, last_polled_at = now() - interval '5 minutes'

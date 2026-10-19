@@ -1,38 +1,22 @@
 import "server-only"
 
 import { computeAccess } from "@/lib/access/access"
-import {
-  IMPORT_PAGE_SIZE,
-  MAX_IMPORT_ATTEMPTS,
-  MAX_POLL_PAGES,
-  importRetryDelayMs,
-  mlDateParam,
-  nextImportCursor,
-  pollFallbackSince,
-  pollSince,
-  resumeImport,
-  type ImportCursor,
-} from "@/lib/customers/import"
 import { buyerName, mlId, shipmentLocation, toIngestOrders, type MlSearchOrder } from "@/lib/customers/orders"
 import { MlAccountUnavailableError } from "@/lib/mercadolivre/accounts"
 import { MlApiError } from "@/lib/mercadolivre/api"
 import { fetchOrder, fetchShipmentDestination, searchSellerOrders } from "@/lib/mercadolivre/orders"
+import { MAX_POLL_PAGES, POLL_PAGE_SIZE, mlDateParam, pollFallbackSince, pollFilters } from "@/lib/customers/sync"
 import type { Database } from "@/lib/supabase/database.types"
 import { createServiceClient } from "@/lib/supabase/admin"
 
-// Aba Clientes: importação dos últimos 12 meses, conferência a cada 10 minutos, notificação orders_v2 e cidade/UF.
-// Regras puras em lib/customers/{orders,import}.ts; gravação em public.ingest_ml_orders (idempotente).
+// Aba Clientes: só vendas a partir do início da contagem de cada conta (ml_customer_sync.tracking_since; sem importação
+// do histórico, decisão do Breno de 2026-10-19). Chegam pela notificação orders_v2 e pela conferência a cada 10 minutos;
+// cidade/UF e nome vêm depois. Regras puras em lib/customers/{orders,sync}.ts; gravação em public.ingest_ml_orders.
 
 type SyncRow = Database["public"]["Tables"]["ml_customer_sync"]["Row"]
 
-/**
- * Limites por rodada do cron (1 por minuto). As 10 páginas de importação são divididas entre as contas importando
- * (no mínimo 2 por conta): uma loja sozinha importa 500 vendas por minuto (55 mil vendas ≈ 2 horas).
- */
+/** Limites por rodada do cron (1 por minuto). */
 export const CUSTOMER_CRON_LIMITS = {
-  importAccounts: 5,
-  importPagesPerAccount: 2,
-  importPages: 10,
   /** Chamadas ao ML para cidade/UF (envio) e nome (venda) por rodada. */
   locations: 60,
   pollAccounts: 30,
@@ -65,14 +49,8 @@ async function sellerIds(accountIds: string[]) {
   return new Map(data.map((account) => [account.id, Number(account.ml_user_id)]))
 }
 
-/** Páginas de importação por conta nesta rodada (as 10 da rodada divididas, no mínimo 2). */
-export function importPagesPerAccount(accounts: number): number {
-  if (accounts <= 0) return 0
-  return Math.max(CUSTOMER_CRON_LIMITS.importPagesPerAccount, Math.floor(CUSTOMER_CRON_LIMITS.importPages / accounts))
-}
-
-async function claim(kind: "import" | "poll", limit: number): Promise<SyncRow[]> {
-  const { data, error } = await createServiceClient().rpc("claim_customer_sync", { p_kind: kind, p_limit: limit })
+async function claimPoll(limit: number): Promise<SyncRow[]> {
+  const { data, error } = await createServiceClient().rpc("claim_customer_sync", { p_kind: "poll", p_limit: limit })
   if (error) throw error
   return data ?? []
 }
@@ -82,96 +60,38 @@ async function saveSync(accountId: string, fields: Database["public"]["Tables"][
   if (error) throw error
 }
 
-function cursorFields(cursor: ImportCursor) {
-  return {
-    import_since: cursor.importSince,
-    window_from: cursor.windowFrom,
-    window_to: cursor.windowTo,
-    window_offset: cursor.offset,
-  }
-}
-
-/** Lê até maxPages páginas da importação de uma conta (já reservada) e grava o progresso. Devolve as páginas lidas. */
-export async function importAccount(row: SyncRow, sellerId: number, maxPages: number, deadline: number): Promise<number> {
-  const now = new Date()
-  const { cursor: start, started } = resumeImport(row, now)
-  let cursor = start
-  let imported = row.orders_imported
-  let pages = 0
-  const startFields = started ? { import_started_at: now.toISOString(), last_polled_at: now.toISOString() } : {}
-
-  try {
-    let done = false
-    while (pages < maxPages && !done && (pages === 0 || Date.now() < deadline)) {
-      const page = await searchSellerOrders(row.ml_account_id, sellerId, {
-        "order.date_created.from": mlDateParam(cursor.windowFrom),
-        "order.date_created.to": mlDateParam(cursor.windowTo),
-        sort: "date_desc",
-        limit: String(IMPORT_PAGE_SIZE),
-        offset: String(cursor.offset),
-      })
-      pages++
-      const results = page.results ?? []
-      imported += await ingestOrders(row.ml_account_id, results)
-      const next = nextImportCursor(cursor, { received: results.length, total: Number(page.paging?.total ?? results.length) || 0 })
-      cursor = next.cursor
-      done = next.done
-    }
-    await saveSync(row.ml_account_id, {
-      ...startFields,
-      ...cursorFields(cursor),
-      orders_imported: imported,
-      status: done ? "done" : "running",
-      import_finished_at: done ? new Date().toISOString() : null,
-      attempts: 0,
-      last_error: null,
-      next_attempt_at: new Date().toISOString(),
-      locked_until: null,
-    })
-    if (done) console.info("[clientes] importação concluída da conta " + row.ml_account_id + ": " + imported + " vendas")
-  } catch (error) {
-    // O progresso até a falha fica gravado; a próxima tentativa continua de onde parou.
-    const unavailable = error instanceof MlAccountUnavailableError
-    const failed = !unavailable && row.attempts >= MAX_IMPORT_ATTEMPTS
-    await saveSync(row.ml_account_id, {
-      ...startFields,
-      ...cursorFields(cursor),
-      orders_imported: imported,
-      status: failed ? "failed" : "running",
-      last_error: errorMessage(error),
-      next_attempt_at: new Date(Date.now() + (unavailable ? 10 * 60 * 1000 : importRetryDelayMs(row.attempts))).toISOString(),
-      locked_until: null,
-    })
-    console.error("[clientes] importação da conta " + row.ml_account_id + ":", errorMessage(error))
-  }
-  return pages
-}
-
-/** Conferência de uma conta (já reservada): vendas alteradas desde a última (até MAX_POLL_PAGES páginas). */
+/**
+ * Conferência de uma conta (já reservada): vendas criadas desde o início da contagem e alteradas desde a última
+ * conferência (até MAX_POLL_PAGES páginas).
+ */
 export async function pollAccount(row: SyncRow, sellerId: number) {
   const startedAt = new Date()
+  const filters = pollFilters(row.last_polled_at, row.tracking_since, startedAt)
   const read = async (filter: Record<string, string>) => {
     for (let index = 0; index < MAX_POLL_PAGES; index++) {
       const page = await searchSellerOrders(row.ml_account_id, sellerId, {
         ...filter,
         sort: "date_desc",
-        limit: String(IMPORT_PAGE_SIZE),
-        offset: String(index * IMPORT_PAGE_SIZE),
+        limit: String(POLL_PAGE_SIZE),
+        offset: String(index * POLL_PAGE_SIZE),
       })
       const results = page.results ?? []
       await ingestOrders(row.ml_account_id, results)
       const total = Number(page.paging?.total ?? 0) || 0
-      if (results.length < IMPORT_PAGE_SIZE || (index + 1) * IMPORT_PAGE_SIZE >= total) break
+      if (results.length < POLL_PAGE_SIZE || (index + 1) * POLL_PAGE_SIZE >= total) break
     }
   }
 
   try {
     try {
-      await read({ "order.date_last_updated.from": mlDateParam(pollSince(row.last_polled_at, row.import_started_at, startedAt)) })
+      await read({
+        "order.date_created.from": mlDateParam(filters.createdFrom),
+        "order.date_last_updated.from": mlDateParam(filters.updatedFrom),
+      })
     } catch (error) {
-      // Filtro recusado pelo ML: lê as vendas criadas nos últimos dias.
+      // Filtro recusado pelo ML: lê as vendas criadas nos últimos dias (nunca antes do início da contagem).
       if (!(error instanceof MlApiError && error.status === 400)) throw error
-      await read({ "order.date_created.from": mlDateParam(pollFallbackSince(startedAt)) })
+      await read({ "order.date_created.from": mlDateParam(pollFallbackSince(row.tracking_since, startedAt)) })
     }
     await saveSync(row.ml_account_id, { last_polled_at: startedAt.toISOString(), last_error: null, locked_until: null })
   } catch (error) {
@@ -187,7 +107,7 @@ export async function pollAccount(row: SyncRow, sellerId: number) {
 type LocationCandidate = { id: string; ml_account_id: string; location_ml_order_id: number; needsName: boolean }
 
 /**
- * Cidade e UF (do envio) e, para quem ainda não tem, nome e sobrenome (da venda: a busca da importação não traz o nome)
+ * Cidade e UF (do envio) e, para quem ainda não tem, nome e sobrenome (da venda: a busca de vendas não traz o nome)
  * dos clientes com a compra mais recente ainda não lida. maxCalls = chamadas ao ML nesta rodada. Devolve quantos foram
  * resolvidos. accountIds limita a algumas contas (testes); sem ele, vale para todas.
  */
@@ -202,7 +122,7 @@ export async function resolveLocations(maxCalls: number, deadline: number, accou
     .eq("ml_accounts.status", "active")
     .eq("ml_accounts.token_status", "valid")
   if (accountIds) query = query.in("ml_account_id", accountIds)
-  // Quem comprou por último primeiro: é o topo da lista (lojas grandes levam horas para completar todos).
+  // Quem comprou por último primeiro: é o topo da lista.
   const { data, error } = await query.order("last_order_at", { ascending: false, nullsFirst: false }).limit(maxCalls * 2)
   if (error) throw error
 
@@ -290,38 +210,19 @@ async function forEachLimit<T>(items: readonly T[], limit: number, task: (item: 
   await Promise.all(workers)
 }
 
-export type CustomerSyncResult = { importPages: number; polled: number; locations: number; failures: number }
+export type CustomerSyncResult = { polled: number; locations: number; failures: number }
 
 /**
- * Cron de clientes (1 vez por minuto): importação (até 10 páginas, 2 por conta), conferência das contas já importadas
- * (a cada 10 minutos por conta) e cidade/UF dos clientes novos (até 60 envios). Cada parte para no limite de tempo.
+ * Cron de clientes (1 vez por minuto): conferência das vendas novas ou alteradas (a cada 10 minutos por conta) e
+ * cidade/UF e nome dos clientes novos (até 60 chamadas). Cada parte para no limite de tempo.
  */
 export async function runCustomerSync(): Promise<CustomerSyncResult> {
   const deadline = Date.now() + CUSTOMER_CRON_LIMITS.budgetMs
-  const result: CustomerSyncResult = { importPages: 0, polled: 0, locations: 0, failures: 0 }
-
-  try {
-    const rows = await claim("import", CUSTOMER_CRON_LIMITS.importAccounts)
-    const sellers = await sellerIds(rows.map((row) => row.ml_account_id))
-    const perAccount = importPagesPerAccount(rows.length)
-    for (const row of rows) {
-      const left = CUSTOMER_CRON_LIMITS.importPages - result.importPages
-      const sellerId = sellers.get(row.ml_account_id)
-      if (left <= 0 || Date.now() > deadline || !sellerId) {
-        // Fica para o próximo minuto (devolve a reserva sem contar tentativa).
-        await saveSync(row.ml_account_id, { locked_until: null, attempts: Math.max(0, row.attempts - 1) })
-        continue
-      }
-      result.importPages += await importAccount(row, sellerId, Math.min(perAccount, left), deadline)
-    }
-  } catch (error) {
-    result.failures++
-    console.error("[clientes] importação:", errorMessage(error))
-  }
+  const result: CustomerSyncResult = { polled: 0, locations: 0, failures: 0 }
 
   try {
     if (Date.now() < deadline) {
-      const rows = await claim("poll", CUSTOMER_CRON_LIMITS.pollAccounts)
+      const rows = await claimPoll(CUSTOMER_CRON_LIMITS.pollAccounts)
       const sellers = await sellerIds(rows.map((row) => row.ml_account_id))
       await forEachLimit(rows, 4, async (row) => {
         const sellerId = sellers.get(row.ml_account_id)
@@ -368,17 +269,4 @@ export async function handleOrderNotification(account: NotifiedAccount, orderId:
     // A conferência a cada 10 minutos pega a venda se esta leitura falhar.
     if (!(error instanceof MlAccountUnavailableError)) console.error("[clientes] venda " + orderId + ":", errorMessage(error))
   }
-}
-
-/** "Tentar de novo" da tela: volta a importação que falhou para a fila (continua de onde parou). */
-export async function retryFailedImport(organizationId: string, accountId: string): Promise<boolean> {
-  const { data, error } = await createServiceClient()
-    .from("ml_customer_sync")
-    .update({ status: "pending", attempts: 0, last_error: null, next_attempt_at: new Date().toISOString(), locked_until: null })
-    .eq("ml_account_id", accountId)
-    .eq("organization_id", organizationId)
-    .eq("status", "failed")
-    .select("ml_account_id")
-  if (error) throw error
-  return data.length > 0
 }

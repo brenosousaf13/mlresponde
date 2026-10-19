@@ -1,19 +1,6 @@
 import { describe, expect, it } from "vitest"
 
-import {
-  IMPORT_DAYS,
-  IMPORT_PAGE_SIZE,
-  IMPORT_WINDOW_DAYS,
-  MAX_WINDOW_ORDERS,
-  ML_MAX_OFFSET,
-  importRetryDelayMs,
-  mlDateParam,
-  nextImportCursor,
-  pollFallbackSince,
-  pollSince,
-  resumeImport,
-  startImport,
-} from "@/lib/customers/import"
+import { POLL_FALLBACK_DAYS, mlDateParam, pollFallbackSince, pollFilters } from "@/lib/customers/sync"
 import { parseOrderNotification } from "@/lib/customers/notification"
 import {
   MAX_ORDER_ITEMS,
@@ -41,7 +28,7 @@ import {
   parseCustomerOrder,
   readCustomersOverview,
   returningRate,
-  summarizeSync,
+  trackingSince,
   type CustomerOrderRow,
 } from "@/lib/customers/presentation"
 
@@ -178,103 +165,36 @@ describe("cidade e UF do envio", () => {
   })
 })
 
-describe("importação dos últimos 12 meses", () => {
+describe("conferência das vendas (sem importação do histórico)", () => {
   const now = new Date("2026-10-19T15:00:00.000Z")
+  const since = "2026-10-19T12:00:00.000Z"
 
-  it("começa na janela mais nova e vai até 365 dias atrás", () => {
-    const cursor = startImport(now)
-    expect(cursor.windowTo).toBe(now.toISOString())
-    expect(Date.parse(cursor.windowTo) - Date.parse(cursor.windowFrom)).toBe(IMPORT_WINDOW_DAYS * DAY)
-    expect(Date.parse(cursor.windowTo) - Date.parse(cursor.importSince)).toBe(IMPORT_DAYS * DAY)
-    expect(cursor.offset).toBe(0)
-  })
-
-  it("página cheia avança o offset; página incompleta passa para a janela anterior", () => {
-    const cursor = startImport(now)
-    const full = nextImportCursor(cursor, { received: IMPORT_PAGE_SIZE, total: 120 })
-    expect(full).toEqual({ done: false, cursor: { ...cursor, offset: 50 } })
-
-    const last = nextImportCursor(full.cursor, { received: 20, total: 70 })
-    expect(last.done).toBe(false)
-    expect(last.cursor.offset).toBe(0)
-    expect(last.cursor.windowTo).toBe(cursor.windowFrom)
-    expect(Date.parse(last.cursor.windowTo) - Date.parse(last.cursor.windowFrom)).toBe(IMPORT_WINDOW_DAYS * DAY)
-  })
-
-  it("janela sem vendas também passa para a anterior", () => {
-    const cursor = startImport(now)
-    const next = nextImportCursor(cursor, { received: 0, total: 0 })
-    expect(next.cursor.windowTo).toBe(cursor.windowFrom)
-  })
-
-  it("termina quando chega aos 12 meses (a última janela é menor)", () => {
-    let cursor = startImport(now)
-    let done = false
-    let windows = 0
-    while (!done && windows < 50) {
-      const step = nextImportCursor(cursor, { received: 0, total: 0 })
-      done = step.done
-      cursor = step.cursor
-      windows++
-    }
-    expect(done).toBe(true)
-    expect(windows).toBe(Math.ceil(IMPORT_DAYS / IMPORT_WINDOW_DAYS))
-    expect(cursor.windowFrom).toBe(cursor.importSince)
-  })
-
-  it("janela com vendas demais para o limite do ML é dividida ao meio (e a metade velha vira a próxima janela)", () => {
-    const cursor = startImport(now)
-    const split = nextImportCursor(cursor, { received: IMPORT_PAGE_SIZE, total: MAX_WINDOW_ORDERS + 1 })
-    expect(split.done).toBe(false)
-    expect(split.cursor.offset).toBe(0)
-    expect(split.cursor.windowTo).toBe(cursor.windowTo)
-    expect(Date.parse(split.cursor.windowTo) - Date.parse(split.cursor.windowFrom)).toBe((IMPORT_WINDOW_DAYS * DAY) / 2)
-
-    // A janela menor tem vendas que cabem: pagina normalmente (não divide de novo no meio da paginação).
-    const page = nextImportCursor({ ...split.cursor, offset: 50 }, { received: IMPORT_PAGE_SIZE, total: MAX_WINDOW_ORDERS + 1 })
-    expect(page.cursor.offset).toBe(100)
-    const after = nextImportCursor(split.cursor, { received: 10, total: 10 })
-    expect(after.cursor.windowTo).toBe(split.cursor.windowFrom)
-  })
-
-  it("nunca passa do offset máximo do ML", () => {
-    // offset 9.950 + limit 50 = 10.000 ainda vale; depois dele, a janela acaba.
-    const cursor = { ...startImport(now), offset: ML_MAX_OFFSET - 2 * IMPORT_PAGE_SIZE }
-    expect(nextImportCursor(cursor, { received: IMPORT_PAGE_SIZE, total: 50_000 }).cursor.offset).toBe(ML_MAX_OFFSET - IMPORT_PAGE_SIZE)
-    const next = nextImportCursor({ ...cursor, offset: ML_MAX_OFFSET - IMPORT_PAGE_SIZE }, { received: IMPORT_PAGE_SIZE, total: 50_000 })
-    expect(next.cursor.offset).toBe(0)
-    expect(next.cursor.windowTo).toBe(cursor.windowFrom)
-  })
-
-  it("janela de 1 hora não divide mais", () => {
-    const cursor = { ...startImport(now), windowFrom: new Date(now.getTime() - 60 * 60 * 1000).toISOString() }
-    const next = nextImportCursor(cursor, { received: IMPORT_PAGE_SIZE, total: 20_000 })
-    expect(next.cursor.windowFrom).toBe(cursor.windowFrom)
-    expect(next.cursor.offset).toBe(IMPORT_PAGE_SIZE)
-  })
-
-  it("retoma do cursor gravado ou começa do zero", () => {
-    const saved = { import_since: "2025-10-19T15:00:00.000Z", window_from: "2026-08-20T15:00:00.000Z", window_to: "2026-09-19T15:00:00.000Z", window_offset: 100 }
-    expect(resumeImport(saved, now)).toEqual({
-      started: false,
-      cursor: { importSince: saved.import_since, windowFrom: saved.window_from, windowTo: saved.window_to, offset: 100 },
-    })
-    expect(resumeImport({ import_since: null, window_from: null, window_to: null, window_offset: 0 }, now)).toEqual({
-      started: true,
-      cursor: startImport(now),
+  it("pede só vendas criadas desde o início da contagem e alteradas desde a última conferência (5 min antes)", () => {
+    expect(pollFilters("2026-10-19T14:50:00.000Z", since, now)).toEqual({
+      createdFrom: since,
+      updatedFrom: "2026-10-19T14:45:00.000Z",
     })
   })
 
-  it("espera entre tentativas e datas dos filtros", () => {
-    expect([1, 2, 3, 4, 5, 6, 9].map((attempt) => importRetryDelayMs(attempt) / 60000)).toEqual([1, 2, 4, 8, 16, 30, 30])
+  it("primeira conferência ou conferência logo depois do início: nunca antes do início da contagem", () => {
+    expect(pollFilters(null, since, now)).toEqual({ createdFrom: since, updatedFrom: since })
+    expect(pollFilters("2026-10-19T12:02:00.000Z", since, now).updatedFrom).toBe(since)
+  })
+
+  it("início da contagem no futuro ou inválido não passa de agora", () => {
+    expect(pollFilters(null, "2026-10-20T00:00:00.000Z", now).createdFrom).toBe(now.toISOString())
+    expect(pollFilters(null, "lixo", now).createdFrom).toBe(now.toISOString())
+  })
+
+  it("plano B: últimos 3 dias, mas nunca antes do início da contagem", () => {
+    expect(pollFallbackSince(since, now)).toBe(since)
+    expect(pollFallbackSince("2026-01-01T00:00:00.000Z", now)).toBe(
+      new Date(now.getTime() - POLL_FALLBACK_DAYS * DAY).toISOString()
+    )
+  })
+
+  it("datas no formato dos filtros do ML", () => {
     expect(mlDateParam("2026-10-01T03:00:00.000Z")).toBe("2026-10-01T03:00:00.000-00:00")
-  })
-
-  it("conferência volta 5 minutos antes da última e tem plano B de 3 dias", () => {
-    expect(pollSince("2026-10-19T14:50:00.000Z", null, now)).toBe("2026-10-19T14:45:00.000Z")
-    expect(pollSince(null, "2026-10-19T10:00:00.000Z", now)).toBe("2026-10-19T09:55:00.000Z")
-    expect(pollSince(null, null, now)).toBe(new Date(now.getTime() - 3 * DAY - 5 * 60000).toISOString())
-    expect(pollFallbackSince(now)).toBe(new Date(now.getTime() - 3 * DAY).toISOString())
   })
 })
 
@@ -344,21 +264,14 @@ describe("lista de clientes", () => {
     expect(readCustomersOverview(null)).toEqual({ customers: 0, returning: 0, totalSpent: 0, new30d: 0 })
   })
 
-  it("importação: só contas que podem sincronizar contam como importando; falhas aparecem para tentar de novo", () => {
-    const summary = summarizeSync(
-      [
-        { ml_account_id: "a", status: "running", orders_imported: 120, last_error: null },
-        { ml_account_id: "b", status: "pending", orders_imported: 0, last_error: null },
-        { ml_account_id: "c", status: "failed", orders_imported: 30, last_error: "HTTP 500" },
-        { ml_account_id: "fora", status: "running", orders_imported: 999, last_error: null },
-      ],
-      [
-        { id: "a", nickname: "LOJA A", usable: true },
-        { id: "b", nickname: "LOJA B", usable: false },
-        { id: "c", nickname: "LOJA C", usable: true },
-      ]
-    )
-    expect(summary).toEqual({ importing: true, ordersImported: 120, failed: [{ accountId: "c", nickname: "LOJA C", message: "HTTP 500" }] })
+  it("desde quando a lista conta: a data mais antiga entre as contas mostradas", () => {
+    const rows = [
+      { ml_account_id: "a", tracking_since: "2026-10-19T19:09:04.000Z" },
+      { ml_account_id: "b", tracking_since: "2026-10-25T10:00:00.000Z" },
+    ]
+    expect(trackingSince(rows, ["a", "b"])).toBe("2026-10-19T19:09:04.000Z")
+    expect(trackingSince(rows, ["b"])).toBe("2026-10-25T10:00:00.000Z")
+    expect(trackingSince(rows, ["c"])).toBeNull()
   })
 })
 

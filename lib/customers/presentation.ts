@@ -243,27 +243,12 @@ export function formatMoney(value: number, currency: string | null | undefined =
   return format.format(value)
 }
 
-export type SyncSummary = {
-  importing: boolean
-  failed: { accountId: string; nickname: string; message: string | null }[]
-  ordersImported: number
-}
-
-/** Situação da importação das contas mostradas (só as contas que podem sincronizar entram em "importando"). */
-export function summarizeSync(
-  rows: readonly { ml_account_id: string; status: string; orders_imported: number; last_error: string | null }[],
-  accounts: readonly { id: string; nickname: string; usable: boolean }[]
-): SyncSummary {
-  const byId = new Map(accounts.map((account) => [account.id, account]))
-  const summary: SyncSummary = { importing: false, failed: [], ordersImported: 0 }
-  for (const row of rows) {
-    const account = byId.get(row.ml_account_id)
-    if (!account) continue
-    if ((row.status === "pending" || row.status === "running") && account.usable) {
-      summary.importing = true
-      summary.ordersImported += row.orders_imported
-    }
-    if (row.status === "failed") summary.failed.push({ accountId: account.id, nickname: account.nickname, message: row.last_error })
-  }
-  return summary
+/** Desde quando os clientes das contas mostradas são contados (a data mais antiga entre elas). Sem contas = null. */
+export function trackingSince(
+  rows: readonly { ml_account_id: string; tracking_since: string }[],
+  accountIds: readonly string[]
+): string | null {
+  const ids = new Set(accountIds)
+  const dates = rows.filter((row) => ids.has(row.ml_account_id)).map((row) => row.tracking_since).sort()
+  return dates[0] ?? null
 }

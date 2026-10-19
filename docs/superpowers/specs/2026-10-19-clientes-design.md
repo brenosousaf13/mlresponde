@@ -2,6 +2,13 @@
 
 Data: 2026-10-19 · Sessão 28 · Branch: `codex/clientes` · Migração: `20261019120000_clientes.sql`
 
+> **Atualização (mesmo dia, Sessão 28b): sem importação do histórico.** Depois de ver a importação dos 12 meses
+> começando (milhares de vendas por loja, horas para terminar), o Breno pediu para parar e "contabilizar apenas a partir
+> de agora". Cada conta conta as compras a partir de `ml_customer_sync.tracking_since` (o momento da mudança para as
+> contas que já existiam; a conexão, para as novas) e `ingest_ml_orders` ignora vendas anteriores. As vendas e os
+> clientes importados foram apagados (migração `20261019190000_clientes_a_partir_de_agora.sql`). As partes abaixo sobre
+> importação ficam só como histórico.
+
 ## Pedido do Breno
 
 "Existe alguma maneira de ter a aba de clientes, que são os que compraram na nossa loja do ML, e ter alguns dados como
@@ -27,7 +34,7 @@ da plataforma (risco de bloqueio do app e da conta do vendedor; LGPD). Conclusã
 - Objetivo: **conhecer os clientes** (quem compra, quanto, quando, quem volta), sem contato fora do ML.
 - Dados guardados: **o mínimo** — apelido, nome, sobrenome, cidade/UF e as compras. Nada de e-mail, telefone,
   CPF/CNPJ ou endereço completo.
-- Histórico: **últimos 12 meses** importados ao ligar; depois só as vendas novas.
+- Histórico: ~~últimos 12 meses importados ao ligar~~ → **só a partir de agora** (Sessão 28b).
 - Planos: **todos** (Starter também).
 - Extra da 1ª versão: **observações internas** por cliente (sem exportar CSV).
 

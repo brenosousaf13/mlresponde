@@ -4,7 +4,6 @@ import { revalidatePath } from "next/cache"
 import { z } from "zod"
 
 import { requireSection } from "@/lib/dal/app-context"
-import { retryFailedImport } from "@/lib/customers/engine"
 import { normalizeNote } from "@/lib/customers/presentation"
 import { createServiceClient } from "@/lib/supabase/admin"
 
@@ -32,20 +31,4 @@ export async function saveCustomerNote(customerId: string, note: string): Promis
   if (!data.length) return { ok: false, message: "Cliente não encontrado." }
   revalidatePath("/clientes/" + customerId)
   return { ok: true, message: "Observações salvas." }
-}
-
-/** "Tentar de novo" quando a importação das vendas de uma conta falhou. */
-export async function retryCustomerImport(accountId: string): Promise<CustomerActionResult> {
-  const context = await requireSection("clientes")
-  if (!uuid.safeParse(accountId).success) return { ok: false, message: "Conta não encontrada." }
-  try {
-    const retried = await retryFailedImport(context.organization.id, accountId)
-    revalidatePath("/clientes")
-    return retried
-      ? { ok: true, message: "Vamos tentar importar de novo em instantes." }
-      : { ok: false, message: "Esta importação não está parada por erro." }
-  } catch (error) {
-    console.error("[clientes] tentar de novo:", error instanceof Error ? error.message : error)
-    return { ok: false, message: "Não foi possível agora. Tente novamente." }
-  }
 }

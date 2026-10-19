@@ -17,8 +17,8 @@ function authorized(request: NextRequest) {
 }
 
 /**
- * Clientes (Vercel Cron a cada minuto, só em produção): importação dos últimos 12 meses de vendas de cada conta,
- * conferência das vendas novas ou alteradas a cada 10 minutos e cidade/UF dos clientes (lib/customers/engine.ts).
+ * Clientes (Vercel Cron a cada minuto, só em produção): conferência das vendas novas ou alteradas a cada 10 minutos e
+ * cidade/UF e nome dos clientes (lib/customers/engine.ts). Sem importação do histórico: conta a partir da conexão.
  */
 export async function GET(request: NextRequest) {
   if (!authorized(request)) return NextResponse.json({ error: "unauthorized" }, { status: 401 })

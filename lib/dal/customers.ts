@@ -69,11 +69,12 @@ export async function listCustomers(organizationId: string, state: CustomersStat
   return { rows: (data ?? []) as CustomerListRow[], total: count ?? 0, error }
 }
 
+/** Início da contagem de clientes de cada conta. */
 export async function getCustomerSyncRows(organizationId: string) {
   const supabase = await createClient()
   const { data, error } = await supabase
     .from("ml_customer_sync")
-    .select("ml_account_id, status, orders_imported, last_error, import_finished_at")
+    .select("ml_account_id, tracking_since")
     .eq("organization_id", organizationId)
   if (error) throw error
   return data
