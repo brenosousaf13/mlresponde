@@ -51,9 +51,18 @@ export function SiteHeader({ signupHref, loginHref }: { signupHref: string; logi
             <a
               key={item.href}
               href={item.href}
-              className="rounded-full px-3.5 py-2 text-sm text-white/70 transition-colors outline-none hover:bg-white/[0.06] hover:text-white focus-visible:ring-3 focus-visible:ring-brand-teal/60"
+              className="inline-flex items-center gap-1.5 rounded-full px-3.5 py-2 text-sm text-white/70 transition-colors outline-none hover:bg-white/[0.06] hover:text-white focus-visible:ring-3 focus-visible:ring-brand-teal/60"
             >
               {item.label}
+              {item.isNew ? (
+                <>
+                  <span aria-hidden className="relative flex size-1.5">
+                    <span className="site-motion absolute inset-0 animate-[site-ping_1.8s_ease-out_infinite] rounded-full bg-brand-mint" />
+                    <span className="relative size-1.5 rounded-full bg-brand-mint" />
+                  </span>
+                  <span className="sr-only"> (novo)</span>
+                </>
+              ) : null}
             </a>
           ))}
         </nav>

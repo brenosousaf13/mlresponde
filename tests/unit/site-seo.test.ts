@@ -144,4 +144,14 @@ describe("/llms.txt", () => {
     expect(text).toContain("https://maanu.com.br/cadastro")
     expect(text).toContain(`- Site: ${SALES_PAGE_URL}`)
   })
+
+  it("fala do Escudo de Reputação, incluído em todos os planos", () => {
+    expect(FAQ.some((item) => item.id === "reputacao")).toBe(true)
+    for (const plan of SELLABLE_PLANS) {
+      const line = text.split("\n").find((row) => row.startsWith(`- **${plan.name}**`))
+      expect(line).toContain("Escudo de Reputação")
+    }
+    const features = node("SoftwareApplication").featureList as string[]
+    expect(features.some((feature) => feature.startsWith("Escudo de Reputação"))).toBe(true)
+  })
 })

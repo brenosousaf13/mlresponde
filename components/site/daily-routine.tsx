@@ -50,7 +50,7 @@ const MOMENTS: readonly Moment[] = [
     label: "Pós-venda",
     plan: "Pro e Escala",
     title: "Quem já comprou também é atendido.",
-    text: "“Cadê meu pedido?”, “vem com nota?”: ela lê a venda e o envio e responde. Reclamação e troca ficam com você.",
+    text: "“Cadê meu pedido?”, “vem com nota?”: ela lê a venda e o envio e responde. Reclamação e troca ficam com você, com a ajuda do Escudo de Reputação.",
     screen: "Pós-venda",
     preview: <AfterSalePreview />,
   },

@@ -39,8 +39,9 @@ export function SiteFooter({ signupHref, loginHref }: { signupHref: string; logi
               <ul className="mt-4 flex flex-col gap-3 text-sm">
                 <li><a className={linkClass} href="#como-funciona">Como funciona</a></li>
                 <li><a className={linkClass} href="#recursos">Recursos</a></li>
-                <li><a className={linkClass} href="#calculadora">Calculadora</a></li>
+                <li><a className={linkClass} href="#reputacao">Escudo de Reputação</a></li>
                 <li><a className={linkClass} href="#planos">Planos e preços</a></li>
+                <li><a className={linkClass} href="#calculadora">Calculadora</a></li>
                 <li><a className={linkClass} href="#duvidas">Dúvidas frequentes</a></li>
               </ul>
             </nav>

@@ -12,7 +12,7 @@ import { FAQ } from "./faq"
 import { SALES_PAGE_PATH } from "./host"
 
 /** Data da última mudança de conteúdo da página de vendas (sitemap e dados estruturados). Atualize ao mudar o texto. */
-export const SITE_CONTENT_UPDATED = "2026-10-16"
+export const SITE_CONTENT_UPDATED = "2026-10-20"
 
 export const SITE_URL = siteConfig.marketingUrl
 
@@ -114,6 +114,10 @@ const FEATURES = [
   "Melhorias de anúncio a partir das perguntas (planos Pro e Escala)",
   "Várias contas do Mercado Livre no mesmo painel",
   "Resultados: economia de tempo e dinheiro e tempo de resposta",
+  "Escudo de Reputação (todos os planos): mostra quanto falta para a conta cair de cor no termômetro do Mercado Livre",
+  "Avisa no app e por e-mail quando um envio está perto do prazo de despacho",
+  "Reclamações com IA: indica a melhor saída e escreve a resposta; o vendedor revisa e aprova, e ações com dinheiro só com o clique dele",
+  "Mostra quando cada reclamação deixa de contar e quanto a cor da reputação vale em desconto de frete",
 ] as const
 
 /** Dados estruturados (schema.org) da página de vendas, num único grafo JSON-LD. */
@@ -231,6 +235,7 @@ function planLine(plan: (typeof SELLABLE_PLANS)[number]): string {
   const parts = [
     `${answersPerMonth === null ? "respostas ilimitadas" : `${answersPerMonth.toLocaleString("pt-BR")} respostas automáticas por mês`}`,
     mlAccounts === 1 ? "1 conta do Mercado Livre" : `${mlAccounts} contas do Mercado Livre`,
+    "Escudo de Reputação",
     ...(plan.features.includes("pos_venda") ? [FEATURE_LABELS.pos_venda] : []),
     ...(listingImprovementsPerMonth ? [`${FEATURE_LABELS.melhorias_anuncio} (${listingImprovementsPerMonth} análises por mês)`] : []),
     SUPPORT_LABELS[plan.support].toLowerCase(),
@@ -246,7 +251,7 @@ export function buildLlmsTxt(links: { signup: string; login: string }): string {
   const lines = [
     `# ${siteConfig.name}`,
     "",
-    `> A ${siteConfig.name} é uma plataforma brasileira (SaaS) de respostas automáticas com inteligência artificial para vendedores do Mercado Livre. Ela lê o anúncio e as regras da loja e responde as perguntas dos compradores em segundos, 24 horas por dia. Teste grátis de ${siteConfig.trialDays} dias, sem cartão de crédito.`,
+    `> A ${siteConfig.name} é uma plataforma brasileira (SaaS) de respostas automáticas com inteligência artificial para vendedores do Mercado Livre. Ela lê o anúncio e as regras da loja e responde as perguntas dos compradores em segundos, 24 horas por dia, e protege a reputação da conta com o Escudo de Reputação. Teste grátis de ${siteConfig.trialDays} dias, sem cartão de crédito.`,
     "",
     `- Site: ${SALES_PAGE_URL}`,
     `- Empresa: ${siteConfig.name}, CNPJ ${companyInfo.cnpj} (Brasil)`,

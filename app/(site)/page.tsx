@@ -11,6 +11,7 @@ import { MobileCtaBar } from "@/components/site/mobile-cta-bar"
 import { PricingSection } from "@/components/site/pricing-section"
 import { ProblemSection } from "@/components/site/problem-section"
 import { QuestionTicker } from "@/components/site/question-ticker"
+import { ReputationSection } from "@/components/site/reputation-section"
 import { SavingsCalculator } from "@/components/site/savings-calculator"
 import { SiteFooter } from "@/components/site/site-footer"
 import { SiteHeader } from "@/components/site/site-header"
@@ -74,8 +75,9 @@ export default function SalesPage() {
         <ListingReading />
         <CertaintySection />
         <DailyRoutine />
-        <SavingsCalculator signupHref={signupHref} />
+        <ReputationSection signupHref={signupHref} />
         <PricingSection signupHref={signupHref} />
+        <SavingsCalculator signupHref={signupHref} />
         <FaqSection signupHref={signupHref} />
         <FinalCta signupHref={signupHref} />
       </main>

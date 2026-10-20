@@ -1,3 +1,4 @@
+import { ArrowRight } from "lucide-react"
 import type { CSSProperties } from "react"
 
 import { siteConfig } from "@/lib/config/site"
@@ -29,6 +30,18 @@ export function Hero({ signupHref }: { signupHref: string }) {
 
         <Container className="grid items-center gap-14 pt-28 pb-16 sm:pt-32 lg:grid-cols-[1.08fr_0.92fr] lg:gap-10 lg:pt-40 lg:pb-24">
           <div className="text-center lg:text-left">
+            {/* Novidade: leva para a seção do Escudo de Reputação. Fora do título para não atrasar o LCP. */}
+            <a
+              href="#reputacao"
+              style={delay(0)}
+              className="site-enter group mb-7 inline-flex max-w-full items-center gap-2.5 rounded-full border border-white/15 bg-white/[0.06] py-1 pr-3.5 pl-1 text-sm text-white/80 backdrop-blur transition-colors outline-none hover:border-brand-teal/50 hover:bg-white/10 hover:text-white focus-visible:ring-3 focus-visible:ring-brand-teal/60"
+            >
+              <span className="rounded-full bg-brand-teal px-2.5 py-0.5 text-xs font-semibold text-brand-graphite">Novo</span>
+              <span className="truncate">
+                Escudo de Reputação<span className="hidden sm:inline">: proteja a cor da sua conta</span>
+              </span>
+              <ArrowRight className="size-3.5 shrink-0 transition-transform group-hover:translate-x-0.5" aria-hidden />
+            </a>
             <h1
               id="hero-title"
               className="font-display text-[2.6rem] leading-[0.98] font-semibold tracking-[-0.045em] text-balance sm:text-6xl lg:text-[3.7rem] xl:text-[4.6rem]"

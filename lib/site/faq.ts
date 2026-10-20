@@ -23,7 +23,7 @@ export const FAQ: readonly FaqItem[] = [
   {
     id: "o-que-e",
     question: "O que é a maanu?",
-    answer: `A ${siteConfig.name} é uma plataforma brasileira que responde automaticamente, com inteligência artificial, as perguntas que os compradores fazem nos seus anúncios do Mercado Livre. Ela lê o anúncio inteiro e as regras da sua loja, responde em segundos, 24 horas por dia, e deixa com você o que ela não tiver certeza.`,
+    answer: `A ${siteConfig.name} é uma plataforma brasileira que responde automaticamente, com inteligência artificial, as perguntas que os compradores fazem nos seus anúncios do Mercado Livre. Ela lê o anúncio inteiro e as regras da sua loja, responde em segundos, 24 horas por dia, e deixa com você o que ela não tiver certeza. E ainda protege a reputação da sua conta com o Escudo de Reputação.`,
   },
   {
     id: "cartao",
@@ -35,6 +35,12 @@ export const FAQ: readonly FaqItem[] = [
     question: "E se a IA responder errado?",
     answer:
       "Ela só responde sozinha quando tem certeza, e você escolhe o nível de rigor. Na dúvida, a pergunta fica com você com uma sugestão pronta. Se você corrigir uma resposta, use “Ensinar a IA” e ela aprende para as próximas.",
+  },
+  {
+    id: "reputacao",
+    question: "O que é o Escudo de Reputação?",
+    answer:
+      "É a parte da maanu que protege a cor do seu termômetro no Mercado Livre, incluída em todos os planos. Ela mostra quanto falta para a sua conta cair de cor em reclamações, cancelamentos e atrasos, avisa no app e por e-mail quando um envio está perto do prazo de despacho e prepara com IA a resposta de cada reclamação. Nada sai sozinho: você revisa e aprova, e reembolso, devolução ou mediação só acontecem com o seu clique.",
   },
   {
     id: "quanto-custa",
@@ -63,7 +69,7 @@ export const FAQ: readonly FaqItem[] = [
     id: "sugestao-ml",
     question: "Qual a diferença para a resposta sugerida do Mercado Livre?",
     answer:
-      "A sugestão do Mercado Livre depende de você abrir, ler e enviar cada resposta. A maanu responde sozinha na hora, com as regras da sua loja, e ainda organiza o que precisa de você, atende o pós-venda e mostra os resultados.",
+      "A sugestão do Mercado Livre depende de você abrir, ler e enviar cada resposta. A maanu responde sozinha na hora, com as regras da sua loja, e ainda organiza o que precisa de você, atende o pós-venda, protege a sua reputação e mostra os resultados.",
   },
   {
     id: "conta-resposta",

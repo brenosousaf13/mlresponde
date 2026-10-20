@@ -38,9 +38,12 @@ export default function MobileMenu({
               key={item.href}
               href={item.href}
               onClick={() => onOpenChange(false)}
-              className="rounded-xl px-3 py-3 text-lg font-medium text-white/85 hover:bg-white/[0.06] hover:text-white"
+              className="flex items-center gap-2.5 rounded-xl px-3 py-3 text-lg font-medium text-white/85 hover:bg-white/[0.06] hover:text-white"
             >
               {item.label}
+              {item.isNew ? (
+                <span className="rounded-full bg-brand-teal px-2 py-0.5 text-xs font-semibold text-brand-graphite">Novo</span>
+              ) : null}
             </a>
           ))}
         </nav>

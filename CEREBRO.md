@@ -4,7 +4,7 @@
 > inteiro antes de trabalhar e atualizá-lo ao terminar. Se algo aqui divergir do código, o código vence —
 > e este arquivo deve ser corrigido na mesma sessão.
 
-Última atualização: **2026-10-19** (Sessão 28 — **aba Clientes no ar** (quem comprou em cada conta do ML: compras, total, quem voltou, cidade/UF, perguntas, conversas e observações; sem e-mail/telefone, que o ML não entrega); **28b: sem importação do histórico**, conta só as vendas a partir de 2026-10-19 16:09 (ou da conexão da conta), a importação dos 12 meses foi parada e apagada (§13 item 0l); Sessão 27 — **troca de endereços concluída**: `maanu.com.br` = só a página de vendas (indexável; `/institucional` redireciona) e **o app em `app.maanu.com.br`** (`APP_HOST`, Site URL do Supabase), webhooks e retorno do OAuth do ML fixos no domínio principal; Sessão 23d — **só o plano mensal** (decisão do Breno): o anual saiu da Assinatura, da página de vendas, das Dúvidas, do `llms.txt`, dos Termos e do painel; Sessão 23c — **cobrança pela AbacatePay em produção** (chave de produção, produtos mensais e webhook prontos); o anual só aparece quando houver os produtos anuais; Sessão 25c — WhatsApp/telefone `(31) 99263-0934` no rodapé de `/institucional` para a aprovação da AbacatePay; falta o e-mail; Sessão 25b — página de vendas **publicada em `maanu.com.br/institucional`** para o Breno e o sócio revisarem, fora do Google por enquanto; `maanu.com.br/` continua levando ao app; Sessão 26 — quatro criativos 4:5 para carrossel do Instagram salvos em `CRIATIVOS/`; Sessão 25 — página de vendas em `maanu.com.br/` com SEO para Google, Bing e buscas por IA (dados estruturados, `llms.txt`, robots, imagem de compartilhamento, carregamento mais rápido) e app pronto para ir para `app.maanu.com.br` (variável `APP_HOST`), na branch `codex/pagina-de-vendas`, aguardando o Breno; Sessão 24 — cliente sem permissão de administrador vê uma mensagem de acesso restrito com retorno ao painel; Sessão 23b — tela "Levando você para o pagamento seguro" antes da AbacatePay, teste de compra aprovado e dados de teste apagados, falta a chave de produção; Sessão 23 — cobrança pela AbacatePay pronta no código e no banco: assinar, trocar, cancelar e webhooks; falta só a chave de API do Breno; Sessão 22 — perguntas chegando sozinhas: rotina que busca no ML a cada ~10 s + webhook respondendo na hora; foto do anúncio corrigida; Sessão 21 — v1: botão de pausar a IA funcionando, commit `bf56777` na `main`; Sessão 20b — Starter com 300 respostas e espaço nos cards dos planos; Sessão 20 — planos Starter/Pro/Escala com limites, teste grátis e Melhorias de anúncio; Sessão 19 — pesquisa de preços e proposta de 3 planos; Sessão 18 — tour de boas-vindas e avisos de teste/conta ML redesenhados; Sessão 17 — chaves de IA cadastradas e trocadas pelo painel do administrador; Sessão 16 — textos do cadastro sem falar em cobrança; Sessão 15b — Fase 1 da troca preparada)
+Última atualização: **2026-10-20** (Sessão 29b — **Escudo de Reputação na página de vendas**: seção nova `#reputacao` com simulador do termômetro (limites oficiais, os mesmos do app), selo "Novo" no topo e no menu, linha nos 3 planos, pergunta nas Dúvidas, `llms.txt` e dados estruturados; Sessão 29 — **Escudo de Reputação no ar** (menu Reputação, todos os planos); Sessão 28 — **aba Clientes no ar** (quem comprou em cada conta do ML: compras, total, quem voltou, cidade/UF, perguntas, conversas e observações; sem e-mail/telefone, que o ML não entrega); **28b: sem importação do histórico**, conta só as vendas a partir de 2026-10-19 16:09 (ou da conexão da conta), a importação dos 12 meses foi parada e apagada (§13 item 0l); Sessão 27 — **troca de endereços concluída**: `maanu.com.br` = só a página de vendas (indexável; `/institucional` redireciona) e **o app em `app.maanu.com.br`** (`APP_HOST`, Site URL do Supabase), webhooks e retorno do OAuth do ML fixos no domínio principal; Sessão 23d — **só o plano mensal** (decisão do Breno): o anual saiu da Assinatura, da página de vendas, das Dúvidas, do `llms.txt`, dos Termos e do painel; Sessão 23c — **cobrança pela AbacatePay em produção** (chave de produção, produtos mensais e webhook prontos); o anual só aparece quando houver os produtos anuais; Sessão 25c — WhatsApp/telefone `(31) 99263-0934` no rodapé de `/institucional` para a aprovação da AbacatePay; falta o e-mail; Sessão 25b — página de vendas **publicada em `maanu.com.br/institucional`** para o Breno e o sócio revisarem, fora do Google por enquanto; `maanu.com.br/` continua levando ao app; Sessão 26 — quatro criativos 4:5 para carrossel do Instagram salvos em `CRIATIVOS/`; Sessão 25 — página de vendas em `maanu.com.br/` com SEO para Google, Bing e buscas por IA (dados estruturados, `llms.txt`, robots, imagem de compartilhamento, carregamento mais rápido) e app pronto para ir para `app.maanu.com.br` (variável `APP_HOST`), na branch `codex/pagina-de-vendas`, aguardando o Breno; Sessão 24 — cliente sem permissão de administrador vê uma mensagem de acesso restrito com retorno ao painel; Sessão 23b — tela "Levando você para o pagamento seguro" antes da AbacatePay, teste de compra aprovado e dados de teste apagados, falta a chave de produção; Sessão 23 — cobrança pela AbacatePay pronta no código e no banco: assinar, trocar, cancelar e webhooks; falta só a chave de API do Breno; Sessão 22 — perguntas chegando sozinhas: rotina que busca no ML a cada ~10 s + webhook respondendo na hora; foto do anúncio corrigida; Sessão 21 — v1: botão de pausar a IA funcionando, commit `bf56777` na `main`; Sessão 20b — Starter com 300 respostas e espaço nos cards dos planos; Sessão 20 — planos Starter/Pro/Escala com limites, teste grátis e Melhorias de anúncio; Sessão 19 — pesquisa de preços e proposta de 3 planos; Sessão 18 — tour de boas-vindas e avisos de teste/conta ML redesenhados; Sessão 17 — chaves de IA cadastradas e trocadas pelo painel do administrador; Sessão 16 — textos do cadastro sem falar em cobrança; Sessão 15b — Fase 1 da troca preparada)
 
 ---
 
@@ -211,6 +211,12 @@ novas funcionalidades, segurança multi-tenant de verdade — **desenvolvido em 
   estão aplicadas no banco de produção (aditivas). **No ar desde 2026-10-19 ~18:44 de Brasília** (Breno: "já pode colocar tudo
   em produção"; merge das duas etapas na `v2`, deploy `dpl_32h4udM1kZTu5KfZVW4ewzeg1Qsa`; ajuste `d80bc4c`, deploy
   `dpl_AUsHAQwNcMsAXqWzAKpQdJ9Pq94b`). E-mails ainda desligados até a `RESEND_API_KEY` (§13 item 0m). Spec: `docs/superpowers/specs/2026-10-19-escudo-reputacao-design.md`.
+  **Sessão 29b (2026-10-20): o Escudo entrou na página de vendas** (`maanu.com.br/#reputacao`): painel escuro depois do "No dia
+  a dia" com **simulador do termômetro** (o visitante arrasta as reclamações de uma loja de exemplo e vê a cor, a folga e o que
+  a cor libera mudarem, com os limites oficiais de `lib/reputation`), cartões desenhados em código (despacho com contagem
+  regressiva, reclamação com a saída da IA, valor da cor em R$, previsão/exclusão), promessas ("nada sai sozinho") e botão
+  "Proteger minha reputação". Também: selo "Novo" no topo e no menu, linha "Escudo de Reputação" nos 3 planos, pergunta nas
+  Dúvidas, `llms.txt`/JSON-LD e rodapé. A calculadora foi para depois dos planos (para não ficar painel escuro colado em escuro).
 - **Marca:** **maanu** (decisão do Breno, 2026-10-11). Guia de uso, paleta e arquivos em `docs/brand/README.md`; nome,
   assinatura e slogan em `lib/config/site.ts`; logo só pelos componentes de `components/brand/logo.tsx`.
 - **Criativos sociais:** em 2026-10-15 foram criadas quatro peças 1080×1350 para um carrossel de apresentação da maanu;
@@ -379,6 +385,9 @@ components/
                                   # savings-calculator, pricing-section (SELLABLE_PLANS, só mensal), faq-section (FAQ também
                                   # vira dados estruturados), final-cta + time-on-page, site-footer, mobile-cta-bar,
                                   # reveal + use-in-view,
+                                  # reputation-section (Escudo de Reputação, #reputacao, Sessão 29b) + reputation-simulator
+                                  # (termômetro interativo; regras em lib/site/reputation-demo.ts) + reputation-live (contagem
+                                  # regressiva e R$ que sobe, só com o cartão na tela),
                                   # site-button (TODOS os botões da página: mesmas medidas, espaço igual dos 2 lados da seta)
   auth/ onboarding/ contas/ configuracoes/ legal/ forms/
 lib/
@@ -386,6 +395,8 @@ lib/
   site/host.ts                    # SALES_PAGE_PATH ("/institucional" por enquanto) + siteHostRouting: página de vendas ×
                                   # endereço do app (APP_HOST) + appHref + isIndexableHost (puro, testado)
   site/calculator.ts              # calculadora da página de vendas (mesma conta de Resultados) e R$/dia (puro; não indica plano)
+  site/reputation-demo.ts         # simulador do Escudo na página de vendas: loja de exemplo (300 vendas, 60 dias), folga e
+                                  # o que cada cor libera, com os limites de lib/reputation (puro, testado)
   site/seo.ts                     # SEO da página de vendas: SALES_PAGE_INDEXABLE (false em /institucional), SALES_PAGE_URL,
                                   # título, descrição, imagem (public/og/), robôs liberados, caminhos
                                   # privados, dados estruturados (JSON-LD) e llms.txt (puro, testado). SITE_CONTENT_UPDATED =
@@ -1614,11 +1625,35 @@ webhook do ML validado, fila/reprocessamento de jobs, observabilidade, controle 
 | 2026-10-19 | Limites oficiais da reputação **fixos no código** (`lib/reputation/thresholds.ts`, com fonte e data) | O ML não tem API dos limites. Se mudarem, atualizar a tabela (a tela mostra a data da conferência). |
 | 2026-10-19 | Análise da IA: no máximo **8 por reclamação**, **não conta na cota de respostas**, só começa se couber na rodada (≥ 25 s) | Custo baixo e previsível (gpt com raciocínio "low"); a função do cron tem 60 s e uma análise leva até ~20 s. |
 | 2026-10-19 | Anexos das mensagens de reclamação até **4 MB no total** (o ML aceita 5 MB por arquivo) | Limite das Server Actions (4,5 MB no `next.config`, por causa da Vercel). |
+| 2026-10-20 | Escudo de Reputação na página de vendas com **simulador interativo** (regras oficiais reais, loja de exemplo) em vez de só texto; seção logo depois do "No dia a dia" e **calculadora depois dos planos** | Pedido do Breno ("bem atraente e chamativa"). O simulador mostra a dor (cair de cor) e o valor (folga, o que cada cor libera) em segundos e usa o mesmo código do app, então não promete nada que o app não faz. Calculadora movida para não colar 2 painéis escuros. Números dos cartões marcados como ilustrativos. |
 | 2026-10-19 | Escudo publicado em **2 etapas** (branches `codex/escudo-reputacao` e `codex/escudo-reputacao-reclamacoes`), migrações aplicadas antes do merge | Decisão do Breno. Migrações aditivas não mudam nada em produção sem o código; o merge de cada etapa na `v2` depende da revisão dele. Fora deste projeto: Shopee, WhatsApp, resumo diário, cartão no Painel e página de vendas. |
 
 ---
 
 ## 12. Diário de sessões (mais recente no topo)
+
+### 2026-10-20 — Sessão 29b · Escudo de Reputação na página de vendas (IA: Claude, via app Codex)
+- Pedido do Breno: "garantir que essa nova funcionalidade apareça na página de vendas (a home) da maanu, de uma maneira bem
+  atraente e chamativa".
+- Seção nova `components/site/reputation-section.tsx` (`#reputacao`, painel escuro, depois de "No dia a dia"): selo "Novo ·
+  Escudo de Reputação", título "Cair de cor custa caro. Agora sua reputação tem escudo.", **simulador do termômetro**
+  (`reputation-simulator.tsx`: controle deslizante de reclamações numa loja de exemplo de 300 vendas em 60 dias; cor, régua com
+  as faixas 2/4,5/8%, "folga: N", a mesma frase do app e o que a cor libera: frete 50/40/0%, Flex, Product Ads, campanhas;
+  aura muda de cor), 4 cartões desenhados em código (despacho com contagem regressiva + alerta por e-mail, reclamação com a
+  melhor saída da IA, "quanto vale a sua cor" com R$ que sobe, previsão com possível exclusão), 3 promessas e botão "Proteger
+  minha reputação". Regras em `lib/site/reputation-demo.ts` usando `lib/reputation` (7 testes novos em
+  `tests/unit/site-reputation-demo.test.ts`). Layout: 3 colunas em tela grande (simulador ao lado dos despachos, telas em
+  subgrid para os títulos alinharem), 2×2 em tela média, 1 coluna no celular.
+- Também: selo "Novo: Escudo de Reputação" acima do título do topo (fora do h1, sem atrasar o LCP), item "Reputação" com ponto
+  pulsando no menu (selo "Novo" no menu do celular), linha "Escudo de Reputação · Novo" nos 3 planos, pergunta "O que é o
+  Escudo de Reputação?" nas Dúvidas (vai para FAQPage e `llms.txt`), 4 itens novos em `FEATURES` (JSON-LD/`llms.txt`), plano
+  no `llms.txt` com o Escudo, `SITE_CONTENT_UPDATED` = 2026-10-20, link no rodapé, texto do Pós-venda no "No dia a dia" cita o
+  Escudo. Ordem da página: ... No dia a dia → **Escudo** → Planos → Calculadora → Dúvidas (calculadora depois dos planos para
+  não colar painel escuro em escuro).
+- Conferido com o servidor local e Playwright (Edge): computador 1440, tela 1024 e celular 390; sem rolagem lateral, sem erros
+  no console; simulador testado no teclado (verde → amarelo → vermelho). typecheck, testes (557), lint e build ok.
+- Os alertas por e-mail citados na página continuam desligados em produção até a `RESEND_API_KEY` (96 alertas com
+  `email_status = skipped` até agora; §13 item 0m).
 
 ### 2026-10-19 — Sessão 29 · Escudo de Reputação (IA: Claude, via app Codex)
 - Pedido do Breno: uma feature com diferencial, que resolva dor de verdade do vendedor do ML e faça o cliente pagar. A IA
@@ -2528,7 +2563,8 @@ webhook do ML validado, fila/reprocessamento de jobs, observabilidade, controle 
 
 ## 13. Próximos passos
 
-0m. **Escudo de Reputação (Sessão 29) — ✅ no ar desde 2026-10-19 ~18:44** (as 2 etapas). **Breno:** (a) ✅ merge aprovado;
+0m. **Escudo de Reputação (Sessão 29) — ✅ no ar desde 2026-10-19 ~18:44** (as 2 etapas); **na página de vendas desde
+   2026-10-20 (Sessão 29b)**: a página promete alerta por e-mail, então a `RESEND_API_KEY` do item (b) virou prioridade. **Breno:** (a) ✅ merge aprovado;
    (b) o Resend do cadastro é o mesmo, com o domínio já verificado, mas a chave dele fica guardada **dentro do Supabase** (SMTP;
    a API devolve só um resumo, não dá para reaproveitar) e o código na Vercel precisa da própria: criar no Resend uma chave **só com envio** e o domínio `maanu.com.br` verificado
    (remetente `alertas@maanu.com.br`) e colocar `RESEND_API_KEY` (sensível) no projeto Vercel `maanu` (Production) → Redeploy;

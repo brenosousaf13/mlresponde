@@ -15,7 +15,7 @@ import { Container, Eyebrow, SectionTitle } from "./primitives"
 import { Reveal } from "./reveal"
 import { SiteButton } from "./site-button"
 
-type Line = { text: string; included: boolean }
+type Line = { text: string; included: boolean; isNew?: boolean }
 
 function planLines(plan: SellablePlan): Line[] {
   const { answersPerMonth, mlAccounts, listingImprovementsPerMonth } = plan.limits
@@ -23,6 +23,7 @@ function planLines(plan: SellablePlan): Line[] {
     { text: `${formatInteger(answersPerMonth ?? 0)} respostas automáticas por mês`, included: true },
     { text: mlAccounts === 1 ? "1 conta do Mercado Livre" : `${mlAccounts} contas do Mercado Livre`, included: true },
     { text: "Assistente de IA, caixa de entrada e Resultados", included: true },
+    { text: "Escudo de Reputação", included: true, isNew: true },
     { text: FEATURE_LABELS.pos_venda, included: plan.features.includes("pos_venda") },
     {
       text: listingImprovementsPerMonth
@@ -38,7 +39,7 @@ export function PricingSection({ signupHref }: { signupHref: string }) {
   const cheapest = SELLABLE_PLANS[0]
 
   return (
-    <section id="planos" aria-labelledby="planos-title" className="scroll-mt-24 pt-20 pb-4 sm:pt-28 sm:pb-6">
+    <section id="planos" aria-labelledby="planos-title" className="scroll-mt-24 py-20 sm:py-28">
       <Container>
         <Reveal className="mx-auto max-w-4xl text-center">
           <Eyebrow>Planos</Eyebrow>
@@ -110,6 +111,17 @@ export function PricingSection({ signupHref }: { signupHref: string }) {
                         <span>
                           {line.included ? null : <span className="sr-only">Não inclui: </span>}
                           {line.text}
+                          {line.isNew ? (
+                            <a
+                              href="#reputacao"
+                              className={cn(
+                                "ml-2 inline-block rounded-full px-1.5 py-px align-[1px] text-[10px] font-semibold tracking-wide uppercase",
+                                highlight ? "bg-brand-teal text-brand-graphite" : "bg-brand-sage text-brand-teal-ink"
+                              )}
+                            >
+                              Novo
+                            </a>
+                          ) : null}
                         </span>
                       </li>
                     ))}
