@@ -1717,6 +1717,14 @@ webhook do ML validado, fila/reprocessamento de jobs, observabilidade, controle 
   no fim (mensagens primeiro). Mesmo ritmo de detalhe (~6/min por loja), menos tempo de função.
 - Testes: `tests/unit/call-budget.test.ts` (5) e `tests/unit/claims-hook-batch.test.ts` (3) novos; `question-polling`
   ajustado. typecheck, 585 testes, lint e build ok. Sem migração.
+- **Supabase (plano Free): Log Ingestion** em 0,62 de 1 GB no ciclo, ~116 MB/dia em 20/out (cobrança do excedente só depois
+  da carência, no início de 2027). Medido pela Management API (`/v1/projects/{ref}/analytics/endpoints/logs`, tabela `logs`,
+  coluna `source`): ~147 mil registros/dia, 91% `edge_logs` (cada chamada à API REST vira 1 registro, ~0,8 KB);
+  **`ml_account_tokens` sozinha = 66 mil/dia** (cada chamada ao ML lia o token no banco), depois `reputation_claims` 20 mil,
+  `due_ml_questions` 8 mil, `ml_orders` 8 mil. Correção: `getValidAccessToken` guarda o token na instância (até 10 min,
+  nunca dentro da margem de 5 min da renovação; `fresh: true` ignora; token novo gravado, conta inválida ou 401 descartam).
+  `mlRequest`/`mlFetchRaw` (`authorizedFetch`): num 401 tentam 1 vez com o token do banco antes de marcar a conta como
+  inválida (outra instância pode ter renovado/reconectado). Teste `tests/unit/ml-token-cache.test.ts` (5).
 
 ### 2026-10-20 — Sessão 30 · Recuperador, etapa 1 (IA: Claude, via app Codex)
 - Pedido do Breno (sessão "Criar funcionalidade game changer"): mais uma funcionalidade que faça o dono de loja pagar sem
@@ -2685,7 +2693,9 @@ webhook do ML validado, fila/reprocessamento de jobs, observabilidade, controle 
    Memory da `maanu` deve cair bastante), o cron `/api/cron/reputacao` 200 a cada 2 min, `reputation_sync.last_error` vazio e
    se as reclamações abertas das lojas grandes continuam com detalhe em até ~30–45 min. **Breno (opcional):** desligar a v1
    depois da semana de teste (~US$ 23/mês), avaliar desligar o Observability Plus (~US$ 18/mês) e pôr um limite em Spend
-   Management. Ideia não feita: memória menor (1 GB) para as funções de cron em `vercel.json`.
+   Management. Ideia não feita: memória menor (1 GB) para as funções de cron em `vercel.json`. **Supabase Free:** conferir o
+   Log Ingestion por dia (meta: < ~33 MB/dia para caber em 1 GB/mês); se ainda passar, as próximas fontes são
+   `reputation_claims`, `reputation_alerts` (leituras por rodada do Escudo) e `ml_orders`.
 
 0n. **Recuperador (Sessão 30) — etapa 1 ✅ no ar desde 2026-10-20 ~15:55 (`555bdb1`).** **Breno:** (a) ✅ merge aprovado; (b) a
    `RESEND_API_KEY` do item 0m (b) vale para os alertas de devolução também (o prazo da revisão é curto, o e-mail importa);

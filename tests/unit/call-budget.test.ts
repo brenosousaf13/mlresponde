@@ -1,7 +1,13 @@
 import { afterEach, describe, expect, it, vi } from "vitest"
 
-const mocks = vi.hoisted(() => ({ getValidAccessToken: vi.fn(async (accountId: string) => "token-" + accountId) }))
-vi.mock("@/lib/mercadolivre/accounts", () => ({ getValidAccessToken: mocks.getValidAccessToken }))
+const mocks = vi.hoisted(() => ({
+  getValidAccessToken: vi.fn(async (accountId: string) => "token-" + accountId),
+  forgetAccessToken: vi.fn(),
+}))
+vi.mock("@/lib/mercadolivre/accounts", () => ({
+  getValidAccessToken: mocks.getValidAccessToken,
+  forgetAccessToken: mocks.forgetAccessToken,
+}))
 
 const { BudgetExhaustedError, CallBudget, fetchClaim } = await import("@/lib/mercadolivre/reputation")
 
@@ -37,6 +43,7 @@ describe("CallBudget (limite de chamadas e token da rodada)", () => {
     await expect(fetchClaim("conta-1", 2, budget)).rejects.toThrow("invalid_token")
 
     expect(mocks.getValidAccessToken).toHaveBeenCalledTimes(2)
+    expect(mocks.forgetAccessToken).toHaveBeenCalledWith("conta-1")
   })
 
   it("não reaproveita o token por mais de 4 minutos", async () => {

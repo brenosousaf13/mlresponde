@@ -1,6 +1,6 @@
 import "server-only"
 
-import { getValidAccessToken } from "@/lib/mercadolivre/accounts"
+import { forgetAccessToken, getValidAccessToken } from "@/lib/mercadolivre/accounts"
 import { ML_API_URL, MlApiError } from "@/lib/mercadolivre/api"
 import { orderSummaryFromMl, type MlClaimMessage, type OrderLike } from "@/lib/reputation/claim-details"
 import { parseReturn, parseReturnReviews, type MlReturn, type MlReturnReviews } from "@/lib/recovery/returns"
@@ -50,6 +50,7 @@ export class CallBudget {
   /** Token recusado (401): a próxima chamada lê de novo no banco. */
   forgetToken(accountId: string) {
     this.tokens.delete(accountId)
+    forgetAccessToken(accountId)
   }
 }
 

@@ -17,11 +17,29 @@ const LEASE_WAIT_MS = 500
 
 type ServiceClient = ReturnType<typeof createServiceClient>
 
+/**
+ * Token de acesso já lido por esta instância (Sessão 30b): cada chamada ao ML lia o token no banco, e isso era metade dos
+ * registros de log do Supabase (~66 mil por dia). Usa por até 10 min e nunca dentro da margem de renovação; 401 descarta.
+ */
+const TOKEN_CACHE_MAX_MS = 10 * 60 * 1000
+const tokenCache = new Map<string, { token: string; until: number }>()
+
+function rememberToken(accountId: string, token: string, expiresAt: number) {
+  const until = Math.min(expiresAt - REFRESH_MARGIN_MS, Date.now() + TOKEN_CACHE_MAX_MS)
+  if (until > Date.now()) tokenCache.set(accountId, { token, until })
+}
+
+/** Esquece o token guardado desta conta (401, token novo gravado ou conta marcada como inválida). */
+export function forgetAccessToken(accountId: string) {
+  tokenCache.delete(accountId)
+}
+
 function associatedData(accountId: string, kind: "access" | "refresh") {
   return `ml_account:${accountId}:${kind}`
 }
 
 async function storeTokens(admin: ServiceClient, accountId: string, tokens: MlTokenResponse) {
+  forgetAccessToken(accountId)
   const key = getTokenEncryptionKey()
   const { error } = await admin.from("ml_account_tokens").upsert(
     {
@@ -115,6 +133,7 @@ export async function connectMlAccount(params: {
 }
 
 export async function markTokenInvalid(accountId: string, message: string, admin: ServiceClient = createServiceClient()) {
+  forgetAccessToken(accountId)
   await admin
     .from("ml_accounts")
     .update({
@@ -132,7 +151,12 @@ export class MlAccountUnavailableError extends Error {
   }
 }
 
-export async function getValidAccessToken(accountId: string): Promise<string> {
+/** Token de acesso válido da conta. `fresh` ignora o token guardado na instância e lê o banco. */
+export async function getValidAccessToken(accountId: string, options: { fresh?: boolean } = {}): Promise<string> {
+  if (!options.fresh) {
+    const cached = tokenCache.get(accountId)
+    if (cached && cached.until > Date.now()) return cached.token
+  }
   const admin = createServiceClient()
   const key = getTokenEncryptionKey()
 
@@ -145,8 +169,11 @@ export async function getValidAccessToken(accountId: string): Promise<string> {
     if (error) throw error
     if (!row) throw new MlAccountUnavailableError("Conta do Mercado Livre sem tokens. Reconecte a conta.")
 
-    if (new Date(row.expires_at).getTime() - Date.now() > REFRESH_MARGIN_MS) {
-      return decryptSecret(row.access_token_enc, key, associatedData(accountId, "access"))
+    const expiresAt = new Date(row.expires_at).getTime()
+    if (expiresAt - Date.now() > REFRESH_MARGIN_MS) {
+      const token = decryptSecret(row.access_token_enc, key, associatedData(accountId, "access"))
+      rememberToken(accountId, token, expiresAt)
+      return token
     }
 
     const now = new Date()
@@ -172,6 +199,7 @@ export async function getValidAccessToken(accountId: string): Promise<string> {
         .from("ml_accounts")
         .update({ token_status: "valid", last_refresh_error: null, last_refresh_error_at: null })
         .eq("id", accountId)
+      rememberToken(accountId, tokens.access_token, Date.now() + tokens.expires_in * 1000)
       return tokens.access_token
     } catch (refreshError) {
       await admin.from("ml_account_tokens").update({ refresh_lease_until: null }).eq("ml_account_id", accountId)
