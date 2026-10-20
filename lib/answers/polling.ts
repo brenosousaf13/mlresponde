@@ -3,28 +3,17 @@
  *
  * A notificação do Mercado Livre é o caminho mais rápido, mas o ML pode atrasar, perder ou simplesmente não mandar
  * (Sessão 22: o app da v2 não recebia nenhuma notificação da conta do 1º cliente). Por isso o cron de perguntas
- * também pergunta ao ML, várias vezes por minuto, se chegou pergunta nova sem resposta.
+ * também pergunta ao ML, uma vez por minuto, se chegou pergunta nova sem resposta. Até a Sessão 30 eram ~6 consultas por
+ * minuto (a cada ~10 s), mas a função ficava ligada ~20 h por dia esperando entre elas (o maior custo da maanu na
+ * Vercel); com a notificação do ML chegando normalmente, 1 consulta por minuto basta como rede de segurança.
  */
 
-/** Intervalo entre as consultas quando há poucas contas. */
-export const POLL_INTERVAL_MS = 10_000
-/** Nenhuma rodada começa depois disto (o cron roda a cada minuto; a próxima execução continua). */
-export const POLL_WINDOW_MS = 50_000
 /**
- * Teto de consultas da rotina ao ML por minuto, somando todas as contas (cada rodada = 1 consulta por conta).
+ * Teto de consultas da rotina ao ML por minuto, somando todas as contas (1 consulta por conta por minuto).
  * O app da maanu no ML tem limite de 18.000 chamadas por hora (300/min, `max_requests_per_hour`, conferido em
  * 2026-10-13) para TUDO (ler anúncio, responder, pós-venda...): a rotina usa no máximo 1/3 disso.
  */
 export const POLL_MAX_CALLS_PER_MINUTE = 100
-
-/** Momentos (ms desde o início da execução do cron) em que a rotina consulta o ML. */
-export function pollingOffsets(accountCount: number): number[] {
-  const maxRounds = Math.floor(POLL_WINDOW_MS / POLL_INTERVAL_MS) + 1
-  const rounds =
-    accountCount > 0 ? Math.max(1, Math.min(maxRounds, Math.floor(POLL_MAX_CALLS_PER_MINUTE / accountCount))) : 1
-  const step = Math.max(POLL_INTERVAL_MS, Math.floor(60_000 / rounds))
-  return Array.from({ length: rounds }, (_, index) => index * step).filter((offset) => offset <= POLL_WINDOW_MS)
-}
 
 /**
  * Contas consultadas neste minuto. Até o teto, todas; acima dele, um rodízio (cada minuto pega as próximas), para a

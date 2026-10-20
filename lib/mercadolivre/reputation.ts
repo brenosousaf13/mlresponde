@@ -15,9 +15,16 @@ import type { MlShipmentCosts, MlShipmentInfo, MlShipmentSla } from "@/lib/reput
 // reclamações respondem 401 para "Claims 1.0" com o token válido (conferido em 2026-10-19). Quem detecta token inválido
 // continuam sendo as rotinas existentes (perguntas, pós-venda, clientes).
 
-/** Limite de chamadas ao ML de uma rodada; um 429 encerra a rodada para todas as contas. */
+/** O token lido do banco vale pelo menos 5 min (getValidAccessToken renova antes); a rodada o reaproveita por até 4 min. */
+const TOKEN_REUSE_MS = 4 * 60 * 1000
+
+/**
+ * Limite de chamadas ao ML de uma rodada; um 429 encerra a rodada para todas as contas. Também guarda o token de acesso
+ * de cada conta durante a rodada: antes, cada chamada ao ML lia o token no banco (metade das idas ao Supabase do Escudo).
+ */
 export class CallBudget {
   rateLimited = false
+  private readonly tokens = new Map<string, { token: Promise<string>; until: number }>()
   constructor(public remaining: number) {}
 
   get exhausted() {
@@ -27,6 +34,22 @@ export class CallBudget {
   take() {
     if (this.exhausted) throw new BudgetExhaustedError()
     this.remaining--
+  }
+
+  accessToken(accountId: string, load: (accountId: string) => Promise<string> = getValidAccessToken): Promise<string> {
+    const cached = this.tokens.get(accountId)
+    if (cached && cached.until > Date.now()) return cached.token
+    const token = load(accountId)
+    this.tokens.set(accountId, { token, until: Date.now() + TOKEN_REUSE_MS })
+    token.catch(() => {
+      if (this.tokens.get(accountId)?.token === token) this.tokens.delete(accountId)
+    })
+    return token
+  }
+
+  /** Token recusado (401): a próxima chamada lê de novo no banco. */
+  forgetToken(accountId: string) {
+    this.tokens.delete(accountId)
   }
 }
 
@@ -41,7 +64,7 @@ const TIMEOUT_MS = 15_000
 
 async function reputationRequest<T>(accountId: string, path: string, budget: CallBudget, init: RequestInit = {}): Promise<T> {
   budget.take()
-  const accessToken = await getValidAccessToken(accountId)
+  const accessToken = await budget.accessToken(accountId)
   const headers = new Headers(init.headers)
   headers.set("authorization", "Bearer " + accessToken)
   headers.set("accept", "application/json")
@@ -55,6 +78,7 @@ async function reputationRequest<T>(accountId: string, path: string, budget: Cal
     signal: AbortSignal.timeout(TIMEOUT_MS),
   })
   if (response.status === 429) budget.rateLimited = true
+  if (response.status === 401) budget.forgetToken(accountId)
   const data = (await response.json().catch(() => null)) as (Record<string, unknown> & T) | null
   if (!response.ok) {
     const message =

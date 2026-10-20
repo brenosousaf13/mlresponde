@@ -3,7 +3,7 @@ import "server-only"
 import { computeAccess } from "@/lib/access/access"
 import { processDueQuestions, processQuestion } from "@/lib/answers/engine"
 import { registerQuestion } from "@/lib/answers/ingest"
-import { POLL_WINDOW_MS, accountsThisMinute, pollingOffsets, unknownQuestions } from "@/lib/answers/polling"
+import { accountsThisMinute, unknownQuestions } from "@/lib/answers/polling"
 import { searchUnansweredQuestions } from "@/lib/mercadolivre/questions"
 import { createServiceClient } from "@/lib/supabase/admin"
 
@@ -63,55 +63,42 @@ async function forEachLimit<T>(items: T[], limit: number, task: (item: T) => Pro
   await Promise.all(workers)
 }
 
-export type QuestionRoundsResult = { accounts: number; rounds: number; found: number; processed: number; failures: number }
+export type QuestionRoundsResult = { accounts: number; found: number; processed: number; failures: number }
 
 /**
- * Cron de perguntas (1 vez por minuto): a cada ~10 s consulta o ML em todas as contas, registra as perguntas novas e
- * já manda para a IA; em cada rodada também roda a fila (novas tentativas). Funciona mesmo sem notificação do ML.
+ * Cron de perguntas (1 vez por minuto, rede de segurança da notificação do ML): consulta o ML uma vez em todas as contas,
+ * registra as perguntas novas e já manda para a IA; depois roda a fila (novas tentativas).
  */
-export async function runQuestionRounds(
-  options: { now?: () => number; sleep?: (ms: number) => Promise<void> } = {}
-): Promise<QuestionRoundsResult> {
+export async function runQuestionRounds(options: { now?: () => number } = {}): Promise<QuestionRoundsResult> {
   const now = options.now ?? Date.now
-  const sleep = options.sleep ?? ((ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms)))
-  const startedAt = now()
+  const accounts = accountsThisMinute(await pollableAccounts(), Math.floor(now() / 60_000))
+  const result: QuestionRoundsResult = { accounts: accounts.length, found: 0, processed: 0, failures: 0 }
 
-  const accounts = accountsThisMinute(await pollableAccounts(), Math.floor(startedAt / 60_000))
-  const result: QuestionRoundsResult = { accounts: accounts.length, rounds: 0, found: 0, processed: 0, failures: 0 }
-
-  for (const offset of pollingOffsets(accounts.length)) {
-    const wait = startedAt + offset - now()
-    if (wait > 0) await sleep(wait)
-    // O processamento de uma rodada pode demorar (IA); rodada que já passou da janela fica para o próximo minuto.
-    if (now() - startedAt > POLL_WINDOW_MS) break
-    result.rounds++
-
-    const created: string[] = []
-    await forEachLimit(accounts, 4, async (account) => {
-      try {
-        created.push(...(await pollAccount(account)))
-      } catch (error) {
-        result.failures++
-        console.error(`[perguntas] consulta da conta ${account.id}:`, error instanceof Error ? error.message : error)
-      }
-    })
-
-    result.found += created.length
-    await forEachLimit(created, 3, async (questionId) => {
-      try {
-        await processQuestion(questionId)
-      } catch (error) {
-        // A pergunta continua na fila (pending/processing) e a próxima rodada tenta de novo.
-        console.error(`[perguntas] processar ${questionId}:`, error instanceof Error ? error.message : error)
-      }
-    })
-    result.processed += created.length
-
+  const created: string[] = []
+  await forEachLimit(accounts, 4, async (account) => {
     try {
-      result.processed += await processDueQuestions(10)
+      created.push(...(await pollAccount(account)))
     } catch (error) {
-      console.error("[perguntas] fila:", error instanceof Error ? error.message : error)
+      result.failures++
+      console.error(`[perguntas] consulta da conta ${account.id}:`, error instanceof Error ? error.message : error)
     }
+  })
+
+  result.found = created.length
+  await forEachLimit(created, 3, async (questionId) => {
+    try {
+      await processQuestion(questionId)
+    } catch (error) {
+      // A pergunta continua na fila (pending/processing) e a próxima rodada tenta de novo.
+      console.error(`[perguntas] processar ${questionId}:`, error instanceof Error ? error.message : error)
+    }
+  })
+  result.processed = created.length
+
+  try {
+    result.processed += await processDueQuestions(10)
+  } catch (error) {
+    console.error("[perguntas] fila:", error instanceof Error ? error.message : error)
   }
 
   if (result.found) console.info(`[perguntas] rotina de segurança achou ${result.found} pergunta(s) nova(s)`)

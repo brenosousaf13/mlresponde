@@ -44,7 +44,7 @@ import {
 } from "@/lib/reputation/claim-details"
 import { runClaimAnalysisModel } from "@/lib/reputation/claim-model"
 import { readAffects, toClaimRow, type SellerAction } from "@/lib/reputation/claims"
-import { applyAlerts, isClientError, isStopError, loadAccounts, type ReputationAccount } from "@/lib/reputation/engine"
+import { applyAlerts, forEachLimit, isClientError, isStopError, loadAccounts, type ReputationAccount } from "@/lib/reputation/engine"
 import { exclusionLabel } from "@/lib/reputation/exclusions"
 import type { Database, Json } from "@/lib/supabase/database.types"
 import { createServiceClient } from "@/lib/supabase/admin"
@@ -62,7 +62,9 @@ const DAY = 24 * 60 * MINUTE
 const RECENT_DAYS = 7
 /** Reclamações abertas: detalhe e mensagens de novo a cada 30 minutos (mesmo sem mudança na busca). */
 const OPEN_REFRESH_MS = 30 * MINUTE
-const DETAILS_PER_RUN = 6
+/** Detalhes por conta em cada rodada do cron (a cada 2 min), 3 ao mesmo tempo. */
+const DETAILS_PER_RUN = 12
+const DETAILS_CONCURRENCY = 3
 const ANALYSES_PER_RUN = 3
 const AI_LOCK_MS = 3 * MINUTE
 const ANALYSIS_MIN_MS = 25_000
@@ -114,13 +116,58 @@ export function detailsQueue<T extends DetailsCandidate>(rows: readonly T[], now
     )
 }
 
+const STORED_ORDER_COLUMNS = "ml_order_id, pack_id, ordered_at, total_amount, currency_id, items, shipment_id, ml_customers(nickname)"
+
+async function storedOrders(accountId: string, orderIds: number[]) {
+  if (!orderIds.length) return []
+  const { data, error } = await createServiceClient()
+    .from("ml_orders")
+    .select(STORED_ORDER_COLUMNS)
+    .eq("ml_account_id", accountId)
+    .in("ml_order_id", orderIds)
+  if (error) throw error
+  return data
+}
+
+type StoredOrder = Awaited<ReturnType<typeof storedOrders>>[number]
+type ClaimMessageInsert = Database["public"]["Tables"]["reputation_claim_messages"]["Insert"]
+
+/**
+ * Gravações agrupadas das rodadas do cron: as vendas das reclamações são lidas numa consulta só e as mensagens e
+ * atualizações das reclamações saem juntas no fim (flushClaimDetails), em vez de 3 idas ao banco por reclamação.
+ */
+type DetailsBatch = {
+  /** null = a venda não está gravada (busca no ML, como antes). */
+  orders: Map<number, StoredOrder | null>
+  messages: ClaimMessageInsert[]
+  updates: { id: string; update: ClaimUpdate }[]
+}
+
+async function flushClaimDetails(batch: DetailsBatch) {
+  const admin = createServiceClient()
+  // Mensagens antes das reclamações: se falhar, nenhuma é marcada como lida e a próxima rodada tenta de novo.
+  for (let index = 0; index < batch.messages.length; index += 500) {
+    const { error } = await admin
+      .from("reputation_claim_messages")
+      .upsert(batch.messages.slice(index, index + 500), { onConflict: "claim_row_id,hash" })
+    if (error) throw error
+  }
+  const results = await Promise.all(
+    batch.updates.map(({ id, update }) => admin.from("reputation_claims").update(update).eq("id", id))
+  )
+  for (const result of results) if (result.error) throw result.error
+  batch.messages = []
+  batch.updates = []
+}
+
 /** Lê no ML tudo o que a tela e a IA precisam de uma reclamação e grava. Mudou = análise nova na fila (até 8). */
 export async function syncClaimDetails(
   account: ReputationAccount,
   claim: ClaimRow,
   budget: CallBudget,
   now: Date = new Date(),
-  reasons: Map<string, string | null> = new Map()
+  reasons: Map<string, string | null> = new Map(),
+  batch?: DetailsBatch
 ) {
   const admin = createServiceClient()
   const claimId = Number(claim.claim_id)
@@ -144,13 +191,7 @@ export async function syncClaimDetails(
   let shipmentId: number | null = null
   const orderId = (fresh?.resource ?? claim.resource) === "order" ? Number(fresh?.resource_id ?? claim.resource_id) || null : null
   if (orderId) {
-    const { data: stored, error } = await admin
-      .from("ml_orders")
-      .select("ml_order_id, pack_id, ordered_at, total_amount, currency_id, items, shipment_id, ml_customers(nickname)")
-      .eq("ml_account_id", account.id)
-      .eq("ml_order_id", orderId)
-      .maybeSingle()
-    if (error) throw error
+    const stored = batch?.orders.has(orderId) ? batch.orders.get(orderId) : (await storedOrders(account.id, [orderId]))[0]
     if (stored) {
       orderSummary = orderSummaryFromRow({ ...stored, total_amount: stored.total_amount === null ? null : Number(stored.total_amount) })
       buyerNickname = buyerNickname ?? stored.ml_customers?.nickname ?? null
@@ -216,29 +257,33 @@ export async function syncClaimDetails(
     update.ai_input_hash = hash
     update.ai_status = claim.ai_analyses >= MAX_CLAIM_ANALYSES ? "skipped" : "pending"
   }
-  const { error: updateError } = await admin.from("reputation_claims").update(update).eq("id", claim.id)
-  if (updateError) throw updateError
-
-  if (messages.length) {
-    const { error: messagesError } = await admin.from("reputation_claim_messages").upsert(
-      messages.map((message) => ({
-        organization_id: account.organization_id,
-        ml_account_id: account.id,
-        claim_row_id: claim.id,
-        ...message,
-        attachments: message.attachments as unknown as Json,
-      })),
-      { onConflict: "claim_row_id,hash" }
-    )
+  const messageRows: ClaimMessageInsert[] = messages.map((message) => ({
+    organization_id: account.organization_id,
+    ml_account_id: account.id,
+    claim_row_id: claim.id,
+    ...message,
+    attachments: message.attachments as unknown as Json,
+  }))
+  if (batch) {
+    batch.messages.push(...messageRows)
+    batch.updates.push({ id: claim.id, update })
+    return
+  }
+  if (messageRows.length) {
+    const { error: messagesError } = await admin
+      .from("reputation_claim_messages")
+      .upsert(messageRows, { onConflict: "claim_row_id,hash" })
     if (messagesError) throw messagesError
   }
+  const { error: updateError } = await admin.from("reputation_claims").update(update).eq("id", claim.id)
+  if (updateError) throw updateError
 }
 
 const CLAIM_COLUMNS = "*"
 
 /**
  * Gancho das rodadas (depois da busca de reclamações): detalhe das abertas/alteradas e os alertas de reclamação.
- * Devolve true quando ficou reclamação esperando detalhe (a rodada volta em 1 minuto, não em 5).
+ * Devolve true quando ficou reclamação esperando detalhe (volta na próxima rodada do cron, não em 5 min).
  */
 export async function claimsHook(account: ReputationAccount, _changed: unknown, budget: CallBudget, now: Date): Promise<boolean> {
   const admin = createServiceClient()
@@ -255,19 +300,26 @@ export async function claimsHook(account: ReputationAccount, _changed: unknown, 
   const reasons = new Map<string, string | null>()
   let stop: unknown = null
   const queue = detailsQueue(candidates, now)
-  for (const claim of queue.slice(0, DETAILS_PER_RUN)) {
+  const selected = queue.slice(0, DETAILS_PER_RUN)
+  const orderIds = selected.flatMap((claim) => (claim.resource === "order" && claim.resource_id ? [Number(claim.resource_id)] : []))
+  const orders = new Map<number, StoredOrder | null>(orderIds.map((orderId) => [orderId, null]))
+  for (const order of await storedOrders(account.id, orderIds)) orders.set(Number(order.ml_order_id), order)
+  const batch: DetailsBatch = { orders, messages: [], updates: [] }
+  await forEachLimit(selected, DETAILS_CONCURRENCY, async (claim) => {
+    if (stop) return
     try {
-      await syncClaimDetails(account, claim, budget, now, reasons)
+      await syncClaimDetails(account, claim, budget, now, reasons, batch)
     } catch (syncError) {
       if (isStopError(syncError)) {
         stop = syncError
-        break
+        return
       }
       // Sem detalhe agora: marca como lida para não travar a fila; tenta de novo na próxima mudança.
-      await admin.from("reputation_claims").update({ details_synced_at: now.toISOString() }).eq("id", claim.id)
+      batch.updates.push({ id: claim.id, update: { details_synced_at: now.toISOString() } })
       console.error("[reputação] detalhe da reclamação " + claim.claim_id + ":", errorMessage(syncError))
     }
-  }
+  })
+  await flushClaimDetails(batch)
   await refreshClaimAlerts(account, now)
   if (stop) throw stop
   return queue.length > DETAILS_PER_RUN

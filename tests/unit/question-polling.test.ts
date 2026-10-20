@@ -1,24 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest"
 
-import { accountsThisMinute, pollingOffsets, unknownQuestions } from "@/lib/answers/polling"
-
-describe("pollingOffsets (quando a rotina consulta o ML dentro de cada minuto)", () => {
-  it("até 16 contas: a cada 10 s (6 rodadas no minuto)", () => {
-    expect(pollingOffsets(1)).toEqual([0, 10_000, 20_000, 30_000, 40_000, 50_000])
-    expect(pollingOffsets(16)).toEqual([0, 10_000, 20_000, 30_000, 40_000, 50_000])
-  })
-
-  it("com mais contas espaça as rodadas: no máximo ~100 consultas por minuto (1/3 do limite do app no ML)", () => {
-    expect(pollingOffsets(20)).toEqual([0, 12_000, 24_000, 36_000, 48_000])
-    expect(pollingOffsets(25)).toEqual([0, 15_000, 30_000, 45_000])
-    expect(pollingOffsets(50)).toEqual([0, 30_000])
-    expect(pollingOffsets(100)).toEqual([0])
-  })
-
-  it("sem contas roda uma vez (só a fila)", () => {
-    expect(pollingOffsets(0)).toEqual([0])
-  })
-})
+import { accountsThisMinute, unknownQuestions } from "@/lib/answers/polling"
 
 describe("accountsThisMinute", () => {
   const accounts = Array.from({ length: 250 }, (_, index) => index)
@@ -60,7 +42,6 @@ const mocks = vi.hoisted(() => {
     known: new Set<number>(),
     unanswered: new Map<string, { id: number; text: string; item_id: string; date_created: string }[]>(),
     failing: new Set<string>(),
-    clock: 0,
   }
   type Builder = Record<string, unknown> & PromiseLike<unknown>
   function builder(table: string): Builder {
@@ -113,20 +94,12 @@ const IN_TRIAL = { trial_ends_at: "2999-01-01T00:00:00Z", subscription_status: "
 const EXPIRED = { trial_ends_at: "2000-01-01T00:00:00Z", subscription_status: "trialing", billing_exempt: false, current_period_end: null }
 const question = (id: number) => ({ id, text: `pergunta ${id}`, item_id: "MLB1", date_created: "2026-10-13T23:18:32.892Z" })
 
-const clock = {
-  now: () => mocks.state.clock,
-  sleep: async (ms: number) => {
-    mocks.state.clock += ms
-  },
-}
-
 describe("runQuestionRounds (rotina de segurança do cron de perguntas)", () => {
   beforeEach(() => {
     mocks.state.accounts = []
     mocks.state.known = new Set()
     mocks.state.unanswered = new Map()
     mocks.state.failing = new Set()
-    mocks.state.clock = 0
     mocks.searchUnansweredQuestions.mockClear()
     mocks.registerQuestion.mockClear()
     mocks.processQuestion.mockReset()
@@ -134,12 +107,12 @@ describe("runQuestionRounds (rotina de segurança do cron de perguntas)", () => 
     mocks.processDueQuestions.mockClear()
   })
 
-  it("registra só a pergunta nova, já manda para a IA e consulta a cada 10 s durante o minuto", async () => {
+  it("registra só a pergunta nova, já manda para a IA e consulta o ML uma vez só por execução", async () => {
     mocks.state.accounts = [{ id: "conta-1", organization_id: "org-1", organizations: IN_TRIAL }]
     mocks.state.known = new Set([10])
     mocks.state.unanswered.set("conta-1", [question(10), question(11)])
 
-    const result = await runQuestionRounds(clock)
+    const result = await runQuestionRounds()
 
     expect(mocks.registerQuestion).toHaveBeenCalledTimes(1)
     expect(mocks.registerQuestion).toHaveBeenCalledWith({
@@ -152,9 +125,9 @@ describe("runQuestionRounds (rotina de segurança do cron de perguntas)", () => 
     })
     expect(mocks.processQuestion).toHaveBeenCalledTimes(1)
     expect(mocks.processQuestion).toHaveBeenCalledWith("row-11")
-    expect(mocks.searchUnansweredQuestions).toHaveBeenCalledTimes(6)
-    expect(mocks.processDueQuestions).toHaveBeenCalledTimes(6)
-    expect(result).toMatchObject({ accounts: 1, rounds: 6, found: 1, failures: 0 })
+    expect(mocks.searchUnansweredQuestions).toHaveBeenCalledTimes(1)
+    expect(mocks.processDueQuestions).toHaveBeenCalledTimes(1)
+    expect(result).toMatchObject({ accounts: 1, found: 1, processed: 1, failures: 0 })
   })
 
   it("não consulta contas de organização bloqueada (teste vencido sem assinatura)", async () => {
@@ -162,7 +135,7 @@ describe("runQuestionRounds (rotina de segurança do cron de perguntas)", () => 
       { id: "conta-ok", organization_id: "org-1", organizations: IN_TRIAL },
       { id: "conta-vencida", organization_id: "org-2", organizations: EXPIRED },
     ]
-    await runQuestionRounds(clock)
+    await runQuestionRounds()
     const polled = new Set(mocks.searchUnansweredQuestions.mock.calls.map(([accountId]) => accountId))
     expect([...polled]).toEqual(["conta-ok"])
   })
@@ -176,24 +149,11 @@ describe("runQuestionRounds (rotina de segurança do cron de perguntas)", () => 
     mocks.state.unanswered.set("conta-2", [question(20)])
     const errors = vi.spyOn(console, "error").mockImplementation(() => undefined)
 
-    const result = await runQuestionRounds(clock)
+    const result = await runQuestionRounds()
 
     expect(mocks.processQuestion).toHaveBeenCalledWith("row-20")
-    expect(result.failures).toBe(6)
+    expect(result.failures).toBe(1)
     errors.mockRestore()
-  })
-
-  it("se o processamento atrasar a rotina, não começa rodada fora da janela (o próximo minuto continua)", async () => {
-    mocks.state.accounts = [{ id: "conta-1", organization_id: "org-1", organizations: IN_TRIAL }]
-    mocks.state.unanswered.set("conta-1", [question(30)])
-    mocks.processQuestion.mockImplementation(async () => {
-      mocks.state.clock += 58_000
-    })
-
-    const result = await runQuestionRounds(clock)
-
-    expect(result.rounds).toBe(1)
-    expect(mocks.searchUnansweredQuestions).toHaveBeenCalledTimes(1)
   })
 
   it("um erro ao processar uma pergunta não derruba a rotina", async () => {
@@ -204,11 +164,12 @@ describe("runQuestionRounds (rotina de segurança do cron de perguntas)", () => 
     })
     const errors = vi.spyOn(console, "error").mockImplementation(() => undefined)
 
-    const result = await runQuestionRounds(clock)
+    const result = await runQuestionRounds()
 
     expect(mocks.processQuestion).toHaveBeenCalledWith("row-40")
     expect(mocks.processQuestion).toHaveBeenCalledWith("row-41")
-    expect(result.rounds).toBe(6)
+    expect(result.found).toBe(2)
+    expect(mocks.processDueQuestions).toHaveBeenCalledTimes(1)
     errors.mockRestore()
   })
 })

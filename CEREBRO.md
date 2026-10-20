@@ -4,7 +4,7 @@
 > inteiro antes de trabalhar e atualizá-lo ao terminar. Se algo aqui divergir do código, o código vence —
 > e este arquivo deve ser corrigido na mesma sessão.
 
-Última atualização: **2026-10-20** (Sessão 30 — **Recuperador, etapa 1** (devoluções revisadas pelo celular + Raio-X de 90 dias + "Recuperado pela maanu"): migração aplicada, **no ar desde 2026-10-20 ~15:55** (commit `555bdb1` na `v2`); Sessão 29b — **Escudo de Reputação na página de vendas**: seção nova `#reputacao` com simulador do termômetro (limites oficiais, os mesmos do app), selo "Novo" no topo e no menu, linha nos 3 planos, pergunta nas Dúvidas, `llms.txt` e dados estruturados; Sessão 29 — **Escudo de Reputação no ar** (menu Reputação, todos os planos); Sessão 28 — **aba Clientes no ar** (quem comprou em cada conta do ML: compras, total, quem voltou, cidade/UF, perguntas, conversas e observações; sem e-mail/telefone, que o ML não entrega); **28b: sem importação do histórico**, conta só as vendas a partir de 2026-10-19 16:09 (ou da conexão da conta), a importação dos 12 meses foi parada e apagada (§13 item 0l); Sessão 27 — **troca de endereços concluída**: `maanu.com.br` = só a página de vendas (indexável; `/institucional` redireciona) e **o app em `app.maanu.com.br`** (`APP_HOST`, Site URL do Supabase), webhooks e retorno do OAuth do ML fixos no domínio principal; Sessão 23d — **só o plano mensal** (decisão do Breno): o anual saiu da Assinatura, da página de vendas, das Dúvidas, do `llms.txt`, dos Termos e do painel; Sessão 23c — **cobrança pela AbacatePay em produção** (chave de produção, produtos mensais e webhook prontos); o anual só aparece quando houver os produtos anuais; Sessão 25c — WhatsApp/telefone `(31) 99263-0934` no rodapé de `/institucional` para a aprovação da AbacatePay; falta o e-mail; Sessão 25b — página de vendas **publicada em `maanu.com.br/institucional`** para o Breno e o sócio revisarem, fora do Google por enquanto; `maanu.com.br/` continua levando ao app; Sessão 26 — quatro criativos 4:5 para carrossel do Instagram salvos em `CRIATIVOS/`; Sessão 25 — página de vendas em `maanu.com.br/` com SEO para Google, Bing e buscas por IA (dados estruturados, `llms.txt`, robots, imagem de compartilhamento, carregamento mais rápido) e app pronto para ir para `app.maanu.com.br` (variável `APP_HOST`), na branch `codex/pagina-de-vendas`, aguardando o Breno; Sessão 24 — cliente sem permissão de administrador vê uma mensagem de acesso restrito com retorno ao painel; Sessão 23b — tela "Levando você para o pagamento seguro" antes da AbacatePay, teste de compra aprovado e dados de teste apagados, falta a chave de produção; Sessão 23 — cobrança pela AbacatePay pronta no código e no banco: assinar, trocar, cancelar e webhooks; falta só a chave de API do Breno; Sessão 22 — perguntas chegando sozinhas: rotina que busca no ML a cada ~10 s + webhook respondendo na hora; foto do anúncio corrigida; Sessão 21 — v1: botão de pausar a IA funcionando, commit `bf56777` na `main`; Sessão 20b — Starter com 300 respostas e espaço nos cards dos planos; Sessão 20 — planos Starter/Pro/Escala com limites, teste grátis e Melhorias de anúncio; Sessão 19 — pesquisa de preços e proposta de 3 planos; Sessão 18 — tour de boas-vindas e avisos de teste/conta ML redesenhados; Sessão 17 — chaves de IA cadastradas e trocadas pelo painel do administrador; Sessão 16 — textos do cadastro sem falar em cobrança; Sessão 15b — Fase 1 da troca preparada)
+Última atualização: **2026-10-20** (Sessão 30b — **custo da Vercel**: rotina de perguntas consulta o ML 1 vez por minuto (era a cada ~10 s) e o cron do Escudo roda a cada 2 min com o token reaproveitado na rodada e as gravações das reclamações agrupadas; Sessão 30 — **Recuperador, etapa 1** (devoluções revisadas pelo celular + Raio-X de 90 dias + "Recuperado pela maanu"): migração aplicada, **no ar desde 2026-10-20 ~15:55** (commit `555bdb1` na `v2`); Sessão 29b — **Escudo de Reputação na página de vendas**: seção nova `#reputacao` com simulador do termômetro (limites oficiais, os mesmos do app), selo "Novo" no topo e no menu, linha nos 3 planos, pergunta nas Dúvidas, `llms.txt` e dados estruturados; Sessão 29 — **Escudo de Reputação no ar** (menu Reputação, todos os planos); Sessão 28 — **aba Clientes no ar** (quem comprou em cada conta do ML: compras, total, quem voltou, cidade/UF, perguntas, conversas e observações; sem e-mail/telefone, que o ML não entrega); **28b: sem importação do histórico**, conta só as vendas a partir de 2026-10-19 16:09 (ou da conexão da conta), a importação dos 12 meses foi parada e apagada (§13 item 0l); Sessão 27 — **troca de endereços concluída**: `maanu.com.br` = só a página de vendas (indexável; `/institucional` redireciona) e **o app em `app.maanu.com.br`** (`APP_HOST`, Site URL do Supabase), webhooks e retorno do OAuth do ML fixos no domínio principal; Sessão 23d — **só o plano mensal** (decisão do Breno): o anual saiu da Assinatura, da página de vendas, das Dúvidas, do `llms.txt`, dos Termos e do painel; Sessão 23c — **cobrança pela AbacatePay em produção** (chave de produção, produtos mensais e webhook prontos); o anual só aparece quando houver os produtos anuais; Sessão 25c — WhatsApp/telefone `(31) 99263-0934` no rodapé de `/institucional` para a aprovação da AbacatePay; falta o e-mail; Sessão 25b — página de vendas **publicada em `maanu.com.br/institucional`** para o Breno e o sócio revisarem, fora do Google por enquanto; `maanu.com.br/` continua levando ao app; Sessão 26 — quatro criativos 4:5 para carrossel do Instagram salvos em `CRIATIVOS/`; Sessão 25 — página de vendas em `maanu.com.br/` com SEO para Google, Bing e buscas por IA (dados estruturados, `llms.txt`, robots, imagem de compartilhamento, carregamento mais rápido) e app pronto para ir para `app.maanu.com.br` (variável `APP_HOST`), na branch `codex/pagina-de-vendas`, aguardando o Breno; Sessão 24 — cliente sem permissão de administrador vê uma mensagem de acesso restrito com retorno ao painel; Sessão 23b — tela "Levando você para o pagamento seguro" antes da AbacatePay, teste de compra aprovado e dados de teste apagados, falta a chave de produção; Sessão 23 — cobrança pela AbacatePay pronta no código e no banco: assinar, trocar, cancelar e webhooks; falta só a chave de API do Breno; Sessão 22 — perguntas chegando sozinhas: rotina que busca no ML a cada ~10 s + webhook respondendo na hora; foto do anúncio corrigida; Sessão 21 — v1: botão de pausar a IA funcionando, commit `bf56777` na `main`; Sessão 20b — Starter com 300 respostas e espaço nos cards dos planos; Sessão 20 — planos Starter/Pro/Escala com limites, teste grátis e Melhorias de anúncio; Sessão 19 — pesquisa de preços e proposta de 3 planos; Sessão 18 — tour de boas-vindas e avisos de teste/conta ML redesenhados; Sessão 17 — chaves de IA cadastradas e trocadas pelo painel do administrador; Sessão 16 — textos do cadastro sem falar em cobrança; Sessão 15b — Fase 1 da troca preparada)
 
 ---
 
@@ -136,8 +136,8 @@ novas funcionalidades, segurança multi-tenant de verdade — **desenvolvido em 
   efeito (perguntas por semana antes × depois). Spec: `docs/superpowers/specs/2026-10-13-planos-design.md`.
   **Sessão 22 (2026-10-13): 1º cliente real na semana de teste** (Girassol Moda Jeans, conta ML `LOJAJEANSDAMODA`). As
   perguntas só apareciam clicando em "Sincronizar com o ML": o ML **não entregava nenhuma notificação** dessa conta ao app
-  da v2 (só ao app da v1, que o cliente ainda tem autorizado). Agora o cron de perguntas **busca as perguntas novas no ML a
-  cada ~10 s** em todas as contas (`lib/answers/poll.ts`), sem depender da notificação, e o webhook responde 200 na hora (o
+  da v2 (só ao app da v1, que o cliente ainda tem autorizado). Agora o cron de perguntas **busca as perguntas novas no ML
+  1 vez por minuto** (Sessão 30b; até então a cada ~10 s) em todas as contas (`lib/answers/poll.ts`), sem depender da notificação, e o webhook responde 200 na hora (o
   ML pede até 500 ms). Foto do anúncio quebrada (o ML devolve `http://` e o `next/image` só aceita https) → `mlImageUrl`.
   **Sessão 23 (2026-10-14): cobrança pela AbacatePay (sub-projeto 4b)** — a tela Assinatura assina pelo app (página de
   pagamento hospedada da AbacatePay, cartão), troca de plano (subir libera na hora; descer vale na próxima cobrança), troca
@@ -354,7 +354,7 @@ app/
   (app)/assinatura/actions.ts   # subscribeToPlan (devolve a URL da página de pagamento), changePlan, cancelMySubscription
   admin/billing-actions.ts      # registerAbacateWebhook, refreshAbacateCatalog, adminCancelSubscription; tela admin/(painel)/cobranca
   api/cron/questions/route.ts   # Vercel Cron 1/min (só em produção; Bearer CRON_SECRET): runQuestionRounds = busca as
-                                # perguntas novas no ML a cada ~10 s por ~50 s + fila de novas tentativas (maxDuration 120)
+                                # perguntas novas no ML 1 vez (Sessão 30b) + fila de novas tentativas (maxDuration 120)
   api/cron/pos-venda/route.ts   # fila do pós-venda (1/min) + a cada 15 min não lidas e conferência (Bearer CRON_SECRET)
   api/cron/clientes/route.ts    # aba Clientes (1/min, Bearer CRON_SECRET): runCustomerSync = conferência + cidade/nome
   api/cron/reputacao/route.ts   # Escudo (1/min, Bearer CRON_SECRET): runReputationSync({ claimsHook }) (termômetro 30 min,
@@ -984,7 +984,7 @@ exportação só faz GET e a importação recusa qualquer destino que não seja 
    (Sessão 22: nada de banco antes da resposta) → `after()`: conta conhecida (não desconectada) → `registerQuestion`
    (dedupe por `ml_question_id`) → processa a nova (ou, se repetida e em revisão, `reconcileQuestion`) + até 5 atrasadas.
    **Caminho 2 (Sessão 22), não depende do ML notificar:** o cron `/api/cron/questions` (1/min) roda `runQuestionRounds`:
-   a cada ~10 s durante ~50 s, `GET /my/received_questions/search?status=UNANSWERED` (50 mais recentes) de cada conta ativa,
+   **1 vez por minuto** (Sessão 30b; antes a cada ~10 s durante ~50 s), `GET /my/received_questions/search?status=UNANSWERED` (50 mais recentes) de cada conta ativa,
    com token válido e organização com acesso → registra só as que o banco não tem → `processQuestion` (até 3 juntas) →
    fila. Teto de 100 consultas ao ML por minuto (1/3 do limite do app, 18.000/h): acima de 16 contas as rodadas se espaçam e acima de 100 contas vira rodízio. Pergunta nova aparece em
    segundos pela notificação ou em ~10–20 s pela rotina.
@@ -999,7 +999,7 @@ exportação só faz GET e a importação recusa qualquer destino que não seja 
    nova tentativa; 404/4xx = sem descrição) + `/products/{catalog_product_id}` + `/catalog/charts/{SIZE_GRID_ID}` (opcionais).
 3. Erros: `failed` + nova tentativa em 1/2/4/8/16 min; após 5 → `needs_review` (`processing_error`). Token inválido →
    `needs_review` (`account_inactive`).
-4. Fila: webhook processa até 5 atrasadas e cada rodada do cron (a cada ~10 s) roda até 10. **Staging não tem cron.**
+4. Fila: webhook processa até 5 atrasadas e cada execução do cron (1/min) roda até 10. **Staging não tem cron.**
 5. Ao conectar/reconectar conta: sincroniza as perguntas sem resposta do ML (até 200) e processa.
 6. Painel do vendedor: **Perguntas** = caixa de entrada (filtros em cartões, nesta ordem desde a Sessão 22: Respondidas pela
    IA / Respondidas por você / Para responder / Todas — a tela abre no 1º, Respondidas pela IA (`DEFAULT_INBOX_TAB`); os links de "aguardando você" do Painel, Resultados e avisos usam `?aba=responder`; busca por pergunta/anúncio/código MLB, conta, lista + conversa, responder na tela com rascunho, "Sugestão
@@ -1084,8 +1084,10 @@ exportação só faz GET e a importação recusa qualquer destino que não seja 
 5. Telas leem com a sessão (RLS). Observações: `saveCustomerNote` (service role, conferindo a organização).
 
 ### 7.0c5 v2 — Escudo de Reputação (Sessão 29, todos os planos)
-1. Cron `/api/cron/reputacao` (1/min, `runReputationSync`): até 20 contas, **80 chamadas ao ML** e ~45 s por rodada, rodízio por
-   `claim_reputation_sync`. Cliente próprio (`lib/mercadolivre/reputation.ts`) que **não marca token inválido** (o
+1. Cron `/api/cron/reputacao` (**a cada 2 min** desde a Sessão 30b; antes 1/min, `runReputationSync`): até 20 contas, **140
+   chamadas ao ML** (antes 80) e ~45 s por rodada, rodízio por `claim_reputation_sync`. O `CallBudget` guarda o token de cada
+   conta na rodada (até 4 min; 401 descarta) em vez de ler o banco a cada chamada; o gancho das reclamações lê as vendas numa
+   consulta só, faz o detalhe de até 12 reclamações por conta (3 ao mesmo tempo) e grava mensagens e reclamações juntas no fim. Cliente próprio (`lib/mercadolivre/reputation.ts`) que **não marca token inválido** (o
    `/claims/{id}/detail` responde 401 para reclamações antigas, Claims 1.0, mesmo com o token válido).
 2. **Termômetro** a cada 30 min: `GET /users/{id}` → `seller_reputation` (protegido usa `excluded.real_*`) → folga = limite ×
    vendas − problemas (arredondada para baixo; pior métrica define a cor; atrasos sobre o total de vendas = "aprox."). Limites
@@ -1693,10 +1695,28 @@ webhook do ML validado, fila/reprocessamento de jobs, observabilidade, controle 
 | 2026-10-20 | Alertas do Recuperador na **mesma tabela e no mesmo e-mail** do Escudo (`reputation_alerts`, CHECK estendido), com selo próprio e fora da tela da Reputação | Reaproveita o envio (Resend, 1 e-mail por conta/tipo a cada 30 min) e o liga/desliga já existente, sem tabela nova. |
 | 2026-10-20 | Na v1 a IA **só escreve o relato** (não olha as fotos); fotos seguem um guia por motivo e são reduzidas no navegador | A IA do app ainda não lê imagens; as fotos de celular não caberiam no limite de 4 MB da Server Action sem reduzir. |
 | 2026-10-20 | Achado de devolução tem **confiança média** e só gera texto pronto (sem contestar pelo vendedor) | O ML não tem API para contestar a decisão do armazém; a decisão final é do ML. |
+| 2026-10-20 | Rotina de perguntas: **1 consulta por minuto** (era a cada ~10 s); Escudo **a cada 2 min** com token reaproveitado e gravações agrupadas | Custo da Vercel (função ligada ~20 h/dia esperando). O webhook do ML chega normalmente; se falhar, a pergunta leva até ~1 min. Breno aprovou (Sessão 30b). |
 
 ---
 
 ## 12. Diário de sessões (mais recente no topo)
+
+### 2026-10-20 — Sessão 30b · Custo da Vercel: perguntas 1x/min e Escudo a cada 2 min (IA: Claude, via app Codex)
+- Pedido do Breno: o ciclo da Vercel (6/out–6/nov) já tinha usado US$ 16,20 dos US$ 20 de crédito. Análise (`vercel usage` e
+  `vercel metrics`, nada alterado): v1 `mlresponde` ~US$ 0,75/dia; na `maanu` o maior custo era Fluid Provisioned Memory do
+  cron de perguntas (função ligada ~20 h/dia esperando entre as consultas a cada 10 s, ~US$ 0,50/dia); Escudo ~US$ 0,25/dia
+  (~2,9 h/dia, ~120 mil chamadas externas/dia, 70% Supabase). Breno aprovou os itens 3 e 4 e pediu para publicar logo.
+- **Perguntas:** `runQuestionRounds` faz 1 consulta ao ML por conta por execução (sem rodadas nem espera); saiu
+  `pollingOffsets`/`POLL_WINDOW_MS`; rodízio de 100 contas por minuto mantido. Conferido antes: o webhook do ML está chegando
+  na v2 (vários POST/min em `/api/webhook/mercadolivre`), então a rotina volta a ser só a rede de segurança. Troca aceita:
+  se o aviso do ML falhar, a pergunta pode levar até ~1 min.
+- **Escudo:** cron a cada 2 min (`vercel.json`), 140 chamadas por rodada. Achados: (1) cada chamada ao ML lia o token no banco
+  → `CallBudget.accessToken` reaproveita na rodada (vale também para o Recuperador); (2) as 2 lojas grandes tinham as
+  reclamações sempre "inacabadas" (82 e 131 abertas, detalhe a cada 30 min, 6 por rodada) → rodavam todo minuto com 3 idas ao
+  banco por reclamação; agora 12 por rodada, 3 em paralelo, vendas numa consulta só e mensagens + reclamações gravadas juntas
+  no fim (mensagens primeiro). Mesmo ritmo de detalhe (~6/min por loja), menos tempo de função.
+- Testes: `tests/unit/call-budget.test.ts` (5) e `tests/unit/claims-hook-batch.test.ts` (3) novos; `question-polling`
+  ajustado. typecheck, 585 testes, lint e build ok. Sem migração.
 
 ### 2026-10-20 — Sessão 30 · Recuperador, etapa 1 (IA: Claude, via app Codex)
 - Pedido do Breno (sessão "Criar funcionalidade game changer"): mais uma funcionalidade que faça o dono de loja pagar sem
@@ -2660,6 +2680,12 @@ webhook do ML validado, fila/reprocessamento de jobs, observabilidade, controle 
 ---
 
 ## 13. Próximos passos
+
+0o. **Custo da Vercel (Sessão 30b).** **Próxima IA:** em 1–2 dias, conferir `npx vercel usage`/`metrics` (Fluid Provisioned
+   Memory da `maanu` deve cair bastante), o cron `/api/cron/reputacao` 200 a cada 2 min, `reputation_sync.last_error` vazio e
+   se as reclamações abertas das lojas grandes continuam com detalhe em até ~30–45 min. **Breno (opcional):** desligar a v1
+   depois da semana de teste (~US$ 23/mês), avaliar desligar o Observability Plus (~US$ 18/mês) e pôr um limite em Spend
+   Management. Ideia não feita: memória menor (1 GB) para as funções de cron em `vercel.json`.
 
 0n. **Recuperador (Sessão 30) — etapa 1 ✅ no ar desde 2026-10-20 ~15:55 (`555bdb1`).** **Breno:** (a) ✅ merge aprovado; (b) a
    `RESEND_API_KEY` do item 0m (b) vale para os alertas de devolução também (o prazo da revisão é curto, o e-mail importa);

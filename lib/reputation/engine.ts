@@ -58,10 +58,10 @@ export type ReputationAccount = { id: string; organization_id: string; ml_user_i
 
 export const REPUTATION_CRON_LIMITS = {
   accounts: 20,
-  /** Chamadas ao ML por rodada (todas as contas). */
-  calls: 80,
+  /** Chamadas ao ML por rodada (todas as contas). A rodada é a cada 2 min: 140 = 70/min (antes 80/min). */
+  calls: 140,
   concurrency: 3,
-  /** Tempo máximo da rodada antes de deixar o resto para o próximo minuto. */
+  /** Tempo máximo da rodada antes de deixar o resto para a próxima. */
   budgetMs: 45_000,
 } as const
 
@@ -71,7 +71,7 @@ const INTERVALS = {
   reputation: 30 * MINUTE,
   shipments: 10 * MINUTE,
   claims: 5 * MINUTE,
-  /** Parte que não terminou (limite de chamadas): volta no próximo minuto. */
+  /** Parte que não terminou (limite de chamadas): volta na próxima rodada (o cron roda a cada 2 min). */
   unfinished: MINUTE,
   error: 5 * MINUTE,
   rateLimited: 2 * MINUTE,
@@ -686,7 +686,7 @@ async function releaseLock(accountId: string) {
 }
 
 /** Executa task em todos os itens, no máximo limit ao mesmo tempo. */
-async function forEachLimit<T>(items: readonly T[], limit: number, task: (item: T) => Promise<unknown>) {
+export async function forEachLimit<T>(items: readonly T[], limit: number, task: (item: T) => Promise<unknown>) {
   let next = 0
   const workers = Array.from({ length: Math.min(limit, items.length) }, async () => {
     while (next < items.length) await task(items[next++])
@@ -813,7 +813,7 @@ export async function sendPendingEmails(deadline: number, now: Date = new Date()
 
 export type ReputationSyncResult = { accounts: number; emails: number; failures: number; rateLimited: boolean }
 
-/** Cron do Escudo (1 vez por minuto): contas com rodada vencida (até 80 chamadas ao ML) e os e-mails pendentes. */
+/** Cron do Escudo (a cada 2 min): contas com rodada vencida (até 140 chamadas ao ML) e os e-mails pendentes. */
 export async function runReputationSync(options: { claimsHook?: ClaimsHook } = {}): Promise<ReputationSyncResult> {
   const deadline = Date.now() + REPUTATION_CRON_LIMITS.budgetMs
   const budget = new CallBudget(REPUTATION_CRON_LIMITS.calls)

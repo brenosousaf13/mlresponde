@@ -18,9 +18,10 @@ function authorized(request: NextRequest) {
 }
 
 /**
- * Escudo de Reputação (Vercel Cron a cada minuto, só em produção): termômetro (30 min por conta), despachos (10 min),
- * reclamações (5 min, com detalhe e mensagens das abertas), os e-mails dos alertas urgentes (lib/reputation/engine.ts) e a
- * fila da IA das reclamações (até 3 análises, lib/reputation/claims-engine.ts). Até 80 chamadas ao ML por rodada.
+ * Escudo de Reputação (Vercel Cron a cada 2 min, só em produção; até a Sessão 30 era a cada minuto): termômetro (30 min
+ * por conta), despachos (10 min), reclamações (5 min, com detalhe e mensagens das abertas), os e-mails dos alertas urgentes
+ * (lib/reputation/engine.ts) e a fila da IA das reclamações (até 3 análises, lib/reputation/claims-engine.ts). Até 140
+ * chamadas ao ML por rodada.
  */
 export async function GET(request: NextRequest) {
   if (!authorized(request)) return NextResponse.json({ error: "unauthorized" }, { status: 401 })
