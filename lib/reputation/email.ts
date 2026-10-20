@@ -16,8 +16,9 @@ const SUBJECTS: Partial<Record<AlertKind, (count: number) => string>> = {
   color_dropped: () => "Sua reputação caiu de cor",
   claim_new: (count) => (count === 1 ? "Reclamação nova" : count + " reclamações novas"),
   claim_due_soon: (count) => (count === 1 ? "Prazo de reclamação vencendo" : count + " prazos de reclamação vencendo"),
-  return_review_due: (count) => (count === 1 ? "Chegou uma devolução para revisar" : count + " devoluções para revisar"),
-  return_review_closing: (count) => (count === 1 ? "Revisão de devolução vencendo" : count + " revisões de devolução vencendo"),
+  return_review_due: (count) =>
+    count === 1 ? "Uma devolução para revisar ou contestar" : count + " devoluções para revisar ou contestar",
+  return_review_closing: (count) => (count === 1 ? "Prazo de devolução vencendo" : count + " prazos de devolução vencendo"),
 }
 
 const INTROS: Partial<Record<AlertKind, string>> = {
@@ -28,8 +29,9 @@ const INTROS: Partial<Record<AlertKind, string>> = {
   claim_new: "Chegou reclamação nova. Responder rápido ajuda a não afetar a reputação:",
   claim_due_soon: "Estas reclamações têm uma ação obrigatória vencendo em menos de 24 horas:",
   return_review_due:
-    "O produto devolvido chegou. Confira e diga ao Mercado Livre se veio certinho ou com problema (com fotos, se tiver problema):",
-  return_review_closing: "A revisão destas devoluções vence em menos de 24 horas. Se chegou com problema, mande as fotos agora:",
+    "Dá para recuperar dinheiro nestas devoluções: revise as que chegaram até você e conteste as que o armazém do Mercado Livre devolveu ao comprador (com fotos, se tiver problema):",
+  return_review_closing:
+    "O prazo destas devoluções vence em menos de 24 horas. Se o produto voltou com problema, mande as fotos agora:",
 }
 
 function escapeHtml(value: string) {

@@ -4,8 +4,11 @@ import { containsExternalContact } from "@/lib/answers/compose"
  * Revisão de devolução pelo vendedor (puro, testado em tests/unit/recovery.test.ts): motivos do ML, checklist, fotos,
  * validação e o corpo do POST /post-purchase/v1/returns/{return_id}/return-review (documentação conferida em 2026-10-20):
  *  - "Chegou certinho": corpo {}.
- *  - "Chegou com problema": [{ reason, message, attachments? }]; attachments obrigatórios em SRF2 e SRF4. order_id só para
- *    revisar UM pedido de um carrinho; a maanu revisa sempre o carrinho inteiro (sem order_id).
+ *  - "Chegou com problema": [{ reason, message, attachments?, order_id? }]; attachments obrigatórios em SRF2 e SRF4.
+ *    order_id só em carrinho (devolução com vários pedidos), para revisar UM pedido: a maanu revisa o pedido desta
+ *    reclamação (cada pedido do carrinho tem a sua reclamação) e, por isso, em carrinho só oferece motivos de pedido.
+ *    Fora do carrinho (devolução de um pedido só) todo motivo vale, inclusive os de pacote (ex.: SRF7 "Ainda não chegou").
+ *  - O mesmo POST serve para a contestação da revisão do armazém (apelação), quando o ML libera return_review_fail.
  */
 
 export type ReviewDecision = "ok" | "fail"
@@ -52,9 +55,12 @@ export function parseReturnReasons(raw: unknown): ReturnReason[] {
   return reasons.length ? reasons.sort((a, b) => a.position - b.position) : [...FALLBACK_REASONS]
 }
 
-/** Devolução simples: motivos de pedido. Carrinho (revisão do carrinho inteiro): só os motivos de pacote. */
+/**
+ * Devolução de um pedido só: todos os motivos (o pedido é o pacote inteiro). Carrinho: só os motivos de pedido, enviados
+ * com o order_id desta reclamação (revisar o pacote inteiro valeria para os pedidos das outras reclamações).
+ */
 export function reasonsFor(reasons: readonly ReturnReason[], isCart: boolean): ReturnReason[] {
-  return reasons.filter((reason) => reason.apply.includes(isCart ? "package" : "order"))
+  return isCart ? reasons.filter((reason) => reason.apply.includes("order")) : [...reasons]
 }
 
 export type ChecklistItem = { id: string; label: string }
@@ -149,28 +155,40 @@ export function validateReview(input: {
   return validateReturnMessage(input.message) ?? validatePhotos(input.photos, reason.id)
 }
 
-/** Corpo do POST return-review. */
+/** Corpo do POST return-review. orderId só em carrinho (revisa o pedido desta reclamação). */
 export function reviewPayload(
   decision: ReviewDecision,
-  fail?: { reasonId: string; message: string; attachments: readonly string[] }
-): Record<string, never> | { reason: string; message: string; attachments?: string[] }[] {
+  fail?: { reasonId: string; message: string; attachments: readonly string[]; orderId?: number | null }
+): Record<string, never> | { reason: string; message: string; attachments?: string[]; order_id?: number }[] {
   if (decision === "ok" || !fail) return {}
   return [
     {
       reason: fail.reasonId,
       message: fail.message.trim(),
       ...(fail.attachments.length ? { attachments: [...fail.attachments] } : {}),
+      ...(fail.orderId ? { order_id: fail.orderId } : {}),
     },
   ]
 }
 
 /** Relato sem IA (pausa da IA, falha ou o dono preferir): só os fatos marcados. */
-export function fallbackReturnMessage(input: { reasonLabel: string; checks: readonly string[]; notes: string; photos: number }): string {
-  const parts = ["Recebi a devolução e, ao conferir, constatei: " + input.reasonLabel.replace(/\.$/, "") + "."]
+export function fallbackReturnMessage(input: {
+  reasonLabel: string
+  checks: readonly string[]
+  notes: string
+  photos: number
+  appeal?: boolean
+}): string {
+  const reason = input.reasonLabel.replace(/\.$/, "")
+  const parts = [
+    input.appeal
+      ? "Contesto a revisão desta devolução. O produto foi enviado em perfeito estado e voltou com problema: " + reason + "."
+      : "Recebi a devolução e, ao conferir, constatei: " + reason + ".",
+  ]
   if (input.checks.length) parts.push("Detalhes: " + input.checks.map((item) => item.toLowerCase()).join("; ") + ".")
   const notes = input.notes.trim().replace(/\s+/g, " ")
   if (notes) parts.push(notes.endsWith(".") ? notes : notes + ".")
   if (input.photos > 0) parts.push(input.photos === 1 ? "Envio a foto como evidência." : "Envio " + input.photos + " fotos como evidência.")
-  parts.push("Peço a análise do caso.")
+  parts.push(input.appeal ? "Peço a análise do caso e o ressarcimento do valor da venda." : "Peço a análise do caso.")
   return parts.join(" ").slice(0, RETURN_MESSAGE_MAX)
 }

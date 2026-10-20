@@ -14,14 +14,17 @@ import { formatMoney } from "@/lib/customers/presentation"
 import { canManageOrganization, requireSection } from "@/lib/dal/app-context"
 import { getReturnDetail } from "@/lib/dal/recovery"
 import { formatDateTime, timeAgo } from "@/lib/format"
-import { BENEFITED_LABELS, DESTINATION_LABELS, PHASE_BADGE, recoveryHref } from "@/lib/recovery/presentation"
+import { BENEFITED_LABELS, DESTINATION_LABELS, MODE_LABELS, PHASE_BADGE, recoveryHref, sellerStatusLabel } from "@/lib/recovery/presentation"
 import {
+  APPEAL_WINDOW_DAYS,
   CONDITION_LABELS,
   PHASE_LABELS,
   SHIPMENT_STATUS_LABELS,
   STATUS_MONEY_LABELS,
   WAREHOUSE_REASON_LABELS,
+  cartOrderIds,
   destinationLabel,
+  ownReviews,
 } from "@/lib/recovery/returns"
 import { FALLBACK_REASONS } from "@/lib/recovery/review"
 import { DUE_TEXT, claimHref, dueState, mlSaleUrl } from "@/lib/reputation/presentation"
@@ -60,8 +63,12 @@ export default async function ReturnPage({ params, searchParams }: PageProps<"/r
   const saleUrl = mlSaleUrl(row.order_id)
   const conta = typeof query.conta === "string" ? query.conta : account.id
   const backHref = recoveryHref(conta, "devolucoes", row.phase === "needs_review" ? undefined : row.phase === "closed" ? "encerradas" : "andamento")
-  const warehouse = row.reviews.filter((review) => review.product_condition || review.benefited)
+  // Só a avaliação do pedido desta reclamação (a devolução pode juntar os pedidos de um carrinho).
+  const warehouse = ownReviews(row.reviews, row.order_id).filter((review) => review.product_condition || review.benefited)
+  const cartOrders = cartOrderIds({ orders: row.orders, reviews: row.reviews }).length
   const quantity = row.orders.reduce((total, order) => total + (order.return_quantity ?? 0), 0)
+  const mode = row.phase === "needs_review" ? row.mode : null
+  const appeal = mode === "appeal"
 
   return (
     <>
@@ -99,16 +106,25 @@ export default async function ReturnPage({ params, searchParams }: PageProps<"/r
         <CardContent className="grid grid-cols-2 gap-4 lg:grid-cols-4">
           <Fact label="Situação">
             <Badge variant="outline" className={cn("w-fit border-transparent", PHASE_BADGE[row.phase])}>
-              {PHASE_LABELS[row.phase]}
+              {mode ? MODE_LABELS[mode] : PHASE_LABELS[row.phase]}
             </Badge>
           </Fact>
-          <Fact label="Prazo para revisar">
-            {row.phase === "needs_review" && row.deadline_at ? (
-              <span className={cn("font-medium", DUE_TEXT[due])}>
-                {formatDateTime(row.deadline_at)} ({timeAgo(row.deadline_at, now)})
-              </span>
+          <Fact label={appeal ? "Prazo para contestar" : "Prazo para revisar"}>
+            {mode && row.deadline_at ? (
+              <>
+                <span className={cn("font-medium", DUE_TEXT[due])}>
+                  {formatDateTime(row.deadline_at)} ({timeAgo(row.deadline_at, now)})
+                </span>
+                {appeal ? (
+                  <span className="text-xs text-muted-foreground">
+                    Estimado: {APPEAL_WINDOW_DAYS} dias depois da revisão do ML (regra do Full; o ML não informa a data pela API)
+                  </span>
+                ) : null}
+              </>
             ) : (
-              <span className="text-muted-foreground">{row.phase === "needs_review" ? "O ML não informou" : "Sem prazo agora"}</span>
+              <span className="text-muted-foreground">
+                {mode ? "O ML não informou (costuma ser 3 dias úteis depois que o pacote chega)" : "Sem prazo agora"}
+              </span>
             )}
           </Fact>
           <Fact label="Valor da venda">
@@ -132,7 +148,8 @@ export default async function ReturnPage({ params, searchParams }: PageProps<"/r
             <span className="line-clamp-2">{claim?.reason_detail ?? "Sem informação"}</span>
           </Fact>
           <Fact label="Pedidos">
-            <span>{row.is_cart ? "Carrinho com " + row.orders.length + " pedidos" : "1 pedido"}</span>
+            <span>{row.is_cart ? "Carrinho com " + Math.max(cartOrders, 2) + " pedidos" : "1 pedido"}</span>
+            {row.is_cart ? <span className="text-xs text-muted-foreground">Esta página cuida do pedido {row.order_id}</span> : null}
           </Fact>
           <Fact label="Atualizado">
             <span>{timeAgo(row.synced_at, now)}</span>
@@ -150,19 +167,32 @@ export default async function ReturnPage({ params, searchParams }: PageProps<"/r
         </Alert>
       ) : null}
 
-      {row.phase === "needs_review" ? (
+      {mode && (claim?.ml_title || claim?.ml_description) ? (
+        <Alert>
+          <WarehouseIcon />
+          <AlertTitle>O que o Mercado Livre diz: {claim.ml_title ?? "devolução"}</AlertTitle>
+          {claim.ml_description ? <AlertDescription>{claim.ml_description}</AlertDescription> : null}
+        </Alert>
+      ) : null}
+
+      {mode ? (
         <ReturnReviewFlow
           returnRowId={row.id}
           canManage={canManageOrganization(context.role)}
-          canOk={row.can_review_ok}
+          mode={mode}
+          canOk={mode === "arrival" && row.can_review_ok}
           canFail={row.can_review_fail}
           isCart={row.is_cart}
+          cartOrders={Math.max(cartOrders, row.is_cart ? 2 : 1)}
+          amount={row.amount ? formatMoney(row.amount, row.currency_id) : null}
         />
       ) : row.review_submitted_at ? (
         <Alert>
           {row.review_kind === "fail" ? <XCircleIcon /> : <CheckCircle2Icon />}
           <AlertTitle>
-            {row.review_kind === "fail" ? "Você relatou um problema ao Mercado Livre" : "Você confirmou que a devolução chegou certinho"}
+            {row.review_kind === "fail"
+              ? "Você relatou um problema (ou contestou) ao Mercado Livre"
+              : "Você confirmou que a devolução chegou certinho"}
           </AlertTitle>
           <AlertDescription>
             Enviado pela maanu em {formatDateTime(row.review_submitted_at)}.{" "}
@@ -173,7 +203,10 @@ export default async function ReturnPage({ params, searchParams }: PageProps<"/r
         <Alert>
           <WarehouseIcon />
           <AlertTitle>Esta devolução vai para o armazém do Mercado Livre</AlertTitle>
-          <AlertDescription>O ML confere o produto primeiro. Se ele liberar a sua revisão, avisamos no app e por e-mail.</AlertDescription>
+          <AlertDescription>
+            O ML confere o produto primeiro (você não precisa revisar agora). Se ele devolver o dinheiro ao comprador e der para
+            contestar, avisamos no app e por e-mail.
+          </AlertDescription>
         </Alert>
       ) : row.phase === "waiting" ? (
         <Alert>
@@ -212,8 +245,19 @@ export default async function ReturnPage({ params, searchParams }: PageProps<"/r
                         .join(" · ") || "Sem detalhes"}
                     </span>
                     {review.benefited && BENEFITED_LABELS[review.benefited] ? (
-                      <span className={review.benefited === "seller" ? "text-emerald-700 dark:text-emerald-300" : "text-muted-foreground"}>
+                      <span
+                        className={
+                          review.benefited === "seller" || review.benefited === "both"
+                            ? "text-emerald-700 dark:text-emerald-300"
+                            : "text-muted-foreground"
+                        }
+                      >
                         {BENEFITED_LABELS[review.benefited]}
+                      </span>
+                    ) : null}
+                    {sellerStatusLabel(review.seller_status, review.seller_reason) ? (
+                      <span className={review.seller_status === "failed" ? "text-emerald-700 dark:text-emerald-300" : "text-muted-foreground"}>
+                        {sellerStatusLabel(review.seller_status, review.seller_reason)}
                       </span>
                     ) : null}
                   </li>

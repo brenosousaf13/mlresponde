@@ -30,16 +30,16 @@ export const maxDuration = 60
 
 const STEPS = [
   {
-    title: "Avisamos quando a devolução chega",
-    body: "No app e por e-mail, com o prazo que o Mercado Livre dá para você revisar.",
+    title: "Avisamos quando dá para recuperar",
+    body: "Quando a devolução chega até você e quando o armazém do ML devolve o dinheiro ao comprador, com o prazo para agir.",
   },
   {
-    title: "Você confere pelo celular",
-    body: "Chegou certinho? 1 toque. Chegou com problema? Escolha o motivo, tire as fotos e a IA escreve o relato.",
+    title: "Você resolve pelo celular",
+    body: "Chegou certinho? 1 toque. Chegou com problema ou quer contestar o armazém? Escolha o motivo, tire as fotos e a IA escreve o relato.",
   },
   {
     title: "O Raio-X procura dinheiro perdido",
-    body: "Lê as devoluções dos últimos 90 dias e mostra onde o produto voltou sem condição de venda e você não foi ressarcido.",
+    body: "Lê as devoluções dos últimos 90 dias e mostra onde o produto voltou sem condição de venda e o dinheiro foi para o comprador.",
   },
 ]
 

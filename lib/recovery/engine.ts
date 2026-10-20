@@ -8,6 +8,7 @@ import {
   CallBudget,
   fetchClaim,
   fetchClaimOrder,
+  fetchClaimReasonDetail,
   fetchClaimReturn,
   fetchReturnFailReasons,
   fetchReturnReviews,
@@ -16,14 +17,21 @@ import {
 } from "@/lib/mercadolivre/reputation"
 import { returnAlerts } from "@/lib/recovery/alerts"
 import {
+  cartOrderIds,
   classifyReturn,
+  ownReviews,
   recoveredByMaanu,
+  returnAmount,
   returnPhase,
   returnsQueue,
   reviewAvailability,
   reviewDeadline,
+  reviewMode,
+  rowReviewMode,
+  triageAwaitingSeller,
   type ClaimAction,
   type ClaimDetailLike,
+  type KnownReturn,
   type ParsedReturn,
   type ResolutionLike,
   type ReturnReview,
@@ -78,9 +86,14 @@ const INTERVALS = {
 /** Raio-X: devoluções abertas nos últimos 90 dias (as abertas antes disso também entram, enquanto estiverem abertas). */
 export const SCAN_WINDOW_DAYS = 90
 const RETURNS_PER_RUN = 15
+/**
+ * Mudança das regras do Recuperador (Sessão 31): devoluções lidas antes disso são lidas de novo no ritmo normal (as com
+ * revisão liberada primeiro), para fase, prazo, carrinho e Raio-X seguirem a regra nova. Atualizar ao mudar as regras.
+ */
+export const RECOVERY_RULES_SINCE = "2026-10-20T23:50:00.000Z"
 
 const CLAIM_COLUMNS =
-  "id, claim_id, status, seller_actions, next_due_at, detail, resolution, order_summary, resource_id, ml_created_at, ml_updated_at, sale_at"
+  "id, claim_id, status, seller_actions, next_due_at, detail, resolution, order_summary, resource_id, reason_id, reason_detail, ml_created_at, ml_updated_at, sale_at"
 type CandidateClaim = Pick<
   ClaimRow,
   | "id"
@@ -92,6 +105,8 @@ type CandidateClaim = Pick<
   | "resolution"
   | "order_summary"
   | "resource_id"
+  | "reason_id"
+  | "reason_detail"
   | "ml_created_at"
   | "ml_updated_at"
   | "sale_at"
@@ -110,6 +125,76 @@ function actionsOf(claim: Pick<ClaimRow, "seller_actions">): ClaimAction[] {
   return Array.isArray(claim.seller_actions) ? (claim.seller_actions as unknown as ClaimAction[]) : []
 }
 
+function hasReviewAction(claim: Pick<ClaimRow, "seller_actions">): boolean {
+  const availability = reviewAvailability(actionsOf(claim))
+  return availability.ok || availability.fail
+}
+
+/** Pedido desta reclamação: o que a devolução lista para ela, a venda lida pelo Escudo ou o recurso da reclamação. */
+function claimOrderId(claim: Pick<ClaimRow, "resource_id">, parsed: ParsedReturn | null, summary: OrderSummary | null, existing?: ReturnRow) {
+  const fromReturn = parsed?.orders.find((order) => order.order_id)?.order_id ?? null
+  const fromClaim = claim.resource_id ? Number(claim.resource_id) : null
+  return fromReturn ?? summary?.order_id ?? (fromClaim && Number.isSafeInteger(fromClaim) ? fromClaim : null) ?? (existing?.order_id ? Number(existing.order_id) : null)
+}
+
+/** Pedidos das outras reclamações da mesma devolução (carrinho), a partir das linhas já gravadas da conta. */
+export type SiblingIndex = ReadonlyMap<number, { claimId: number; orderId: number | null }[]>
+
+function siblingIndex(rows: readonly Pick<ReturnRow, "return_id" | "claim_id" | "order_id">[]): SiblingIndex {
+  const index = new Map<number, { claimId: number; orderId: number | null }[]>()
+  for (const row of rows) {
+    if (!row.return_id) continue
+    const list = index.get(Number(row.return_id)) ?? []
+    list.push({ claimId: Number(row.claim_id), orderId: row.order_id === null ? null : Number(row.order_id) })
+    index.set(Number(row.return_id), list)
+  }
+  return index
+}
+
+function siblingOrders(index: SiblingIndex | undefined, returnId: number | null, claimId: number): number[] {
+  if (!index || !returnId) return []
+  return (index.get(returnId) ?? []).flatMap((item) => (item.claimId !== claimId && item.orderId ? [item.orderId] : []))
+}
+
+/** Texto dos motivos do ML (códigos globais, sem dado pessoal): não muda, fica na memória da instância. */
+const reasonTexts = new Map<string, string | null>()
+
+/**
+ * Motivo declarado pelo comprador (ex.: "A minha compra chegou em boas condições, mas eu não a quero mais"). O Escudo só
+ * grava o texto das reclamações que detalha; sem ele, usa o de outra reclamação com o mesmo código e, por último, pergunta
+ * ao ML (1 chamada por código).
+ */
+async function buyerReasonFor(account: ReputationAccount, claim: Pick<ClaimRow, "reason_id" | "reason_detail">, budget: CallBudget) {
+  if (claim.reason_detail) return claim.reason_detail
+  const reasonId = claim.reason_id
+  if (!reasonId) return null
+  if (reasonTexts.has(reasonId)) return reasonTexts.get(reasonId) ?? null
+  const { data, error } = await createServiceClient()
+    .from("reputation_claims")
+    .select("reason_detail")
+    .eq("reason_id", reasonId)
+    .not("reason_detail", "is", null)
+    .limit(1)
+    .maybeSingle()
+  if (error) throw error
+  let text = data?.reason_detail ?? null
+  if (!text && !budget.exhausted) text = (await optional(() => fetchClaimReasonDetail(account.id, reasonId, budget))) ?? null
+  reasonTexts.set(reasonId, text)
+  return text
+}
+
+async function loadSiblings(accountId: string, returnId: number | null): Promise<SiblingIndex> {
+  if (!returnId) return new Map()
+  const { data, error } = await createServiceClient()
+    .from("recovery_returns")
+    .select("return_id, claim_id, order_id")
+    .eq("ml_account_id", accountId)
+    .eq("return_id", returnId)
+    .limit(50)
+  if (error) throw error
+  return siblingIndex(data)
+}
+
 async function optional<T>(call: () => Promise<T>): Promise<T | null> {
   try {
     return await call()
@@ -121,33 +206,65 @@ async function optional<T>(call: () => Promise<T>): Promise<T | null> {
 
 // ---------------------------------------------------------------------------------------------- uma devolução
 
-/** Lê a devolução no ML (devolução + revisões), grava a linha, o achado do Raio-X e o "recuperado". */
-async function syncReturn(account: ReputationAccount, claim: CandidateClaim, existing: ReturnRow | undefined, budget: CallBudget, now: Date) {
+/**
+ * Lê a devolução no ML (devolução + revisões), grava a linha, o achado do Raio-X e o "recuperado". Usa só a revisão do
+ * pedido desta reclamação (a devolução pode juntar vários pedidos de um carrinho) e só pede revisão ao vendedor quando ele
+ * pode agir de verdade (reviewMode).
+ */
+async function syncReturn(
+  account: ReputationAccount,
+  claim: CandidateClaim,
+  existing: ReturnRow | undefined,
+  budget: CallBudget,
+  now: Date,
+  siblings?: SiblingIndex
+) {
   const admin = createServiceClient()
   const claimId = Number(claim.claim_id)
   let parsed: ParsedReturn | null = null
-  let reviews: ReturnReview[] = []
+  let allReviews: ReturnReview[] = []
   try {
     parsed = await fetchClaimReturn(account.id, claimId, budget)
-    if (parsed?.returnId) reviews = (await optional(() => fetchReturnReviews(account.id, parsed?.returnId as number, budget))) ?? []
+    if (parsed?.returnId) allReviews = (await optional(() => fetchReturnReviews(account.id, parsed?.returnId as number, budget))) ?? []
   } catch (error) {
     // 4xx definitivo (reclamação antiga, sem permissão): grava sem a devolução e só tenta de novo quando a reclamação mudar.
     if (!isClientError(error)) throw error
   }
 
   const summary = (claim.order_summary as OrderSummary | null) ?? null
-  const availability = reviewAvailability(actionsOf(claim), claim.status)
-  const canReview = availability.ok || availability.fail
-  const phase = returnPhase({
-    claimStatus: claim.status,
-    parsed,
-    canReview,
-    reviews,
-    reviewSubmitted: Boolean(existing?.review_submitted_at),
+  const orderId = claimOrderId(claim, parsed, summary, existing)
+  const reviews = ownReviews(allReviews, orderId)
+  const returnId = parsed?.returnId ?? existing?.return_id ?? null
+  const orders = cartOrderIds({
+    orders: parsed?.orders ?? [],
+    reviews: allReviews,
+    siblingOrderIds: siblingOrders(siblings, returnId === null ? null : Number(returnId), claimId),
   })
-  const amount = summary?.total_amount ?? null
+  const availability = reviewAvailability(actionsOf(claim))
+  const mode = reviewMode({
+    hasOk: availability.ok,
+    hasFail: availability.fail,
+    destination: parsed?.destination ?? null,
+    shipmentStatus: parsed?.shipmentStatus ?? null,
+    returnStatus: parsed?.status ?? null,
+    reviews,
+  })
+  const reviewSubmitted = Boolean(existing?.review_submitted_at)
+  const phase = returnPhase({ claimStatus: claim.status, parsed, mode, reviews, reviewSubmitted })
+  const deadline = reviewDeadline({
+    mode,
+    actionDue: availability.dueDate,
+    nextDueAt: claim.next_due_at,
+    detail: claim.detail as ClaimDetailLike,
+    reviews,
+    viaTriage: parsed?.viaTriage ?? false,
+  })
+  const claimOrder = parsed?.orders.find((order) => order.order_id === orderId) ?? parsed?.orders[0] ?? null
+  // Venda: a lida pelo Escudo; senão a que a maanu já buscou antes (não apaga o valor a cada leitura).
+  const amount = returnAmount(summary, claimOrder) ?? (existing?.amount === null || existing?.amount === undefined ? null : Number(existing.amount))
   const recovered = recoveredByMaanu({
     maanuFailReview: existing?.review_kind === "fail",
+    submittedAt: existing?.review_submitted_at ?? null,
     claimStatus: claim.status,
     reviews,
     resolution: claim.resolution as ResolutionLike,
@@ -157,7 +274,7 @@ async function syncReturn(account: ReputationAccount, claim: CandidateClaim, exi
     ml_account_id: account.id,
     claim_row_id: claim.id,
     claim_id: claimId,
-    return_id: parsed?.returnId ?? existing?.return_id ?? null,
+    return_id: returnId,
     phase,
     claim_status: claim.status.slice(0, 20),
     return_status: parsed?.status ?? null,
@@ -166,19 +283,18 @@ async function syncReturn(account: ReputationAccount, claim: CandidateClaim, exi
     refund_at: parsed?.refundAt ?? null,
     shipment_status: parsed?.shipmentStatus ?? null,
     destination: parsed?.destination ?? null,
-    is_cart: parsed?.isCart ?? false,
+    is_cart: orders.length > 1,
     orders: (parsed?.orders ?? []) as unknown as Json,
-    can_review_ok: availability.ok,
-    can_review_fail: availability.fail,
-    deadline_at: canReview
-      ? reviewDeadline({ actionDue: availability.dueDate, nextDueAt: claim.next_due_at, detail: claim.detail as ClaimDetailLike })
-      : null,
-    reviews: reviews as unknown as Json,
-    order_id: summary?.order_id ?? (claim.resource_id ? Number(claim.resource_id) : null),
-    item_title: summary?.items[0]?.title?.slice(0, 200) ?? null,
-    sale_at: summary?.date ?? claim.sale_at ?? null,
+    // O que a maanu oferece na tela: só quando o vendedor pode agir de verdade (na contestação, só "com problema").
+    can_review_ok: mode === "arrival" && availability.ok,
+    can_review_fail: mode !== null && availability.fail,
+    deadline_at: deadline.at,
+    reviews: allReviews as unknown as Json,
+    order_id: orderId,
+    item_title: summary?.items[0]?.title?.slice(0, 200) ?? existing?.item_title ?? null,
+    sale_at: summary?.date ?? claim.sale_at ?? existing?.sale_at ?? null,
     amount,
-    currency_id: summary?.currency_id ?? null,
+    currency_id: summary?.currency_id ?? existing?.currency_id ?? null,
     claim_created_at: claim.ml_created_at,
     claim_updated_at: claim.ml_updated_at,
     ml_closed_at: parsed?.closedAt ?? null,
@@ -186,19 +302,20 @@ async function syncReturn(account: ReputationAccount, claim: CandidateClaim, exi
     recovered_amount: recovered ? amount : null,
     synced_at: now.toISOString(),
   }
-  const { data: saved, error } = await admin
-    .from("recovery_returns")
-    .upsert(fields, { onConflict: "ml_account_id,claim_id" })
-    .select("id")
-    .single()
-  if (error) throw error
 
+  // Motivo do comprador só quando importa (contestação ou produto que o armazém tirou de venda).
+  const lossCandidate = mode === "appeal" || reviews.some((review) => review.product_condition === "unsaleable" || review.product_condition === "discard")
+  const buyerReason = lossCandidate ? await buyerReasonFor(account, claim, budget) : claim.reason_detail
   const findingFor = () =>
     classifyReturn({
       claimId,
       claimStatus: claim.status,
       resolution: claim.resolution as ResolutionLike,
       reviews,
+      mode,
+      deadlineAt: deadline.at,
+      reviewSubmittedKind: existing?.review_kind ?? null,
+      buyerReason,
       amount: fields.amount ?? null,
       currencyId: fields.currency_id ?? null,
       orderId: fields.order_id ?? null,
@@ -206,22 +323,26 @@ async function syncReturn(account: ReputationAccount, claim: CandidateClaim, exi
       statusMoney: fields.status_money ?? null,
     })
   let finding = findingFor()
-  // Reclamação antiga sem a venda lida pelo Escudo: busca valor e produto só quando vira achado (1 chamada a mais, rara).
-  if (finding && fields.amount === null && fields.order_id) {
+  // Sem a venda lida pelo Escudo: busca valor e produto quando o dinheiro importa (revisão liberada ou achado), 1 vez.
+  if ((finding || mode) && fields.amount === null && fields.order_id) {
     const order = await optional(() => fetchClaimOrder(account.id, fields.order_id as number, budget))
     if (order?.summary) {
-      const update = {
-        amount: order.summary.total_amount,
-        currency_id: order.summary.currency_id,
-        item_title: order.summary.items[0]?.title?.slice(0, 200) ?? fields.item_title ?? null,
-        sale_at: order.summary.date ?? fields.sale_at ?? null,
-      }
-      Object.assign(fields, update)
-      const { error: amountError } = await admin.from("recovery_returns").update(update).eq("id", saved.id)
-      if (amountError) throw amountError
+      fields.amount = returnAmount(order.summary, claimOrder)
+      fields.currency_id = order.summary.currency_id
+      fields.item_title = order.summary.items[0]?.title?.slice(0, 200) ?? fields.item_title ?? null
+      fields.sale_at = order.summary.date ?? fields.sale_at ?? null
+      if (recovered) fields.recovered_amount = fields.amount
       finding = findingFor()
     }
   }
+
+  const { data: saved, error } = await admin
+    .from("recovery_returns")
+    .upsert(fields, { onConflict: "ml_account_id,claim_id" })
+    .select("id")
+    .single()
+  if (error) throw error
+
   if (finding) {
     const { error: findingError } = await admin.from("recovery_findings").upsert(
       {
@@ -239,6 +360,14 @@ async function syncReturn(account: ReputationAccount, claim: CandidateClaim, exi
       { onConflict: "ml_account_id,dedupe_key" }
     )
     if (findingError) throw findingError
+  } else {
+    // A regra mudou ou a leitura nova não confirma mais o achado: tira o antigo (achado é derivado, não histórico).
+    const { error: deleteError } = await admin
+      .from("recovery_findings")
+      .delete()
+      .eq("ml_account_id", account.id)
+      .eq("dedupe_key", "return:" + claimId)
+    if (deleteError) throw deleteError
   }
 }
 
@@ -247,17 +376,28 @@ async function syncReturn(account: ReputationAccount, claim: CandidateClaim, exi
 async function refreshReturnAlerts(account: ReputationAccount, now: Date) {
   const { data, error } = await createServiceClient()
     .from("recovery_returns")
-    .select("id, claim_id, phase, deadline_at, item_title, recovered_at, recovered_amount")
+    .select(
+      "id, claim_id, phase, deadline_at, item_title, amount, recovered_at, recovered_amount, can_review_ok, can_review_fail, destination, shipment_status, return_status, reviews, order_id"
+    )
     .eq("ml_account_id", account.id)
     .or("phase.eq.needs_review,recovered_at.gte." + iso(now.getTime() - 3 * DAY))
     .limit(300)
   if (error) throw error
   const drafts = returnAlerts(
-    data.map((row) => ({
-      ...row,
+    data
+      .map((row) => ({
+      id: row.id,
       claim_id: Number(row.claim_id),
+      phase: row.phase,
+      mode: rowReviewMode(row),
+      deadline_at: row.deadline_at,
+      item_title: row.item_title,
+      amount: row.amount === null ? null : Number(row.amount),
+      recovered_at: row.recovered_at,
       recovered_amount: row.recovered_amount === null ? null : Number(row.recovered_amount),
-    })),
+    }))
+      // Só o que o vendedor pode fazer de verdade (linha da regra antiga que não é revisável não vira alerta).
+      .map((row) => (row.phase === "needs_review" && row.mode === null ? { ...row, phase: "other" } : row)),
     now
   )
   await applyAlerts(account, drafts, RETURN_ALERT_KINDS, undefined, now)
@@ -344,17 +484,31 @@ export async function syncRecoveryAccount(account: ReputationAccount, budget: Ca
       const { data: known, error: knownError } = await admin.from("recovery_returns").select("*").eq("ml_account_id", account.id).limit(5000)
       if (knownError) throw knownError
       const byClaim = new Map(known.map((row) => [Number(row.claim_id), row]))
+      const siblings = siblingIndex(known)
+      const knownState = new Map<number, KnownReturn>(
+        [...byClaim].map(([id, row]) => [
+          id,
+          {
+            claim_updated_at: row.claim_updated_at,
+            synced_at: row.synced_at,
+            phase: row.phase,
+            mode: rowReviewMode(row),
+            return_status: row.return_status,
+          },
+        ])
+      )
       const queue = returnsQueue(
-        claims.map((claim) => ({ ...claim, claim_id: Number(claim.claim_id) })),
-        new Map([...byClaim].map(([id, row]) => [id, { claim_updated_at: row.claim_updated_at, synced_at: row.synced_at, phase: row.phase }])),
-        now
+        claims.map((claim) => ({ ...claim, claim_id: Number(claim.claim_id), hasReviewAction: hasReviewAction(claim) })),
+        knownState,
+        now,
+        RECOVERY_RULES_SINCE
       )
       let processed = 0
       let stop: unknown = null
       for (const claim of queue.slice(0, RETURNS_PER_RUN)) {
         if (budget.exhausted || Date.now() > deadline) break
         try {
-          await syncReturn(account, claim, byClaim.get(Number(claim.claim_id)), budget, now)
+          await syncReturn(account, claim, byClaim.get(Number(claim.claim_id)), budget, now, siblings)
           processed++
         } catch (error) {
           if (isStopError(error)) {
@@ -371,7 +525,7 @@ export async function syncRecoveryAccount(account: ReputationAccount, budget: Ca
       await refreshReturnAlerts(account, now)
       if (stop) throw stop
       if (processed < queue.length) next = INTERVALS.unfinished
-      else if (known.some((row) => row.phase === "needs_review")) next = INTERVALS.needsReview
+      else if (known.some((row) => row.phase === "needs_review" && rowReviewMode(row) === "arrival")) next = INTERVALS.needsReview
     }
   } catch (error) {
     if (error instanceof BudgetExhaustedError) next = budget.rateLimited ? INTERVALS.rateLimited : INTERVALS.unfinished
@@ -495,7 +649,9 @@ export async function syncReturnNow(organizationId: string, returnRowId: string)
   const { data: claim, error } = await createServiceClient().from("reputation_claims").select(CLAIM_COLUMNS).eq("id", loaded.claim.id).single()
   if (error) throw error
   const { data: row } = await createServiceClient().from("recovery_returns").select("*").eq("id", returnRowId).single()
-  await syncReturn(loaded.account, claim, row ?? loaded.row, new CallBudget(4), new Date())
+  const current = row ?? loaded.row
+  const siblings = await loadSiblings(loaded.account.id, current.return_id === null ? null : Number(current.return_id))
+  await syncReturn(loaded.account, claim, current, new CallBudget(5), new Date(), siblings)
   await refreshReturnAlerts(loaded.account, new Date())
 }
 
@@ -523,16 +679,24 @@ export async function draftReturnMessage(
   const admin = createServiceClient()
   const { data: row, error } = await admin
     .from("recovery_returns")
-    .select("id, ml_account_id, item_title, orders")
+    .select(
+      "id, ml_account_id, claim_row_id, item_title, orders, order_id, can_review_ok, can_review_fail, destination, shipment_status, return_status, reviews"
+    )
     .eq("id", returnRowId)
     .eq("organization_id", organizationId)
     .maybeSingle()
   if (error) throw error
   if (!row) return null
-  const { data: organization } = await admin.from("organizations").select("name").eq("id", organizationId).single()
+  const [{ data: organization }, { data: claim }] = await Promise.all([
+    admin.from("organizations").select("name").eq("id", organizationId).single(),
+    admin.from("reputation_claims").select("reason_detail, detail").eq("id", row.claim_row_id).maybeSingle(),
+  ])
   const checks = checkLabels(input.reasonId, input.checks)
   const orders = Array.isArray(row.orders) ? (row.orders as { return_quantity?: unknown }[]) : []
   const quantity = orders.reduce((total, order) => total + (Number(order?.return_quantity) || 0), 0) || null
+  const appeal = rowReviewMode(row) === "appeal"
+  const detail = (claim?.detail ?? null) as { title?: unknown; description?: unknown } | null
+  const verdict = [detail?.title, detail?.description].filter((part): part is string => typeof part === "string" && part.trim() !== "").join(". ")
   const prompt = {
     storeName: organization?.name ?? "sua loja",
     reasonLabel: input.reasonLabel,
@@ -541,6 +705,9 @@ export async function draftReturnMessage(
     photos: input.photos,
     itemTitle: row.item_title,
     quantity,
+    appeal,
+    buyerReason: appeal ? (claim?.reason_detail ?? null) : null,
+    warehouseVerdict: appeal ? verdict || null : null,
   }
   try {
     return await runReturnMessageModel(prompt, {
@@ -550,7 +717,10 @@ export async function draftReturnMessage(
     })
   } catch (error) {
     if (!(error instanceof PlatformAiPausedError)) console.error("[recuperador] relato da IA:", errorMessage(error))
-    return { message: fallbackReturnMessage({ reasonLabel: input.reasonLabel, checks, notes: input.notes, photos: input.photos }), fromAi: false }
+    return {
+      message: fallbackReturnMessage({ reasonLabel: input.reasonLabel, checks, notes: input.notes, photos: input.photos, appeal }),
+      fromAi: false,
+    }
   }
 }
 
@@ -626,15 +796,42 @@ export async function submitReturnReviewFor(input: ReviewInput): Promise<ReviewR
   const details: Record<string, unknown> = { decision: input.decision }
   let submitted: { returnId: number; result: { status: number; body: unknown } } | null = null
   try {
-    // A revisão ainda está liberada? (A tela pode estar desatualizada.)
+    // Tudo lido de novo no ML (a tela pode estar desatualizada): a ação continua liberada E o vendedor pode agir de verdade
+    // (o pacote chegou até ele ou o armazém espera a contestação). Nunca revisa um pacote que ainda está a caminho.
     const current = toClaimRow(await fetchClaim(account.id, claimId, budget), account.ml_user_id)
-    const availability = reviewAvailability(current?.seller_actions ?? [], current?.status ?? loaded.claim.status)
-    if (!(input.decision === "ok" ? availability.ok : availability.fail)) {
+    const availability = reviewAvailability(current?.seller_actions ?? [])
+    const parsed = await fetchClaimReturn(account.id, claimId, budget)
+    const allReviews = parsed?.returnId ? ((await optional(() => fetchReturnReviews(account.id, parsed.returnId as number, budget))) ?? []) : []
+    const orderId = row.order_id ? Number(row.order_id) : claimOrderId(loaded.claim, parsed, null)
+    const reviews = ownReviews(allReviews, orderId)
+    const mode = reviewMode({
+      hasOk: availability.ok,
+      hasFail: availability.fail,
+      destination: parsed?.destination ?? null,
+      shipmentStatus: parsed?.shipmentStatus ?? null,
+      returnStatus: parsed?.status ?? null,
+      reviews,
+    })
+    const allowed = input.decision === "ok" ? mode === "arrival" && availability.ok : mode !== null && availability.fail
+    if (!allowed) {
       await syncReturnNow(input.organizationId, input.returnRowId).catch(() => {})
-      return { ok: false, message: "O Mercado Livre não libera mais esta revisão. Atualizamos a devolução." }
+      return {
+        ok: false,
+        message:
+          mode === null && (availability.ok || availability.fail)
+            ? "O pacote ainda não chegou até você (ou o armazém do ML ainda está revisando). Atualizamos a devolução."
+            : "O Mercado Livre não libera mais esta revisão. Atualizamos a devolução.",
+      }
     }
-    const returnId = row.return_id ?? (await fetchClaimReturn(account.id, claimId, budget))?.returnId ?? null
+    const returnId = parsed?.returnId ?? row.return_id ?? null
     if (!returnId) return { ok: false, message: "O Mercado Livre não informou a devolução desta reclamação. Revise pelo app do ML." }
+    const siblings = await loadSiblings(account.id, Number(returnId))
+    const isCart =
+      cartOrderIds({ orders: parsed?.orders ?? [], reviews: allReviews, siblingOrderIds: siblingOrders(siblings, Number(returnId), claimId) })
+        .length > 1
+    details.mode = mode
+    details.is_cart = isCart
+    if (mode === "appeal") details.warehouse_reason = triageAwaitingSeller(reviews)?.reason_id ?? null
 
     let body: unknown = reviewPayload("ok")
     if (input.decision === "fail") {
@@ -650,7 +847,7 @@ export async function submitReturnReviewFor(input: ReviewInput): Promise<ReviewR
         message: input.message,
         photos: input.photos,
         reasons,
-        isCart: row.is_cart,
+        isCart,
       })
       if (invalid) return { ok: false, message: invalid }
       const names: string[] = []
@@ -661,7 +858,13 @@ export async function submitReturnReviewFor(input: ReviewInput): Promise<ReviewR
       details.reason = input.reasonId
       details.message = input.message.trim()
       details.attachments = names
-      body = reviewPayload("fail", { reasonId: input.reasonId as string, message: input.message, attachments: names })
+      if (isCart && orderId) details.order_id = orderId
+      body = reviewPayload("fail", {
+        reasonId: input.reasonId as string,
+        message: input.message,
+        attachments: names,
+        orderId: isCart ? orderId : null,
+      })
     }
     submitted = { returnId, result: await submitReturnReview(account.id, returnId, body, budget) }
   } catch (error) {
@@ -703,6 +906,8 @@ export async function submitReturnReviewFor(input: ReviewInput): Promise<ReviewR
     message:
       input.decision === "ok"
         ? "Pronto: você confirmou ao Mercado Livre que a devolução chegou certinho."
-        : "Revisão enviada. O Mercado Livre analisa e avisamos aqui se você for ressarcido.",
+        : details.mode === "appeal"
+          ? "Contestação enviada. O Mercado Livre analisa e avisamos aqui se você for ressarcido."
+          : "Revisão enviada. O Mercado Livre analisa e avisamos aqui se você for ressarcido.",
   }
 }

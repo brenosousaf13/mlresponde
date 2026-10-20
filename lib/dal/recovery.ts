@@ -1,6 +1,14 @@
 import "server-only"
 
-import type { FindingKind, ReturnPhase, ReturnReview } from "@/lib/recovery/returns"
+import {
+  findingOutcome,
+  rowReviewMode,
+  type FindingKind,
+  type FindingOutcome,
+  type ReturnPhase,
+  type ReturnReview,
+  type ReviewMode,
+} from "@/lib/recovery/returns"
 import { createClient } from "@/lib/supabase/server"
 
 // Leituras do Recuperador com a sessão do usuário (RLS por organização). Escrita só no servidor (lib/recovery/engine.ts).
@@ -24,7 +32,7 @@ export function parseRecoveryTab(value: unknown): RecoveryTab {
 }
 
 const LIST_COLUMNS =
-  "id, claim_id, phase, item_title, amount, currency_id, deadline_at, claim_created_at, ml_closed_at, status_money, shipment_status, destination, review_kind, review_submitted_at, recovered_at, recovered_amount, is_cart"
+  "id, claim_id, phase, item_title, amount, currency_id, deadline_at, claim_created_at, ml_closed_at, status_money, shipment_status, destination, review_kind, review_submitted_at, recovered_at, recovered_amount, is_cart, can_review_ok, can_review_fail, return_status, reviews, order_id"
 
 export type ReturnListRow = {
   id: string
@@ -44,14 +52,42 @@ export type ReturnListRow = {
   recovered_at: string | null
   recovered_amount: number | null
   is_cart: boolean
+  /** O que o vendedor pode fazer agora (arrival = revisar o pacote que chegou; appeal = contestar o armazém). */
+  mode: ReviewMode | null
 }
 
 function toListRow(row: Record<string, unknown>): ReturnListRow {
+  const mode =
+    row.phase === "needs_review"
+      ? rowReviewMode({
+          can_review_ok: Boolean(row.can_review_ok),
+          can_review_fail: Boolean(row.can_review_fail),
+          destination: (row.destination as string | null) ?? null,
+          shipment_status: (row.shipment_status as string | null) ?? null,
+          return_status: (row.return_status as string | null) ?? null,
+          reviews: row.reviews,
+          order_id: (row.order_id as number | string | null) ?? null,
+        })
+      : null
   return {
-    ...(row as unknown as ReturnListRow),
+    id: String(row.id),
     claim_id: Number(row.claim_id),
-    amount: row.amount === null ? null : Number(row.amount),
-    recovered_amount: row.recovered_amount === null ? null : Number(row.recovered_amount),
+    phase: row.phase as ReturnPhase,
+    item_title: (row.item_title as string | null) ?? null,
+    amount: row.amount === null || row.amount === undefined ? null : Number(row.amount),
+    currency_id: (row.currency_id as string | null) ?? null,
+    deadline_at: (row.deadline_at as string | null) ?? null,
+    claim_created_at: (row.claim_created_at as string | null) ?? null,
+    ml_closed_at: (row.ml_closed_at as string | null) ?? null,
+    status_money: (row.status_money as string | null) ?? null,
+    shipment_status: (row.shipment_status as string | null) ?? null,
+    destination: (row.destination as string | null) ?? null,
+    review_kind: (row.review_kind as string | null) ?? null,
+    review_submitted_at: (row.review_submitted_at as string | null) ?? null,
+    recovered_at: (row.recovered_at as string | null) ?? null,
+    recovered_amount: row.recovered_amount === null || row.recovered_amount === undefined ? null : Number(row.recovered_amount),
+    is_cart: Boolean(row.is_cart),
+    mode,
   }
 }
 
@@ -59,6 +95,7 @@ export type FindingRow = {
   id: string
   return_row_id: string | null
   kind: FindingKind
+  outcome: FindingOutcome
   confidence: string
   amount: number | null
   currency_id: string | null
@@ -72,8 +109,19 @@ export type RecoveryOverview = {
   scan: { status: string; returns_total: number; returns_done: number; completed_at: string | null } | null
   /** O Escudo já terminou a busca inicial das reclamações desta conta (o Raio-X depende dela). */
   claimsReady: boolean
-  waiting: { count: number; nextDeadline: string | null; rows: ReturnListRow[] }
-  suspect: { count: number; amount: number }
+  /** Revise agora: o pacote chegou até o vendedor ou dá para contestar o armazém. amount = soma dos valores conhecidos. */
+  waiting: {
+    count: number
+    amount: number
+    withoutAmount: number
+    appeals: number
+    nextDeadline: string | null
+    rows: ReturnListRow[]
+  }
+  /** Raio-X: contestações enviadas que o ML ainda analisa. */
+  appealed: { count: number; amount: number }
+  /** Raio-X: produto voltou sem condição de venda, o dinheiro ficou com o comprador e não dá mais para contestar. */
+  lost: { count: number; amount: number }
   recovered: { count: number; amount: number }
   reimbursed: { count: number; amount: number }
   counts: Record<ReturnFilter, number>
@@ -99,8 +147,8 @@ export async function getRecoveryOverview(accountId: string): Promise<RecoveryOv
       .eq("ml_account_id", accountId)
       .eq("phase", "needs_review")
       .order("deadline_at", { ascending: true, nullsFirst: false })
-      .limit(50),
-    supabase.from("recovery_findings").select("kind, status, amount").eq("ml_account_id", accountId).limit(5000),
+      .limit(300),
+    supabase.from("recovery_findings").select("kind, status, amount, evidence").eq("ml_account_id", accountId).limit(5000),
     supabase.from("recovery_returns").select("recovered_amount").eq("ml_account_id", accountId).not("recovered_at", "is", null).limit(5000),
     supabase
       .from("recovery_returns")
@@ -114,15 +162,30 @@ export async function getRecoveryOverview(accountId: string): Promise<RecoveryOv
       .eq("phase", "closed"),
   ])
   for (const result of [sync, scan, escudo, waiting, findings, recovered, andamento, encerradas]) if (result.error) throw result.error
-  const waitingRows = (waiting.data ?? []).map((row) => toListRow(row as Record<string, unknown>))
-  const suspect = (findings.data ?? []).filter((row) => row.kind === "return_unsaleable_unreimbursed" && row.status === "open")
-  const reimbursed = (findings.data ?? []).filter((row) => row.kind === "return_reimbursed")
+  // Linha lida pela regra antiga (antes da Sessão 31) que não é revisável de verdade some na hora; a releitura corrige.
+  const waitingRows = (waiting.data ?? []).map((row) => toListRow(row as Record<string, unknown>)).filter((row) => row.mode !== null)
+  const outcomes = (findings.data ?? []).map((row) => ({
+    ...row,
+    outcome: findingOutcome({ kind: row.kind as FindingKind, status: row.status, evidence: (row.evidence ?? {}) as Record<string, unknown> }),
+  }))
+  const appealed = outcomes.filter((row) => row.outcome === "appealed")
+  const lost = outcomes.filter((row) => row.outcome === "expired")
+  const reimbursed = outcomes.filter((row) => row.outcome === "reimbursed")
+  const nowTime = Date.now()
   return {
     sync: sync.data ?? null,
     scan: scan.data ?? null,
     claimsReady: Boolean(escudo.data?.claims_backfilled_at),
-    waiting: { count: waitingRows.length, nextDeadline: waitingRows.find((row) => row.deadline_at)?.deadline_at ?? null, rows: waitingRows },
-    suspect: { count: suspect.length, amount: sum(suspect, "amount") },
+    waiting: {
+      count: waitingRows.length,
+      amount: sum(waitingRows, "amount"),
+      withoutAmount: waitingRows.filter((row) => row.amount === null).length,
+      appeals: waitingRows.filter((row) => row.mode === "appeal").length,
+      nextDeadline: waitingRows.find((row) => row.deadline_at && Date.parse(row.deadline_at) > nowTime)?.deadline_at ?? null,
+      rows: waitingRows,
+    },
+    appealed: { count: appealed.length, amount: sum(appealed, "amount") },
+    lost: { count: lost.length, amount: sum(lost, "amount") },
     recovered: { count: recovered.data?.length ?? 0, amount: sum(recovered.data ?? [], "recovered_amount") },
     reimbursed: { count: reimbursed.length, amount: sum(reimbursed, "amount") },
     counts: { revisar: waitingRows.length, andamento: andamento.count ?? 0, encerradas: encerradas.count ?? 0 },
@@ -138,7 +201,8 @@ export async function getReturnsTab(accountId: string, filter: ReturnFilter): Pr
       : query.order("claim_created_at", { ascending: false, nullsFirst: false })
   const { data, error } = await query.limit(200)
   if (error) throw error
-  return data.map((row) => toListRow(row as Record<string, unknown>))
+  const rows = data.map((row) => toListRow(row as Record<string, unknown>))
+  return filter === "revisar" ? rows.filter((row) => row.mode !== null) : rows
 }
 
 export async function getFindings(accountId: string): Promise<FindingRow[]> {
@@ -150,12 +214,16 @@ export async function getFindings(accountId: string): Promise<FindingRow[]> {
     .order("detected_at", { ascending: false })
     .limit(300)
   if (error) throw error
-  return data.map((row) => ({
-    ...row,
-    kind: row.kind as FindingKind,
-    amount: row.amount === null ? null : Number(row.amount),
-    evidence: (row.evidence ?? {}) as Record<string, unknown>,
-  }))
+  return data.map((row) => {
+    const evidence = (row.evidence ?? {}) as Record<string, unknown>
+    return {
+      ...row,
+      kind: row.kind as FindingKind,
+      outcome: findingOutcome({ kind: row.kind as FindingKind, status: row.status, evidence }),
+      amount: row.amount === null ? null : Number(row.amount),
+      evidence,
+    }
+  })
 }
 
 export type ReturnDetail = {
@@ -173,9 +241,22 @@ export type ReturnDetail = {
     reviews: ReturnReview[]
     synced_at: string
   }
-  claim: { reason_id: string | null; reason_detail: string | null; buyer_nickname: string | null; status: string } | null
+  claim: {
+    reason_id: string | null
+    reason_detail: string | null
+    buyer_nickname: string | null
+    status: string
+    /** O que o ML mostra na reclamação agora (ex.: "Devolução revisada. Solicite a retirada do produto" + a explicação). */
+    ml_title: string | null
+    ml_description: string | null
+  } | null
   account: { id: string; nickname: string }
   actions: { id: string; action: string; status: string; error: string | null; details: Record<string, unknown>; performed_at: string }[]
+}
+
+function detailText(detail: unknown, key: "title" | "description"): string | null {
+  const value = detail && typeof detail === "object" ? (detail as Record<string, unknown>)[key] : null
+  return typeof value === "string" && value.trim() ? value.trim().slice(0, 400) : null
 }
 
 export async function getReturnDetail(organizationId: string, returnRowId: string): Promise<ReturnDetail | null> {
@@ -189,7 +270,7 @@ export async function getReturnDetail(organizationId: string, returnRowId: strin
   if (error) throw error
   if (!row) return null
   const [claim, account, actions] = await Promise.all([
-    supabase.from("reputation_claims").select("reason_id, reason_detail, buyer_nickname, status").eq("id", row.claim_row_id).maybeSingle(),
+    supabase.from("reputation_claims").select("reason_id, reason_detail, buyer_nickname, status, detail").eq("id", row.claim_row_id).maybeSingle(),
     supabase.from("ml_accounts").select("id, nickname, ml_user_id").eq("id", row.ml_account_id).single(),
     supabase
       .from("recovery_actions")
@@ -201,6 +282,18 @@ export async function getReturnDetail(organizationId: string, returnRowId: strin
   if (claim.error) throw claim.error
   if (account.error) throw account.error
   if (actions.error) throw actions.error
+  // O Escudo só grava o texto do motivo das reclamações que detalha: usa o de outra reclamação da loja com o mesmo código.
+  let reasonDetail = claim.data?.reason_detail ?? null
+  if (!reasonDetail && claim.data?.reason_id) {
+    const { data: same } = await supabase
+      .from("reputation_claims")
+      .select("reason_detail")
+      .eq("reason_id", claim.data.reason_id)
+      .not("reason_detail", "is", null)
+      .limit(1)
+      .maybeSingle()
+    reasonDetail = same?.reason_detail ?? null
+  }
   return {
     row: {
       ...toListRow(row as unknown as Record<string, unknown>),
@@ -217,7 +310,16 @@ export async function getReturnDetail(organizationId: string, returnRowId: strin
       reviews: Array.isArray(row.reviews) ? (row.reviews as unknown as ReturnReview[]) : [],
       synced_at: row.synced_at,
     },
-    claim: claim.data ?? null,
+    claim: claim.data
+      ? {
+          reason_id: claim.data.reason_id,
+          reason_detail: reasonDetail,
+          buyer_nickname: claim.data.buyer_nickname,
+          status: claim.data.status,
+          ml_title: detailText(claim.data.detail, "title"),
+          ml_description: detailText(claim.data.detail, "description"),
+        }
+      : null,
     account: { id: account.data.id, nickname: account.data.nickname || "Conta " + account.data.ml_user_id },
     actions: actions.data.map((action) => ({ ...action, details: (action.details ?? {}) as Record<string, unknown> })),
   }

@@ -3,8 +3,9 @@ import { RETURN_MESSAGE_MAX, fallbackReturnMessage } from "@/lib/recovery/review
 
 /**
  * Relato da revisão de devolução pela IA (puro, testado em tests/unit/recovery.test.ts). A IA só escreve, a partir do
- * motivo e do que o dono marcou: não vê as fotos (fase futura), não inventa dano e não põe contato externo. O dono lê,
- * edita e decide; nada é enviado sozinho.
+ * motivo, do que o dono marcou e (na contestação da revisão do armazém) do que o comprador declarou e do que o ML
+ * registrou: não vê as fotos (fase futura), não inventa dano e não põe contato externo. O dono lê, edita e decide; nada é
+ * enviado sozinho.
  */
 
 export type ReturnMessageInput = {
@@ -15,6 +16,12 @@ export type ReturnMessageInput = {
   photos: number
   itemTitle: string | null
   quantity: number | null
+  /** Contestação da revisão do armazém do ML (o vendedor pode não ter o produto em mãos). */
+  appeal?: boolean
+  /** Motivo declarado pelo comprador ao abrir a devolução (texto do ML). */
+  buyerReason?: string | null
+  /** O que o armazém do ML registrou na revisão (texto do ML). */
+  warehouseVerdict?: string | null
 }
 
 export const RETURN_MESSAGE_SCHEMA = {
@@ -24,9 +31,11 @@ export const RETURN_MESSAGE_SCHEMA = {
   required: ["message"],
 } as const
 
-export function buildReturnMessageSystemPrompt(storeName: string): string {
+export function buildReturnMessageSystemPrompt(storeName: string, appeal = false): string {
   return [
-    "Você escreve, para a loja \"" + storeName + "\" (vendedora no Mercado Livre Brasil), o relato da revisão de uma devolução que chegou com problema.",
+    appeal
+      ? "Você escreve, para a loja \"" + storeName + "\" (vendedora no Mercado Livre Brasil), a contestação da revisão que o armazém do Mercado Livre fez numa devolução: o armazém marcou o produto como sem condição de venda e devolveu o dinheiro ao comprador."
+      : "Você escreve, para a loja \"" + storeName + "\" (vendedora no Mercado Livre Brasil), o relato da revisão de uma devolução que chegou com problema.",
     "O relato vai para a equipe do Mercado Livre que decide se o vendedor é ressarcido.",
     "",
     "Regras:",
@@ -35,7 +44,12 @@ export function buildReturnMessageSystemPrompt(storeName: string): string {
     "- Se houver fotos, diga que elas vão anexadas. Se não houver, não mencione fotos.",
     "- Não acuse o comprador de má-fé nem use adjetivos fortes. Descreva o que foi constatado.",
     "- Proibido contato fora do Mercado Livre: nada de telefone, WhatsApp, e-mail, links ou redes sociais.",
-    "- Termine pedindo a análise do caso.",
+    "- Termine pedindo a análise do caso" + (appeal ? " e o ressarcimento do valor da venda." : "."),
+    ...(appeal
+      ? [
+          "- Na contestação, cite o motivo que o comprador declarou e o que o armazém registrou só como estão no texto (não acrescente nada) e explique, com os fatos do vendedor, por que o produto voltou fora das condições em que foi enviado.",
+        ]
+      : []),
   ].join("\n")
 }
 
@@ -46,12 +60,19 @@ export function buildReturnMessageUserPrompt(input: ReturnMessageInput): string 
     "O que o vendedor marcou ao conferir: " + (input.checks.length ? input.checks.join("; ") : "(nada marcado)"),
     "Observações do vendedor: " + (input.notes.trim() ? input.notes.trim().slice(0, 600) : "(nenhuma)"),
     "Fotos anexadas: " + input.photos,
+    ...(input.appeal
+      ? [
+          "Motivo declarado pelo comprador: " + (input.buyerReason?.trim() ? input.buyerReason.trim().slice(0, 300) : "(não informado)"),
+          "O que o armazém do Mercado Livre registrou: " +
+            (input.warehouseVerdict?.trim() ? input.warehouseVerdict.trim().slice(0, 400) : "(não informado)"),
+        ]
+      : []),
   ].join("\n")
 }
 
 export function buildReturnMessageMessages(input: ReturnMessageInput) {
   return [
-    { role: "system" as const, content: buildReturnMessageSystemPrompt(input.storeName) },
+    { role: "system" as const, content: buildReturnMessageSystemPrompt(input.storeName, Boolean(input.appeal)) },
     { role: "user" as const, content: buildReturnMessageUserPrompt(input) },
   ]
 }
@@ -62,7 +83,13 @@ export function normalizeReturnMessage(raw: unknown, input: ReturnMessageInput):
   const clipped = text.length > RETURN_MESSAGE_MAX ? text.slice(0, RETURN_MESSAGE_MAX - 1).trimEnd() + "…" : text
   if (!clipped || containsExternalContact(clipped)) {
     return {
-      message: fallbackReturnMessage({ reasonLabel: input.reasonLabel, checks: input.checks, notes: input.notes, photos: input.photos }),
+      message: fallbackReturnMessage({
+        reasonLabel: input.reasonLabel,
+        checks: input.checks,
+        notes: input.notes,
+        photos: input.photos,
+        appeal: input.appeal,
+      }),
       fromAi: false,
     }
   }

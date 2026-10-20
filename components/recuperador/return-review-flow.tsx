@@ -51,21 +51,29 @@ type Photo = { file: File; url: string }
 
 /**
  * Revisão da devolução, feita para o celular: "chegou certinho" (1 confirmação) ou "chegou com problema" (motivo, o que
- * viu, fotos, relato escrito pela IA e editável, 1 confirmação). Só dono/administrador envia; nada sai sozinho.
+ * viu, fotos, relato escrito pela IA e editável, 1 confirmação). No modo "appeal" é a contestação da revisão do armazém
+ * do ML (só "com problema"). Só dono/administrador envia; nada sai sozinho.
  */
 export function ReturnReviewFlow({
   returnRowId,
   canManage,
+  mode,
   canOk,
   canFail,
   isCart,
+  cartOrders,
+  amount,
 }: {
   returnRowId: string
   canManage: boolean
+  mode: "arrival" | "appeal"
   canOk: boolean
   canFail: boolean
   isCart: boolean
+  cartOrders: number
+  amount: string | null
 }) {
+  const appeal = mode === "appeal"
   const router = useRouter()
   const [step, setStep] = useState<"choose" | "problem">("choose")
   const [confirm, setConfirm] = useState<ReviewDecision | null>(null)
@@ -206,9 +214,15 @@ export function ReturnReviewFlow({
   return (
     <Card className="border-primary/40">
       <CardHeader>
-        <CardTitle className="text-lg">A devolução chegou. Como veio o produto?</CardTitle>
+        <CardTitle className="text-lg">
+          {appeal ? "Contestar a revisão do armazém do Mercado Livre" : "A devolução chegou. Como veio o produto?"}
+        </CardTitle>
         <CardDescription>
-          Confira o pacote e responda ao Mercado Livre por aqui. Se chegou com problema, as fotos e o relato pesam a seu favor.
+          {appeal
+            ? "O armazém do ML marcou o produto como sem condição de venda e devolveu " +
+              (amount ? amount + " " : "o dinheiro ") +
+              "ao comprador. Se o produto saiu em perfeito estado (e voltou usado, danificado, incompleto, diferente ou sem a embalagem original), conteste por aqui. A decisão é do Mercado Livre."
+            : "Confira o pacote e responda ao Mercado Livre por aqui. Se chegou com problema, as fotos e o relato pesam a seu favor."}
         </CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-5">
@@ -245,9 +259,11 @@ export function ReturnReviewFlow({
               >
                 <span className="flex items-center gap-2 text-base font-semibold">
                   <PackageXIcon className="size-5 text-red-600" />
-                  Chegou com problema
+                  {appeal ? "Contestar a revisão" : "Chegou com problema"}
                 </span>
-                <span className="text-sm font-normal text-muted-foreground">Avariado, incompleto, diferente ou vazio.</span>
+                <span className="text-sm font-normal text-muted-foreground">
+                  {appeal ? "Escolha o motivo, junte fotos e a IA escreve a contestação." : "Avariado, incompleto, diferente ou vazio."}
+                </span>
               </Button>
             ) : null}
           </div>
@@ -294,8 +310,8 @@ export function ReturnReviewFlow({
               )}
               {isCart ? (
                 <p className="text-xs text-muted-foreground">
-                  Esta devolução tem vários pedidos: a revisão vale para o pacote inteiro. Para revisar um pedido só, use o app do
-                  Mercado Livre.
+                  Esta devolução junta {cartOrders} pedidos de um carrinho: a maanu envia {appeal ? "a contestação" : "a revisão"} só
+                  do pedido desta reclamação.
                 </p>
               ) : null}
             </section>
@@ -333,6 +349,12 @@ export function ReturnReviewFlow({
                           <li key={tip}>{tip}</li>
                         ))}
                       </ul>
+                    ) : null}
+                    {appeal ? (
+                      <p className="text-xs text-muted-foreground">
+                        O produto está no Full? Valem fotos de quando ele saiu (embalagem, etiqueta, peça inteira) ou depois de
+                        retirar o produto do Full.
+                      </p>
                     ) : null}
                     <div className="grid grid-cols-3 gap-2 sm:grid-cols-5">
                       {photos.map((photo, index) => (
@@ -390,7 +412,7 @@ export function ReturnReviewFlow({
 
                 <section className="flex flex-col gap-3">
                   <div className="flex flex-wrap items-center justify-between gap-2">
-                    <h3 className="text-sm font-semibold">Relato para o Mercado Livre</h3>
+                    <h3 className="text-sm font-semibold">{appeal ? "Contestação para o Mercado Livre" : "Relato para o Mercado Livre"}</h3>
                     <Button variant="outline" size="sm" className="bg-card" onClick={draft} disabled={drafting || pending}>
                       {drafting ? <Spinner data-icon="inline-start" /> : <SparklesIcon data-icon="inline-start" />}
                       {message ? "Escrever de novo com a IA" : "Escrever com a IA"}
@@ -412,7 +434,7 @@ export function ReturnReviewFlow({
 
                 <Button size="lg" className="w-full sm:w-fit" disabled={!canManage || pending || Boolean(invalid)} onClick={() => setConfirm("fail")}>
                   <SendIcon data-icon="inline-start" />
-                  Enviar a revisão ao Mercado Livre
+                  {appeal ? "Enviar a contestação ao Mercado Livre" : "Enviar a revisão ao Mercado Livre"}
                 </Button>
                 {invalid && message ? <p className="text-sm text-muted-foreground">{invalid}</p> : null}
               </>
@@ -425,10 +447,18 @@ export function ReturnReviewFlow({
         {confirm ? (
           <AlertDialogContent>
             <AlertDialogHeader>
-              <AlertDialogTitle>{confirm === "ok" ? "Confirmar que chegou certinho?" : "Enviar a revisão ao Mercado Livre?"}</AlertDialogTitle>
+              <AlertDialogTitle>
+                {confirm === "ok"
+                  ? "Confirmar que chegou certinho?"
+                  : appeal
+                    ? "Enviar a contestação ao Mercado Livre?"
+                    : "Enviar a revisão ao Mercado Livre?"}
+              </AlertDialogTitle>
               <AlertDialogDescription>
                 {confirm === "ok"
-                  ? "A maanu avisa o Mercado Livre que o produto voltou como você enviou. O dinheiro segue para o comprador. Não dá para desfazer."
+                  ? "A maanu avisa o Mercado Livre que o produto voltou como você enviou. O dinheiro segue para o comprador." +
+                    (isCart ? " Este pacote junta " + cartOrders + " pedidos: a confirmação vale para todos eles." : "") +
+                    " Não dá para desfazer."
                   : "A maanu envia ao Mercado Livre o motivo, o relato" +
                     (photos.length ? " e " + (photos.length === 1 ? "a foto" : "as " + photos.length + " fotos") : "") +
                     ". A equipe do ML analisa e decide se você é ressarcido. Não dá para desfazer."}
@@ -438,7 +468,7 @@ export function ReturnReviewFlow({
               <AlertDialogCancel disabled={pending}>Voltar</AlertDialogCancel>
               <AlertDialogAction disabled={pending} onClick={() => submit(confirm)}>
                 {pending ? <Spinner data-icon="inline-start" /> : null}
-                {confirm === "ok" ? "Sim, chegou certinho" : "Enviar revisão"}
+                {confirm === "ok" ? "Sim, chegou certinho" : appeal ? "Enviar contestação" : "Enviar revisão"}
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>

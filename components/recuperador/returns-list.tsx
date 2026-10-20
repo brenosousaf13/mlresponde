@@ -7,7 +7,7 @@ import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/
 import { formatMoney } from "@/lib/customers/presentation"
 import { RETURN_FILTERS, type ReturnFilter, type ReturnListRow } from "@/lib/dal/recovery"
 import { formatDateTime, formatNumber, timeAgo } from "@/lib/format"
-import { PHASE_BADGE, returnHref } from "@/lib/recovery/presentation"
+import { MODE_LABELS, PHASE_BADGE, deadlineLabel, returnHref } from "@/lib/recovery/presentation"
 import { PHASE_LABELS, SHIPMENT_STATUS_LABELS, STATUS_MONEY_LABELS, destinationLabel } from "@/lib/recovery/returns"
 import { DUE_TEXT, dueState } from "@/lib/reputation/presentation"
 import { cn } from "@/lib/utils"
@@ -15,7 +15,8 @@ import { cn } from "@/lib/utils"
 const EMPTY: Record<ReturnFilter, { title: string; description: string }> = {
   revisar: {
     title: "Nenhuma devolução esperando você",
-    description: "Quando uma devolução chegar e o Mercado Livre liberar a revisão, ela aparece aqui e avisamos você.",
+    description:
+      "Quando uma devolução chegar até você ou o armazém do ML devolver o dinheiro ao comprador e der para contestar, ela aparece aqui e avisamos você.",
   },
   andamento: { title: "Nenhuma devolução em andamento", description: "Devoluções a caminho ou no armazém do ML aparecem aqui." },
   encerradas: { title: "Nenhuma devolução encerrada", description: "As devoluções encerradas dos últimos 90 dias aparecem aqui." },
@@ -44,8 +45,8 @@ export function ReturnRowItem({ row, accountId, now }: { row: ReturnListRow; acc
             </p>
             {row.phase === "needs_review" && row.deadline_at ? (
               <span className={cn("shrink-0 text-xs font-medium tabular-nums", DUE_TEXT[due])}>
-                {due === "overdue" ? "Prazo venceu " : "Revisar até "}
-                {formatDateTime(row.deadline_at)} ({timeAgo(row.deadline_at, now)})
+                {deadlineLabel(row.mode, due === "overdue")}
+                {formatDateTime(row.deadline_at)} ({timeAgo(row.deadline_at, now)}){row.mode === "appeal" ? " · estimado" : ""}
               </span>
             ) : row.claim_created_at ? (
               <span className="shrink-0 text-xs text-muted-foreground">Aberta {timeAgo(row.claim_created_at, now)}</span>
@@ -57,7 +58,7 @@ export function ReturnRowItem({ row, accountId, now }: { row: ReturnListRow; acc
           </p>
           <div className="flex flex-wrap gap-1.5">
             <Badge variant="outline" className={cn("border-transparent", PHASE_BADGE[row.phase])}>
-              {PHASE_LABELS[row.phase]}
+              {row.phase === "needs_review" && row.mode ? MODE_LABELS[row.mode] : PHASE_LABELS[row.phase]}
             </Badge>
             {row.review_kind ? (
               <Badge variant="outline">{row.review_kind === "fail" ? "Você relatou problema" : "Você confirmou que chegou certinho"}</Badge>
@@ -101,7 +102,8 @@ export function ReturnsList({
           Devoluções
         </CardTitle>
         <CardDescription>
-          Quando a devolução chega, você revisa pelo celular em 1 minuto. Nada é enviado ao Mercado Livre sem o seu clique.
+          Quando a devolução chega, você revisa pelo celular em 1 minuto; quando o armazém do ML devolve o dinheiro ao comprador,
+          você contesta por aqui. Nada é enviado ao Mercado Livre sem o seu clique.
         </CardDescription>
         <nav aria-label="Filtrar devoluções" className="mt-3 flex flex-wrap gap-2">
           {(Object.keys(RETURN_FILTERS) as ReturnFilter[]).map((key) => {
