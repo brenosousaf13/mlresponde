@@ -381,9 +381,10 @@ export function refreshInterval(claimStatus: string, row: KnownReturn): number |
 }
 
 /**
- * Quais devoluções ler no ML agora, na ordem: nunca lidas, as que mudaram no ML, as lidas antes da regra atual
- * (rulesSince) com revisão liberada, as vencidas pelo intervalo e, por último, as demais lidas antes da regra atual. Em
- * cada grupo: revisão liberada antes, abertas antes de encerradas e as mais novas primeiro.
+ * Quais devoluções ler no ML agora. Primeiro TODAS as que o ML lista com revisão liberada (nunca lidas, alteradas, lidas
+ * antes da regra atual ou vencidas pelo intervalo): é onde o prazo corre e o dinheiro está. Depois, na ordem: nunca lidas
+ * (Raio-X), alteradas no ML, vencidas pelo intervalo e, por último, as demais lidas antes da regra atual (rulesSince). Em
+ * cada grupo: abertas antes de encerradas e as mais novas primeiro.
  */
 export function returnsQueue<T extends QueueClaim & { hasReviewAction?: boolean }>(
   claims: readonly T[],
@@ -405,12 +406,11 @@ export function returnsQueue<T extends QueueClaim & { hasReviewAction?: boolean 
   return claims
     .flatMap((claim) => {
       const value = group(claim)
-      return value === null ? [] : [{ claim, value }]
+      return value === null ? [] : [{ claim, value: claim.hasReviewAction && value < 4 ? -1 : value }]
     })
     .sort(
       (a, b) =>
         a.value - b.value ||
-        Number(!a.claim.hasReviewAction) - Number(!b.claim.hasReviewAction) ||
         Number(a.claim.status !== "opened") - Number(b.claim.status !== "opened") ||
         (Date.parse(b.claim.ml_created_at ?? "") || 0) - (Date.parse(a.claim.ml_created_at ?? "") || 0)
     )
