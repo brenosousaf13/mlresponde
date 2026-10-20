@@ -16,6 +16,8 @@ const SUBJECTS: Partial<Record<AlertKind, (count: number) => string>> = {
   color_dropped: () => "Sua reputação caiu de cor",
   claim_new: (count) => (count === 1 ? "Reclamação nova" : count + " reclamações novas"),
   claim_due_soon: (count) => (count === 1 ? "Prazo de reclamação vencendo" : count + " prazos de reclamação vencendo"),
+  return_review_due: (count) => (count === 1 ? "Chegou uma devolução para revisar" : count + " devoluções para revisar"),
+  return_review_closing: (count) => (count === 1 ? "Revisão de devolução vencendo" : count + " revisões de devolução vencendo"),
 }
 
 const INTROS: Partial<Record<AlertKind, string>> = {
@@ -25,6 +27,9 @@ const INTROS: Partial<Record<AlertKind, string>> = {
   color_dropped: "A cor do seu termômetro mudou:",
   claim_new: "Chegou reclamação nova. Responder rápido ajuda a não afetar a reputação:",
   claim_due_soon: "Estas reclamações têm uma ação obrigatória vencendo em menos de 24 horas:",
+  return_review_due:
+    "O produto devolvido chegou. Confira e diga ao Mercado Livre se veio certinho ou com problema (com fotos, se tiver problema):",
+  return_review_closing: "A revisão destas devoluções vence em menos de 24 horas. Se chegou com problema, mande as fotos agora:",
 }
 
 function escapeHtml(value: string) {
@@ -52,6 +57,7 @@ export function buildAlertEmail(input: {
   const extra = input.items.length - items.length
   const subject = alertEmailSubject(input.kind, input.items.length, input.accountName)
   const intro = INTROS[input.kind] ?? "Veja os alertas da sua reputação:"
+  const cta = input.kind.startsWith("return_") ? "Abrir o Recuperador na maanu" : "Abrir a Reputação na maanu"
 
   const text = [
     "Olá! Aqui é a maanu, cuidando da reputação da " + input.accountName + " (" + input.storeName + ").",
@@ -96,7 +102,9 @@ export function buildAlertEmail(input: {
     "</table></td></tr>" +
     '<tr><td style="padding-top:20px"><a href="' +
     escapeHtml(input.url) +
-    '" style="display:inline-block;background:#009682;color:#ffffff;text-decoration:none;font-weight:600;padding:12px 20px;border-radius:8px">Abrir a Reputação na maanu</a></td></tr>' +
+    '" style="display:inline-block;background:#009682;color:#ffffff;text-decoration:none;font-weight:600;padding:12px 20px;border-radius:8px">' +
+    cta +
+    "</a></td></tr>" +
     '<tr><td style="padding-top:24px;font-size:12px;color:#64748b">' +
     escapeHtml(input.storeName) +
     " · Você recebe este e-mail porque os alertas por e-mail do Escudo de Reputação estão ligados. Dá para desligar na tela Reputação.</td></tr>" +
@@ -123,4 +131,21 @@ export function claimLink(kind: string, data: readonly unknown[]): { tab: true }
     item && typeof item === "object" ? (item as { claim_row_id?: unknown }).claim_row_id : null
   )
   return ids.length === 1 && typeof ids[0] === "string" ? { claimRowId: ids[0] } : { tab: true }
+}
+
+/**
+ * Link do Recuperador para um e-mail de devolução: a própria devolução (se for uma só) ou a aba Devoluções da conta.
+ */
+export function recoveryUrl(siteUrl: string, accountId: string, data: readonly unknown[]): string {
+  const base = siteUrl.replace(/\/$/, "")
+  const conta = "conta=" + encodeURIComponent(accountId)
+  const ids = data.map((item) => (item && typeof item === "object" ? (item as { return_row_id?: unknown }).return_row_id : null))
+  if (ids.length === 1 && typeof ids[0] === "string") return base + "/recuperador/devolucoes/" + encodeURIComponent(ids[0]) + "?" + conta
+  return base + "/recuperador?" + conta + "&aba=devolucoes"
+}
+
+/** Para onde leva o e-mail de um grupo de alertas: Recuperador (devoluções) ou Reputação (o resto). */
+export function alertUrl(siteUrl: string, kind: string, accountId: string, data: readonly unknown[]): string {
+  if (kind.startsWith("return_")) return recoveryUrl(siteUrl, accountId, data)
+  return reputationUrl(siteUrl, accountId, claimLink(kind, data))
 }

@@ -10,10 +10,12 @@ import { decideSectionAccess } from "@/lib/access/access"
 import { answersUsageNotice, mlConnectionNotice, paymentNotice, trialNotice } from "@/lib/access/notices"
 import { canManageOrganization, requireOnboardedContext } from "@/lib/dal/app-context"
 import { getPlanUsage } from "@/lib/dal/plan"
+import { RECOVERY_BADGE_KINDS } from "@/lib/dal/recovery"
 import { adminPanelHref } from "@/lib/admin/host"
 import { isPlatformAiPaused } from "@/lib/ai/usage"
 import { LOCK_REASONS, NAV_ITEMS } from "@/lib/navigation"
 import { periodText } from "@/lib/plans/usage"
+import { RETURN_ALERT_KINDS } from "@/lib/reputation/alerts"
 import { createClient } from "@/lib/supabase/server"
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
@@ -23,7 +25,14 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const hasActiveMlAccount = context.mlAccounts.active > 0
 
   const supabase = await createClient()
-  const [{ count: reviewCount }, { count: afterSaleCount }, platformAiPaused, usage, { count: reputationCount }] = await Promise.all([
+  const [
+    { count: reviewCount },
+    { count: afterSaleCount },
+    platformAiPaused,
+    usage,
+    { count: reputationCount },
+    { count: recoveryCount },
+  ] = await Promise.all([
     supabase
       .from("ml_questions")
       .select("id", { count: "exact", head: true })
@@ -44,18 +53,27 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           console.error("[app] uso do plano:", error instanceof Error ? error.message : error)
           return null
         }),
-    // Escudo de Reputação: alertas urgentes em aberto (selo do menu "Reputação").
+    // Escudo de Reputação: alertas urgentes em aberto (selo do menu "Reputação"), sem os de devolução.
     supabase
       .from("reputation_alerts")
       .select("id", { count: "exact", head: true })
       .eq("organization_id", context.organization.id)
       .eq("status", "open")
-      .eq("severity", "urgent"),
+      .eq("severity", "urgent")
+      .not("kind", "in", "(" + RETURN_ALERT_KINDS.join(",") + ")"),
+    // Recuperador: devoluções esperando a revisão do dono (selo do menu "Recuperador").
+    supabase
+      .from("reputation_alerts")
+      .select("id", { count: "exact", head: true })
+      .eq("organization_id", context.organization.id)
+      .eq("status", "open")
+      .in("kind", [...RECOVERY_BADGE_KINDS]),
   ])
   const badges: Partial<Record<SidebarNavItem["section"], number>> = {
     perguntas: reviewCount ?? 0,
     pos_venda: afterSaleCount ?? 0,
     reputacao: reputationCount ?? 0,
+    recuperador: recoveryCount ?? 0,
   }
 
   const items = NAV_ITEMS.flatMap((item): SidebarNavItem[] => {

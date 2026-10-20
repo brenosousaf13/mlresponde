@@ -35,6 +35,7 @@ export const AI_FEATURES: Record<AiFeatureKey, { label: string; short: string }>
   key_check: { label: "Testes de chave (painel do administrador)", short: "Teste de chave" },
   listing_improvement: { label: "Melhorias de anúncio", short: "Melhorias" },
   reputation_claim_analysis: { label: "Análise de reclamações (Escudo de Reputação)", short: "Reclamações" },
+  recovery_return_message: { label: "Relato de devolução (Recuperador)", short: "Devoluções" },
 }
 
 export const AI_KEY_STATUS: Record<"active" | "standby" | "disabled", { label: string; tone: Tone; hint: string }> = {

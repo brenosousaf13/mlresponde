@@ -18,6 +18,10 @@ export type AlertKind =
   | "claim_due_soon"
   | "claim_exclusion"
   | "claim_excluded"
+  // Recuperador (lib/recovery/alerts.ts): mesma tabela e mesmo e-mail, selo próprio no menu.
+  | "return_review_due"
+  | "return_review_closing"
+  | "return_recovered"
 
 export type AlertSeverity = "urgent" | "info"
 
@@ -31,11 +35,16 @@ export const ALERT_SEVERITY: Record<AlertKind, AlertSeverity> = {
   claim_due_soon: "urgent",
   claim_exclusion: "info",
   claim_excluded: "info",
+  return_review_due: "urgent",
+  return_review_closing: "urgent",
+  return_recovered: "info",
 }
 
 export const REPUTATION_ALERT_KINDS: readonly AlertKind[] = ["margin_low", "color_dropped", "color_recovered"]
 export const SHIPMENT_ALERT_KINDS: readonly AlertKind[] = ["shipment_late", "shipment_at_risk"]
 export const CLAIM_ALERT_KINDS: readonly AlertKind[] = ["claim_new", "claim_due_soon", "claim_exclusion", "claim_excluded"]
+/** Alertas do Recuperador: ficam fora da tela e do selo da Reputação (aparecem no Recuperador). */
+export const RETURN_ALERT_KINDS: readonly AlertKind[] = ["return_review_due", "return_review_closing", "return_recovered"]
 
 export type AlertDraft = {
   kind: AlertKind

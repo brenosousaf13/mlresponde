@@ -3,6 +3,8 @@ import "server-only"
 import { getValidAccessToken } from "@/lib/mercadolivre/accounts"
 import { ML_API_URL, MlApiError } from "@/lib/mercadolivre/api"
 import { orderSummaryFromMl, type MlClaimMessage, type OrderLike } from "@/lib/reputation/claim-details"
+import { parseReturn, parseReturnReviews, type MlReturn, type MlReturnReviews } from "@/lib/recovery/returns"
+import { parseReturnReasons } from "@/lib/recovery/review"
 import type { MlClaim, MlClaimSearchPage } from "@/lib/reputation/claims"
 import type { MlSellerReputation } from "@/lib/reputation/metrics"
 import type { MlShipmentCosts, MlShipmentInfo, MlShipmentSla } from "@/lib/reputation/shipments"
@@ -217,4 +219,54 @@ export function allowReturnClaim(accountId: string, claimId: number, budget: Cal
 
 export function openClaimDispute(accountId: string, claimId: number, budget: CallBudget) {
   return claimAction(accountId, claimId + "/actions/open-dispute", undefined, budget)
+}
+
+// ---------------------------------------------------------------------------------------------- devoluções (Recuperador)
+// Docs: global-selling.mercadolibre.com › Manage returns (conferida em 2026-10-20) + leitura real da API no mesmo dia.
+
+/** Devolução de uma reclamação, já sem endereços. 404 = a reclamação não tem devolução: devolve null. */
+export async function fetchClaimReturn(accountId: string, claimId: number, budget: CallBudget) {
+  try {
+    return parseReturn(await reputationRequest<MlReturn | MlReturn[]>(accountId, "/post-purchase/v2/claims/" + claimId + "/returns", budget))
+  } catch (error) {
+    if (error instanceof MlApiError && error.status === 404) return null
+    throw error
+  }
+}
+
+/** Revisões do armazém do ML e do vendedor (uma por pedido). */
+export async function fetchReturnReviews(accountId: string, returnId: number, budget: CallBudget) {
+  return parseReturnReviews(
+    await reputationRequest<MlReturnReviews>(accountId, "/post-purchase/v1/returns/" + returnId + "/reviews", budget)
+  )
+}
+
+/** Motivos que o ML aceita para "chegou com problema" nesta reclamação. */
+export async function fetchReturnFailReasons(accountId: string, claimId: number, budget: CallBudget) {
+  const query = new URLSearchParams({ flow: "seller_return_failed", claim_id: String(claimId) })
+  return parseReturnReasons(await reputationRequest<unknown>(accountId, "/post-purchase/v1/returns/reasons?" + query.toString(), budget))
+}
+
+/** Sobe uma foto da revisão (JPG/PNG até 5 MB) e devolve o nome que o ML deu ao arquivo. */
+export async function uploadReturnAttachment(accountId: string, claimId: number, file: Blob, filename: string, budget: CallBudget) {
+  const form = new FormData()
+  form.append("file", file, filename)
+  const data = await reputationRequest<{ file_name?: unknown; filename?: unknown } | null>(
+    accountId,
+    CLAIMS + claimId + "/returns/attachments",
+    budget,
+    { method: "POST", body: form }
+  )
+  const name = data?.file_name ?? data?.filename
+  if (typeof name !== "string" || !name) throw new Error("O Mercado Livre não devolveu o nome da foto.")
+  return name
+}
+
+/** Revisão da devolução: {} = chegou certinho; [{ reason, message, attachments }] = chegou com problema. */
+export async function submitReturnReview(accountId: string, returnId: number, body: unknown, budget: CallBudget): Promise<MlActionResult> {
+  const data = await reputationRequest<unknown>(accountId, "/post-purchase/v1/returns/" + returnId + "/return-review", budget, {
+    method: "POST",
+    body: JSON.stringify(body),
+  })
+  return { status: 200, body: data }
 }

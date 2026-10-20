@@ -12,6 +12,7 @@ export type AiFeatureKey =
   | "key_check"
   | "listing_improvement"
   | "reputation_claim_analysis"
+  | "recovery_return_message"
 
 export type AdminOrgRow = {
   organization_id: string

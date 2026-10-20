@@ -48,6 +48,7 @@ export type AppSection =
   | "pos_venda"
   | "clientes"
   | "reputacao"
+  | "recuperador"
   | "melhorias"
   | "resultados"
   | "assistente"

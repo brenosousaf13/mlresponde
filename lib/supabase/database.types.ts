@@ -1767,6 +1767,377 @@ export type Database = {
         }
         Relationships: []
       }
+      recovery_actions: {
+        Row: {
+          action: string
+          claim_id: number
+          claim_row_id: string
+          details: Json
+          error: string | null
+          id: string
+          ml_account_id: string
+          ml_response: Json | null
+          ml_status: number | null
+          organization_id: string
+          performed_at: string
+          performed_by: string
+          return_id: number | null
+          return_row_id: string
+          status: string
+        }
+        Insert: {
+          action: string
+          claim_id: number
+          claim_row_id: string
+          details?: Json
+          error?: string | null
+          id?: string
+          ml_account_id: string
+          ml_response?: Json | null
+          ml_status?: number | null
+          organization_id: string
+          performed_at?: string
+          performed_by: string
+          return_id?: number | null
+          return_row_id: string
+          status: string
+        }
+        Update: {
+          action?: string
+          claim_id?: number
+          claim_row_id?: string
+          details?: Json
+          error?: string | null
+          id?: string
+          ml_account_id?: string
+          ml_response?: Json | null
+          ml_status?: number | null
+          organization_id?: string
+          performed_at?: string
+          performed_by?: string
+          return_id?: number | null
+          return_row_id?: string
+          status?: string
+        }
+        Relationships: []
+      }
+      recovery_findings: {
+        Row: {
+          amount: number | null
+          confidence: string
+          created_at: string
+          currency_id: string | null
+          dedupe_key: string
+          detected_at: string
+          evidence: Json
+          id: string
+          kind: string
+          ml_account_id: string
+          organization_id: string
+          return_row_id: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          amount?: number | null
+          confidence: string
+          created_at?: string
+          currency_id?: string | null
+          dedupe_key: string
+          detected_at?: string
+          evidence?: Json
+          id?: string
+          kind: string
+          ml_account_id: string
+          organization_id: string
+          return_row_id?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          amount?: number | null
+          confidence?: string
+          created_at?: string
+          currency_id?: string | null
+          dedupe_key?: string
+          detected_at?: string
+          evidence?: Json
+          id?: string
+          kind?: string
+          ml_account_id?: string
+          organization_id?: string
+          return_row_id?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "recovery_findings_ml_account_id_fkey"
+            columns: ["ml_account_id"]
+            isOneToOne: false
+            referencedRelation: "ml_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "recovery_findings_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "recovery_findings_return_row_id_fkey"
+            columns: ["return_row_id"]
+            isOneToOne: false
+            referencedRelation: "recovery_returns"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      recovery_returns: {
+        Row: {
+          amount: number | null
+          can_review_fail: boolean
+          can_review_ok: boolean
+          claim_created_at: string | null
+          claim_id: number
+          claim_row_id: string
+          claim_status: string
+          claim_updated_at: string | null
+          created_at: string
+          currency_id: string | null
+          deadline_at: string | null
+          destination: string | null
+          id: string
+          is_cart: boolean
+          item_title: string | null
+          ml_account_id: string
+          ml_closed_at: string | null
+          order_id: number | null
+          orders: Json
+          organization_id: string
+          phase: string
+          recovered_amount: number | null
+          recovered_at: string | null
+          refund_at: string | null
+          return_id: number | null
+          return_status: string | null
+          return_subtype: string | null
+          review_kind: string | null
+          review_submitted_at: string | null
+          review_submitted_by: string | null
+          reviews: Json
+          sale_at: string | null
+          shipment_status: string | null
+          status_money: string | null
+          synced_at: string
+          updated_at: string
+        }
+        Insert: {
+          amount?: number | null
+          can_review_fail?: boolean
+          can_review_ok?: boolean
+          claim_created_at?: string | null
+          claim_id: number
+          claim_row_id: string
+          claim_status: string
+          claim_updated_at?: string | null
+          created_at?: string
+          currency_id?: string | null
+          deadline_at?: string | null
+          destination?: string | null
+          id?: string
+          is_cart?: boolean
+          item_title?: string | null
+          ml_account_id: string
+          ml_closed_at?: string | null
+          order_id?: number | null
+          orders?: Json
+          organization_id: string
+          phase: string
+          recovered_amount?: number | null
+          recovered_at?: string | null
+          refund_at?: string | null
+          return_id?: number | null
+          return_status?: string | null
+          return_subtype?: string | null
+          review_kind?: string | null
+          review_submitted_at?: string | null
+          review_submitted_by?: string | null
+          reviews?: Json
+          sale_at?: string | null
+          shipment_status?: string | null
+          status_money?: string | null
+          synced_at?: string
+          updated_at?: string
+        }
+        Update: {
+          amount?: number | null
+          can_review_fail?: boolean
+          can_review_ok?: boolean
+          claim_created_at?: string | null
+          claim_id?: number
+          claim_row_id?: string
+          claim_status?: string
+          claim_updated_at?: string | null
+          created_at?: string
+          currency_id?: string | null
+          deadline_at?: string | null
+          destination?: string | null
+          id?: string
+          is_cart?: boolean
+          item_title?: string | null
+          ml_account_id?: string
+          ml_closed_at?: string | null
+          order_id?: number | null
+          orders?: Json
+          organization_id?: string
+          phase?: string
+          recovered_amount?: number | null
+          recovered_at?: string | null
+          refund_at?: string | null
+          return_id?: number | null
+          return_status?: string | null
+          return_subtype?: string | null
+          review_kind?: string | null
+          review_submitted_at?: string | null
+          review_submitted_by?: string | null
+          reviews?: Json
+          sale_at?: string | null
+          shipment_status?: string | null
+          status_money?: string | null
+          synced_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "recovery_returns_claim_row_id_fkey"
+            columns: ["claim_row_id"]
+            isOneToOne: false
+            referencedRelation: "reputation_claims"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "recovery_returns_ml_account_id_fkey"
+            columns: ["ml_account_id"]
+            isOneToOne: false
+            referencedRelation: "ml_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "recovery_returns_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      recovery_scans: {
+        Row: {
+          completed_at: string | null
+          created_at: string
+          ml_account_id: string
+          organization_id: string
+          returns_done: number
+          returns_total: number
+          started_at: string | null
+          status: string
+          updated_at: string
+          window_days: number
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string
+          ml_account_id: string
+          organization_id: string
+          returns_done?: number
+          returns_total?: number
+          started_at?: string | null
+          status?: string
+          updated_at?: string
+          window_days?: number
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string
+          ml_account_id?: string
+          organization_id?: string
+          returns_done?: number
+          returns_total?: number
+          started_at?: string | null
+          status?: string
+          updated_at?: string
+          window_days?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "recovery_scans_ml_account_id_fkey"
+            columns: ["ml_account_id"]
+            isOneToOne: true
+            referencedRelation: "ml_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "recovery_scans_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      recovery_sync: {
+        Row: {
+          created_at: string
+          last_error: string | null
+          last_error_at: string | null
+          last_returns_at: string | null
+          locked_until: string | null
+          ml_account_id: string
+          next_returns_at: string
+          organization_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          last_error?: string | null
+          last_error_at?: string | null
+          last_returns_at?: string | null
+          locked_until?: string | null
+          ml_account_id: string
+          next_returns_at?: string
+          organization_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          last_error?: string | null
+          last_error_at?: string | null
+          last_returns_at?: string | null
+          locked_until?: string | null
+          ml_account_id?: string
+          next_returns_at?: string
+          organization_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "recovery_sync_ml_account_id_fkey"
+            columns: ["ml_account_id"]
+            isOneToOne: true
+            referencedRelation: "ml_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "recovery_sync_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       reputation_alerts: {
         Row: {
           body: string
@@ -2786,6 +3157,30 @@ export type Database = {
         SetofOptions: {
           from: "*"
           to: "ml_questions"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
+      claim_recovery_sync: {
+        Args: {
+          p_limit?: number
+          p_lock_seconds?: number
+          p_ml_account_id?: string
+        }
+        Returns: {
+          created_at: string
+          last_error: string | null
+          last_error_at: string | null
+          last_returns_at: string | null
+          locked_until: string | null
+          ml_account_id: string
+          next_returns_at: string
+          organization_id: string
+          updated_at: string
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "recovery_sync"
           isOneToOne: false
           isSetofReturn: true
         }

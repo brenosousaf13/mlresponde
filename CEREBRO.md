@@ -4,7 +4,7 @@
 > inteiro antes de trabalhar e atualizá-lo ao terminar. Se algo aqui divergir do código, o código vence —
 > e este arquivo deve ser corrigido na mesma sessão.
 
-Última atualização: **2026-10-20** (Sessão 29b — **Escudo de Reputação na página de vendas**: seção nova `#reputacao` com simulador do termômetro (limites oficiais, os mesmos do app), selo "Novo" no topo e no menu, linha nos 3 planos, pergunta nas Dúvidas, `llms.txt` e dados estruturados; Sessão 29 — **Escudo de Reputação no ar** (menu Reputação, todos os planos); Sessão 28 — **aba Clientes no ar** (quem comprou em cada conta do ML: compras, total, quem voltou, cidade/UF, perguntas, conversas e observações; sem e-mail/telefone, que o ML não entrega); **28b: sem importação do histórico**, conta só as vendas a partir de 2026-10-19 16:09 (ou da conexão da conta), a importação dos 12 meses foi parada e apagada (§13 item 0l); Sessão 27 — **troca de endereços concluída**: `maanu.com.br` = só a página de vendas (indexável; `/institucional` redireciona) e **o app em `app.maanu.com.br`** (`APP_HOST`, Site URL do Supabase), webhooks e retorno do OAuth do ML fixos no domínio principal; Sessão 23d — **só o plano mensal** (decisão do Breno): o anual saiu da Assinatura, da página de vendas, das Dúvidas, do `llms.txt`, dos Termos e do painel; Sessão 23c — **cobrança pela AbacatePay em produção** (chave de produção, produtos mensais e webhook prontos); o anual só aparece quando houver os produtos anuais; Sessão 25c — WhatsApp/telefone `(31) 99263-0934` no rodapé de `/institucional` para a aprovação da AbacatePay; falta o e-mail; Sessão 25b — página de vendas **publicada em `maanu.com.br/institucional`** para o Breno e o sócio revisarem, fora do Google por enquanto; `maanu.com.br/` continua levando ao app; Sessão 26 — quatro criativos 4:5 para carrossel do Instagram salvos em `CRIATIVOS/`; Sessão 25 — página de vendas em `maanu.com.br/` com SEO para Google, Bing e buscas por IA (dados estruturados, `llms.txt`, robots, imagem de compartilhamento, carregamento mais rápido) e app pronto para ir para `app.maanu.com.br` (variável `APP_HOST`), na branch `codex/pagina-de-vendas`, aguardando o Breno; Sessão 24 — cliente sem permissão de administrador vê uma mensagem de acesso restrito com retorno ao painel; Sessão 23b — tela "Levando você para o pagamento seguro" antes da AbacatePay, teste de compra aprovado e dados de teste apagados, falta a chave de produção; Sessão 23 — cobrança pela AbacatePay pronta no código e no banco: assinar, trocar, cancelar e webhooks; falta só a chave de API do Breno; Sessão 22 — perguntas chegando sozinhas: rotina que busca no ML a cada ~10 s + webhook respondendo na hora; foto do anúncio corrigida; Sessão 21 — v1: botão de pausar a IA funcionando, commit `bf56777` na `main`; Sessão 20b — Starter com 300 respostas e espaço nos cards dos planos; Sessão 20 — planos Starter/Pro/Escala com limites, teste grátis e Melhorias de anúncio; Sessão 19 — pesquisa de preços e proposta de 3 planos; Sessão 18 — tour de boas-vindas e avisos de teste/conta ML redesenhados; Sessão 17 — chaves de IA cadastradas e trocadas pelo painel do administrador; Sessão 16 — textos do cadastro sem falar em cobrança; Sessão 15b — Fase 1 da troca preparada)
+Última atualização: **2026-10-20** (Sessão 30 — **Recuperador, etapa 1** (devoluções revisadas pelo celular + Raio-X de 90 dias + "Recuperado pela maanu"): migração aplicada, código na branch `codex/recuperador-devolucoes` **aguardando o ok do Breno** para ir à `v2`; Sessão 29b — **Escudo de Reputação na página de vendas**: seção nova `#reputacao` com simulador do termômetro (limites oficiais, os mesmos do app), selo "Novo" no topo e no menu, linha nos 3 planos, pergunta nas Dúvidas, `llms.txt` e dados estruturados; Sessão 29 — **Escudo de Reputação no ar** (menu Reputação, todos os planos); Sessão 28 — **aba Clientes no ar** (quem comprou em cada conta do ML: compras, total, quem voltou, cidade/UF, perguntas, conversas e observações; sem e-mail/telefone, que o ML não entrega); **28b: sem importação do histórico**, conta só as vendas a partir de 2026-10-19 16:09 (ou da conexão da conta), a importação dos 12 meses foi parada e apagada (§13 item 0l); Sessão 27 — **troca de endereços concluída**: `maanu.com.br` = só a página de vendas (indexável; `/institucional` redireciona) e **o app em `app.maanu.com.br`** (`APP_HOST`, Site URL do Supabase), webhooks e retorno do OAuth do ML fixos no domínio principal; Sessão 23d — **só o plano mensal** (decisão do Breno): o anual saiu da Assinatura, da página de vendas, das Dúvidas, do `llms.txt`, dos Termos e do painel; Sessão 23c — **cobrança pela AbacatePay em produção** (chave de produção, produtos mensais e webhook prontos); o anual só aparece quando houver os produtos anuais; Sessão 25c — WhatsApp/telefone `(31) 99263-0934` no rodapé de `/institucional` para a aprovação da AbacatePay; falta o e-mail; Sessão 25b — página de vendas **publicada em `maanu.com.br/institucional`** para o Breno e o sócio revisarem, fora do Google por enquanto; `maanu.com.br/` continua levando ao app; Sessão 26 — quatro criativos 4:5 para carrossel do Instagram salvos em `CRIATIVOS/`; Sessão 25 — página de vendas em `maanu.com.br/` com SEO para Google, Bing e buscas por IA (dados estruturados, `llms.txt`, robots, imagem de compartilhamento, carregamento mais rápido) e app pronto para ir para `app.maanu.com.br` (variável `APP_HOST`), na branch `codex/pagina-de-vendas`, aguardando o Breno; Sessão 24 — cliente sem permissão de administrador vê uma mensagem de acesso restrito com retorno ao painel; Sessão 23b — tela "Levando você para o pagamento seguro" antes da AbacatePay, teste de compra aprovado e dados de teste apagados, falta a chave de produção; Sessão 23 — cobrança pela AbacatePay pronta no código e no banco: assinar, trocar, cancelar e webhooks; falta só a chave de API do Breno; Sessão 22 — perguntas chegando sozinhas: rotina que busca no ML a cada ~10 s + webhook respondendo na hora; foto do anúncio corrigida; Sessão 21 — v1: botão de pausar a IA funcionando, commit `bf56777` na `main`; Sessão 20b — Starter com 300 respostas e espaço nos cards dos planos; Sessão 20 — planos Starter/Pro/Escala com limites, teste grátis e Melhorias de anúncio; Sessão 19 — pesquisa de preços e proposta de 3 planos; Sessão 18 — tour de boas-vindas e avisos de teste/conta ML redesenhados; Sessão 17 — chaves de IA cadastradas e trocadas pelo painel do administrador; Sessão 16 — textos do cadastro sem falar em cobrança; Sessão 15b — Fase 1 da troca preparada)
 
 ---
 
@@ -329,6 +329,12 @@ app/
     reputacao/reclamacoes/actions.ts # sendClaimMessageAction (qualquer membro; anexos ≤ 4 MB no total), claimMoneyAction
                                   # (dono/admin, confirmed), loadPartialRefundOffers, markExclusionAction, analyzeClaimAction,
                                   # syncClaimAction (≤ 1x/min)
+    recuperador/                  # RECUPERADOR (Sessão 30, todos os planos): abas por link ?aba= (Visão geral: 3 números +
+                                  # "Revise agora"; devolucoes ?filtro=revisar|andamento|encerradas; raio-x: progresso + achados)
+    recuperador/devolucoes/[id]/  # devolução (feita para celular): resumo, revisão "chegou certinho"/"chegou com problema"
+                                  # (ReturnReviewFlow), avaliação do armazém, histórico na maanu
+    recuperador/actions.ts        # refreshRecovery e syncReturnAction (≤ 1x/min), loadReturnReasons, draftReturnMessageAction
+                                  # (IA), submitReturnReviewAction (só dono/admin, confirmed, fotos ≤ 4 MB)
     pos-venda/actions.ts          # sendReply (FormData com anexos), generateSuggestion, refreshFromMl, retryWithAgent,
                                   # archive/restoreConversation, syncConversations, setAgentEnabled, updateAgentSettings,
                                   # add/deleteAfterSaleExample, testAfterSaleAgent
@@ -353,6 +359,8 @@ app/
   api/cron/clientes/route.ts    # aba Clientes (1/min, Bearer CRON_SECRET): runCustomerSync = conferência + cidade/nome
   api/cron/reputacao/route.ts   # Escudo (1/min, Bearer CRON_SECRET): runReputationSync({ claimsHook }) (termômetro 30 min,
                                 # despachos 10 min, reclamações 5 min, e-mails) + processClaimAnalyses (até 3 análises da IA)
+  api/cron/recuperador/route.ts # Recuperador (1/min, Bearer CRON_SECRET): runRecoverySync (até 10 contas, 60 chamadas ao ML;
+                                # os e-mails dos alertas saem na rodada do Escudo)
   api/pos-venda/anexo/route.ts  # abre anexos das conversas (token do ML só no servidor; confere plano e conversa)
 components/
   ui/                             # shadcn (não editar à toa; regenerar com a CLI)
@@ -494,10 +502,19 @@ lib/
                                   #   claim-details (rótulos, ações liberadas, mensagens, venda, ofertas parciais, anexos), claim-ai
                                   #   (prompt, JSON Schema, validação), claim-model (IA via trackedCompletion), engine (rodadas,
                                   #   alertas, e-mails), claims-engine (detalhe/mensagens, fila da IA, ações do vendedor, exclusão)
+  recovery/                       # RECUPERADOR (puros e testados em tests/unit/recovery.test.ts, salvo engine/review-model):
+                                  #   returns (leitura de /returns e /reviews sem endereço, revisão liberada, prazo, fase, fila,
+                                  #   Raio-X, "recuperado", textos), review (motivos SRF*, checklist, guia de fotos, validação,
+                                  #   corpo do POST, relato sem IA), review-ai (prompt/JSON Schema/validação), review-model (IA),
+                                  #   alerts (return_review_due|closing, return_recovered), images (redução das fotos),
+                                  #   presentation, engine (rodadas, Raio-X, alertas, relato, envio da revisão)
   mercadolivre/reputation.ts      # cliente do Escudo: /users, /shipments (+/sla, /costs), /post-purchase/v1/claims (busca,
-                                  #   detalhe, mensagens, affects, ofertas e as ações POST). **Nunca marca o token como inválido**
+                                  #   detalhe, mensagens, affects, ofertas e as ações POST) e, do Recuperador, /v2/claims/{id}/
+                                  #   returns, /returns/{id}/reviews, /returns/reasons, fotos e /return-review.
+                                  #   **Nunca marca o token como inválido**
   email/resend.ts                 # e-mail pelo Resend (remetente maanu <alertas@maanu.com.br>; sem RESEND_API_KEY = desligado)
-  dal/reputation.ts, dal/reputation-claims.ts # leituras das telas do Escudo (RLS)
+  dal/reputation.ts, dal/reputation-claims.ts # leituras das telas do Escudo (RLS; a Reputação ignora os alertas de devolução)
+  dal/recovery.ts                 # leituras do Recuperador (RLS): números, listas, achados, devolução; RECOVERY_BADGE_KINDS
   dal/customers.ts                # lista, números (rpc customers_overview), sincronização e ficha do cliente
   migration/v1.ts                 # MIGRAÇÃO v1 → v2 (puro, testado em tests/unit/migration-v1.test.ts): question_jobs →
                                   #   ml_questions, training_examples → ai_examples, CNPJ fictício para testes (§6.3)
@@ -510,7 +527,7 @@ supabase/
                                   # perguntas_escala + resultados + dados_cobranca + modo_responder_sempre + pos_venda +
                                   # painel_admin
   tests/fundacao_rls.sql, respostas_rls.sql, resultados_rls.sql, cobranca_rls.sql, pos_venda_rls.sql, admin_rls.sql,
-       ai_keys_rls.sql, clientes_rls.sql, reputacao_rls.sql, reputacao_reclamacoes_rls.sql
+       ai_keys_rls.sql, clientes_rls.sql, reputacao_rls.sql, reputacao_reclamacoes_rls.sql, recuperador_rls.sql
                                   # sucesso = erro "TESTES_..._OK"
 scripts/v1-para-v2/                # exportar.mjs (v1 → JSON, só GET, sem tokens) e importar.mjs (JSON → Supabase de TESTES; trava
                                   #   pelo project ref do .env.local). Saídas com dados de clientes só em docs/v2/privado/ (§6.3)
@@ -843,6 +860,27 @@ localmente, definir no terminal).
   `emailed_at`, erro).
 - `ai_usage_events.feature` aceita **`reputation_claim_analysis`** (CHECK recriado com os mesmos valores + esse).
 
+### 6.1l v2 — Recuperador (migração `20261020140000_recuperador.sql`, Sessão 30, aplicada em 2026-10-20)
+
+- Tudo **aditivo**; RLS só leitura por organização, `GRANT select` explícito para `authenticated`, escrita só pelo service role.
+  Teste: `supabase/tests/recuperador_rls.sql` (TESTES_RECUPERADOR_OK). O Recuperador **só lê** `reputation_claims`,
+  `reputation_sync`, `ml_accounts` e `organizations`. Spec: `docs/superpowers/specs/2026-10-20-recuperador-design.md`.
+- `recovery_sync` (1 por conta): `next_returns_at`, `last_returns_at`, `locked_until`, `last_error`. Rodízio por
+  `claim_recovery_sync(p_limit, p_lock_seconds, p_ml_account_id)` (só service role; mesmo filtro de acesso do Escudo).
+- `recovery_scans` (1 por conta): Raio-X de 90 dias `waiting|running|done`, `returns_total`/`returns_done`.
+- `recovery_returns` (`unique (ml_account_id, claim_id)`, cascade com a reclamação): `phase`
+  (waiting|needs_review|reviewed|at_warehouse|closed|other), situação da reclamação/devolução, `status_money`, `refund_at`,
+  envio e destino (**sem endereço**), `is_cart`, `orders`, `can_review_ok/fail`, `deadline_at`, `reviews` (do armazém e do
+  vendedor, normalizadas), venda (pedido, produto, valor), revisão enviada pela maanu (`review_kind` ok|fail, quando, quem) e
+  `recovered_at`/`recovered_amount`.
+- `recovery_findings` (`unique (ml_account_id, dedupe_key)`): `return_unsaleable_unreimbursed` (open, medium) e
+  `return_reimbursed` (resolved, high), valor e evidência compacta (≤ 8 KB, sem dados do comprador).
+- `recovery_actions`: **histórico imutável** (gatilho `RECOVERY_ACTIONS_IMMUTABLE`, **sem FK**): revisão ok/fail, detalhes
+  (motivo, relato, nomes das fotos no ML), `success|failed`, status/resposta do ML, erro, quem e quando. **Não gravar nada de
+  teste aqui no banco de produção** (o teste de integração para antes de enviar).
+- CHECKs recriados com os valores antigos + novos: `reputation_alerts.kind` (+ `return_review_due`, `return_review_closing`,
+  `return_recovered`) e `ai_usage_events.feature` (+ `recovery_return_message`).
+
 ### 6.2 v1 — produção (✅ CONFIRMADO em 2026-10-11)
 
 > Fonte: inventário só leitura de prod (`docs/db/inventario-schema.sql`, rodado pelo Breno no SQL Editor).
@@ -1071,6 +1109,29 @@ exportação só faz GET e a importação recusa qualquer destino que não seja 
    partial-refund|allow-return`, `/actions/open-dispute`): só dono/admin, 2 confirmações na tela e `confirmed: true` na action.
 8. **Exclusão**: o ML não tem API → "Copiar texto", link das regras e "Pedi a exclusão" (a maanu passa a acompanhar o
    `affects-reputation` e avisa quando deixar de contar).
+
+### 7.0c6 v2 — Recuperador (Sessão 30, todos os planos; etapa 1 = devoluções)
+1. Cron `/api/cron/recuperador` (1/min, `runRecoverySync`): até 10 contas, **60 chamadas ao ML**, ~40 s; cliente do Escudo
+   (nunca marca token inválido); 429 → a conta volta em 2 min. Rodada da conta: 5 min (2 min com revisão pendente; 1 min
+   enquanto houver fila). **Espera o Escudo** terminar a busca inicial das reclamações (`claims_backfilled_at`).
+2. Candidatas: `reputation_claims` do tipo `returns` abertas ou criadas nos últimos 90 dias. Fila (`returnsQueue`): nunca
+   lidas → alteradas no ML → abertas a atualizar (10 min esperando revisão, 30 min as outras); até 15 por rodada.
+3. Cada devolução: `GET /post-purchase/v2/claims/{id}/returns` (formato real ≠ documentação; endereço descartado) +
+   `GET /post-purchase/v1/returns/{return_id}/reviews`. Revisão liberada = `return_review_ok|fail` (ou `_unified_`) nas ações do
+   vendedor (o Escudo já guarda); prazo = `due_date` da ação → `next_due_at` → `detail.due_date` se a vez é do vendedor.
+4. **Raio-X**: encerradas com produto `unsaleable|discard`: benefited seller → "ressarcido" (referência); benefited buyer sem
+   cobertura do ML → **dinheiro sob suspeita** (texto pronto fixo + link da venda; a maanu não contesta por ele). Sem a venda
+   gravada pelo Escudo, busca `/orders/{id}` 1 vez (só quando vira achado).
+5. **Recuperado pela maanu**: só revisão "com problema" enviada pela maanu com final a favor do vendedor.
+6. **Alertas** (mesma tabela e e-mail do Escudo): `return_review_due` e `return_review_closing` (< 24 h) urgentes,
+   `return_recovered` informativo (3 dias). E-mail com link para `/recuperador/devolucoes/{id}` (`alertUrl`). Selo próprio no
+   menu; a Reputação (tela e selo) ignora esses tipos.
+7. **Revisão** (só dono/admin, 1 confirmação): motivos ao vivo (`/returns/reasons?flow=seller_return_failed`; reserva fixa),
+   checklist e guia de fotos por motivo, fotos reduzidas no navegador (JPG ≤ 1.600 px, até 5, ≤ 4 MB), relato pela IA
+   (`recovery_return_message`, não conta na cota; sem IA → relato só com os fatos) editável (≤ 1.000 caracteres, sem contato
+   externo). Antes de enviar relê a reclamação no ML; fotos em `/claims/{id}/returns/attachments`; envio em
+   `POST /post-purchase/v1/returns/{return_id}/return-review` (`{}` ou `[{ reason, message, attachments }]`); carrinho = pacote
+   inteiro, sem `order_id`. Histórico imutável e releitura.
 
 ### 7.0d v2 — Painel do administrador (`/admin`)
 1. Entrar normalmente em `/login` com o usuário admin → menu do usuário → **Painel do administrador** (ou abrir `/admin`).
@@ -1627,10 +1688,41 @@ webhook do ML validado, fila/reprocessamento de jobs, observabilidade, controle 
 | 2026-10-19 | Anexos das mensagens de reclamação até **4 MB no total** (o ML aceita 5 MB por arquivo) | Limite das Server Actions (4,5 MB no `next.config`, por causa da Vercel). |
 | 2026-10-20 | Escudo de Reputação na página de vendas com **simulador interativo** (regras oficiais reais, loja de exemplo) em vez de só texto; seção logo depois do "No dia a dia" e **calculadora depois dos planos** | Pedido do Breno ("bem atraente e chamativa"). O simulador mostra a dor (cair de cor) e o valor (folga, o que cada cor libera) em segundos e usa o mesmo código do app, então não promete nada que o app não faz. Calculadora movida para não colar 2 painéis escuros. Números dos cartões marcados como ilustrativos. |
 | 2026-10-19 | Escudo publicado em **2 etapas** (branches `codex/escudo-reputacao` e `codex/escudo-reputacao-reclamacoes`), migrações aplicadas antes do merge | Decisão do Breno. Migrações aditivas não mudam nada em produção sem o código; o merge de cada etapa na `v2` depende da revisão dele. Fora deste projeto: Shopee, WhatsApp, resumo diário, cartão no Painel e página de vendas. |
+| 2026-10-20 | **Recuperador** (menu próprio, todos os planos, sem cota) em 2 etapas: devoluções + Raio-X de devoluções (`codex/recuperador-devolucoes`) e depois Raio-X de cobranças (`codex/recuperador-cobrancas`, só leitura) | Plano aprovado pelo Breno. Dor de dinheiro concreta (prazo curto da revisão, armazém que devolve o dinheiro ao comprador). Nada sai sozinho; só dono/admin envia a revisão. |
+| 2026-10-20 | "Recuperado pela maanu" só conta o que o **ML confirmou** (revisão "com problema" enviada pela maanu e final a favor do vendedor) | O número precisa ser defensável na frente do cliente; nada de estimativa. |
+| 2026-10-20 | Alertas do Recuperador na **mesma tabela e no mesmo e-mail** do Escudo (`reputation_alerts`, CHECK estendido), com selo próprio e fora da tela da Reputação | Reaproveita o envio (Resend, 1 e-mail por conta/tipo a cada 30 min) e o liga/desliga já existente, sem tabela nova. |
+| 2026-10-20 | Na v1 a IA **só escreve o relato** (não olha as fotos); fotos seguem um guia por motivo e são reduzidas no navegador | A IA do app ainda não lê imagens; as fotos de celular não caberiam no limite de 4 MB da Server Action sem reduzir. |
+| 2026-10-20 | Achado de devolução tem **confiança média** e só gera texto pronto (sem contestar pelo vendedor) | O ML não tem API para contestar a decisão do armazém; a decisão final é do ML. |
 
 ---
 
 ## 12. Diário de sessões (mais recente no topo)
+
+### 2026-10-20 — Sessão 30 · Recuperador, etapa 1 (IA: Claude, via app Codex)
+- Pedido do Breno (sessão "Criar funcionalidade game changer"): mais uma funcionalidade que faça o dono de loja pagar sem
+  pensar. Proposta aprovada: **Recuperador** (devoluções revisadas pelo celular + Raio-X do dinheiro + "Recuperado pela maanu").
+  Spec: `docs/superpowers/specs/2026-10-20-recuperador-design.md`.
+- **Incidente da sessão original:** depois de escrever a migração, a conversa travou com erro da API ("Invalid
+  `encrypted_content` in `search_result` block" e depois "Invalid `encrypted_index`"), por causa de um bloco de busca na web
+  do histórico que não podia ser reenviado (a troca de modelo não resolveu). O trabalho continuou numa conversa nova, lendo o
+  registro da sessão anterior (Passo 0 + migração já escrita no worktree `C:\Users\Breno\.codex\worktrees\recuperador-devolucoes`).
+- **Passo 0 (só leitura):** conta do Breno sem devoluções; com autorização dele, 3 `GET` em devoluções de clientes (só
+  estrutura). `/v2/claims/{id}/returns` responde, mas **sem** `warehouse_review`/`seller_review` (estão em
+  `/v1/returns/{id}/reviews`); `return_review_ok/fail` aparecem com `due_date` nulo (prazo no `detail.due_date`); motivos SRF2–7
+  conferidos; limite do relato não documentado (maanu usa 1.000). Faturamento (`/billing/integration`) responde na conta do
+  Breno → etapa 2 viável.
+- Migração `20261020140000_recuperador.sql`: ensaio em transação desfeita com o teste (TESTES_RECUPERADOR_OK, conferido que
+  nada ficou), dry-run, `db push`, teste de novo e tipos regenerados (só adições).
+- Código (branch `codex/recuperador-devolucoes`, worktree próprio para não misturar com a sessão da página de vendas): cron,
+  motor, tela com 3 abas, página da devolução para celular, alertas e e-mail com link próprio, selo no menu, rota privada no
+  robots, rótulo no Uso de IA. Mudanças no que já existia (lista fechada): tipos/constantes de alertas, e-mail (`alertUrl`,
+  assunto e botão), filtro dos alertas de devolução na Reputação e no selo dela, menu, robots, `vercel.json`, `AiFeature`.
+- Testes: 24 unitários (`tests/unit/recovery.test.ts`) + integração no banco real com ML simulado
+  (`RUN_RECOVERY_DB=1`; loja temporária apagada; nada em `recovery_actions`). QA visual com loja temporária (computador e
+  celular 390 px; fluxo "chegou com problema" até a confirmação, sem enviar): corrigidos a altura dos cartões, as abas no
+  celular e um estouro horizontal. Loja, usuário e o registro de uso da IA do teste apagados (conferido: 0). A IA real não foi
+  testada localmente (sem chave no `.env.local`; o relato sem IA funcionou).
+- typecheck, testes (581), lint e build ok. **Não publicado**: aguardando o ok do Breno para o merge na `v2`.
 
 ### 2026-10-20 — Sessão 29b · Escudo de Reputação na página de vendas (IA: Claude, via app Codex)
 - Pedido do Breno: "garantir que essa nova funcionalidade apareça na página de vendas (a home) da maanu, de uma maneira bem
@@ -2562,6 +2654,17 @@ webhook do ML validado, fila/reprocessamento de jobs, observabilidade, controle 
 ---
 
 ## 13. Próximos passos
+
+0n. **Recuperador (Sessão 30) — etapa 1 pronta na branch `codex/recuperador-devolucoes`, migração já aplicada (aditiva, sem
+   efeito sem o código).** **Breno:** (a) revisar e dar o ok para o merge na `v2` (publica em `app.maanu.com.br`); (b) a
+   `RESEND_API_KEY` do item 0m (b) vale para os alertas de devolução também (o prazo da revisão é curto, o e-mail importa);
+   (c) a 1ª revisão real só com o clique dele (ou do cliente) numa devolução real. **Próxima IA, depois do merge:** conferir
+   (só leitura) o cron `/api/cron/recuperador` 200, `recovery_sync.last_error` vazio, `recovery_scans` andando até `done`
+   nas lojas grandes (o Raio-X lê ~15 devoluções por minuto por conta), a 1ª revisão real (resposta do ML em
+   `recovery_actions`; confirmar o limite do relato) e o custo do relato em Uso de IA (`recovery_return_message`).
+   **Etapa 2** (`codex/recuperador-cobrancas`, só leitura): `/billing/integration` (últimas 3 faturas), "frete fora do padrão"
+   (≥ 25% e R$ 5 acima da mediana do mesmo anúncio e modalidade, ≥ 5 vendas) e "cobrança em duplicidade"; sem permissão de
+   Faturamento → cartão "reconecte a conta". Ideia futura: IA olhando as fotos da devolução.
 
 0m. **Escudo de Reputação (Sessão 29) — ✅ no ar desde 2026-10-19 ~18:44** (as 2 etapas); **na página de vendas desde
    2026-10-20 (Sessão 29b)**: a página promete alerta por e-mail, então a `RESEND_API_KEY` do item (b) virou prioridade. **Breno:** (a) ✅ merge aprovado;

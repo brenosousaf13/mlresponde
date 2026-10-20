@@ -1,0 +1,266 @@
+import { ArrowLeftIcon, CheckCircle2Icon, ExternalLinkIcon, HistoryIcon, PackageOpenIcon, WarehouseIcon, XCircleIcon } from "lucide-react"
+import type { Metadata } from "next"
+import Link from "next/link"
+import { notFound } from "next/navigation"
+
+import { PageHeader } from "@/components/app/page-header"
+import { SyncReturnButton } from "@/components/recuperador/recovery-buttons"
+import { ReturnReviewFlow } from "@/components/recuperador/return-review-flow"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import { Badge } from "@/components/ui/badge"
+import { buttonVariants } from "@/components/ui/button"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { formatMoney } from "@/lib/customers/presentation"
+import { canManageOrganization, requireSection } from "@/lib/dal/app-context"
+import { getReturnDetail } from "@/lib/dal/recovery"
+import { formatDateTime, timeAgo } from "@/lib/format"
+import { BENEFITED_LABELS, DESTINATION_LABELS, PHASE_BADGE, recoveryHref } from "@/lib/recovery/presentation"
+import {
+  CONDITION_LABELS,
+  PHASE_LABELS,
+  SHIPMENT_STATUS_LABELS,
+  STATUS_MONEY_LABELS,
+  WAREHOUSE_REASON_LABELS,
+  destinationLabel,
+} from "@/lib/recovery/returns"
+import { FALLBACK_REASONS } from "@/lib/recovery/review"
+import { DUE_TEXT, claimHref, dueState, mlSaleUrl } from "@/lib/reputation/presentation"
+import { cn } from "@/lib/utils"
+
+export const metadata: Metadata = { title: "Devolução" }
+// Motivos, relato da IA e o envio da revisão (Server Actions desta página) falam com o ML e a OpenAI.
+export const maxDuration = 60
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
+function Fact({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="flex min-w-0 flex-col gap-1">
+      <span className="text-xs text-muted-foreground">{label}</span>
+      {children}
+    </div>
+  )
+}
+
+function reasonLabel(id: unknown) {
+  return FALLBACK_REASONS.find((reason) => reason.id === id)?.label ?? (typeof id === "string" ? id : null)
+}
+
+export default async function ReturnPage({ params, searchParams }: PageProps<"/recuperador/devolucoes/[id]">) {
+  const context = await requireSection("recuperador")
+  const { id } = await params
+  const query = await searchParams
+  if (!UUID.test(id)) notFound()
+  const data = await getReturnDetail(context.organization.id, id)
+  if (!data) notFound()
+
+  const now = new Date()
+  const { row, claim, account, actions } = data
+  const due = dueState(row.deadline_at, now)
+  const saleUrl = mlSaleUrl(row.order_id)
+  const conta = typeof query.conta === "string" ? query.conta : account.id
+  const backHref = recoveryHref(conta, "devolucoes", row.phase === "needs_review" ? undefined : row.phase === "closed" ? "encerradas" : "andamento")
+  const warehouse = row.reviews.filter((review) => review.product_condition || review.benefited)
+  const quantity = row.orders.reduce((total, order) => total + (order.return_quantity ?? 0), 0)
+
+  return (
+    <>
+      <div>
+        <Link href={backHref} className={cn(buttonVariants({ variant: "ghost", size: "sm" }), "-ml-2 text-muted-foreground")}>
+          <ArrowLeftIcon data-icon="inline-start" />
+          Devoluções
+        </Link>
+      </div>
+
+      <PageHeader
+        title={row.item_title || "Devolução " + row.claim_id}
+        description={[
+          "Devolução #" + row.claim_id,
+          row.claim_created_at ? "aberta " + timeAgo(row.claim_created_at, now) : null,
+          claim?.buyer_nickname ? "comprador " + claim.buyer_nickname : null,
+          account.nickname,
+        ]
+          .filter(Boolean)
+          .join(" · ")}
+        actions={
+          <>
+            {saleUrl ? (
+              <a href={saleUrl} target="_blank" rel="noreferrer" className={cn(buttonVariants({ variant: "outline" }), "bg-card")}>
+                Ver no ML
+                <ExternalLinkIcon data-icon="inline-end" />
+              </a>
+            ) : null}
+            <SyncReturnButton returnRowId={row.id} />
+          </>
+        }
+      />
+
+      <Card size="sm">
+        <CardContent className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+          <Fact label="Situação">
+            <Badge variant="outline" className={cn("w-fit border-transparent", PHASE_BADGE[row.phase])}>
+              {PHASE_LABELS[row.phase]}
+            </Badge>
+          </Fact>
+          <Fact label="Prazo para revisar">
+            {row.phase === "needs_review" && row.deadline_at ? (
+              <span className={cn("font-medium", DUE_TEXT[due])}>
+                {formatDateTime(row.deadline_at)} ({timeAgo(row.deadline_at, now)})
+              </span>
+            ) : (
+              <span className="text-muted-foreground">{row.phase === "needs_review" ? "O ML não informou" : "Sem prazo agora"}</span>
+            )}
+          </Fact>
+          <Fact label="Valor da venda">
+            {row.amount ? (
+              <span className="font-medium tabular-nums">{formatMoney(row.amount, row.currency_id)}</span>
+            ) : (
+              <span className="text-muted-foreground">Sem informação</span>
+            )}
+            {quantity ? <span className="text-xs text-muted-foreground">{quantity} unidade(s) devolvida(s)</span> : null}
+          </Fact>
+          <Fact label="Dinheiro">
+            <span>{row.status_money ? (STATUS_MONEY_LABELS[row.status_money] ?? row.status_money) : "Sem informação"}</span>
+          </Fact>
+          <Fact label="Envio da devolução">
+            <span>{row.shipment_status ? (SHIPMENT_STATUS_LABELS[row.shipment_status] ?? row.shipment_status) : "Sem informação"}</span>
+            {destinationLabel(row.destination) ? (
+              <span className="text-xs text-muted-foreground">Destino: {destinationLabel(row.destination)}</span>
+            ) : null}
+          </Fact>
+          <Fact label="Motivo do comprador">
+            <span className="line-clamp-2">{claim?.reason_detail ?? "Sem informação"}</span>
+          </Fact>
+          <Fact label="Pedidos">
+            <span>{row.is_cart ? "Carrinho com " + row.orders.length + " pedidos" : "1 pedido"}</span>
+          </Fact>
+          <Fact label="Atualizado">
+            <span>{timeAgo(row.synced_at, now)}</span>
+          </Fact>
+        </CardContent>
+      </Card>
+
+      {row.recovered_at ? (
+        <Alert className="border-emerald-500/40 bg-emerald-500/5">
+          <CheckCircle2Icon />
+          <AlertTitle>O Mercado Livre ressarciu você</AlertTitle>
+          <AlertDescription>
+            {row.recovered_amount ? formatMoney(row.recovered_amount, row.currency_id) + " · " : ""}A revisão enviada pela maanu deu certo.
+          </AlertDescription>
+        </Alert>
+      ) : null}
+
+      {row.phase === "needs_review" ? (
+        <ReturnReviewFlow
+          returnRowId={row.id}
+          canManage={canManageOrganization(context.role)}
+          canOk={row.can_review_ok}
+          canFail={row.can_review_fail}
+          isCart={row.is_cart}
+        />
+      ) : row.review_submitted_at ? (
+        <Alert>
+          {row.review_kind === "fail" ? <XCircleIcon /> : <CheckCircle2Icon />}
+          <AlertTitle>
+            {row.review_kind === "fail" ? "Você relatou um problema ao Mercado Livre" : "Você confirmou que a devolução chegou certinho"}
+          </AlertTitle>
+          <AlertDescription>
+            Enviado pela maanu em {formatDateTime(row.review_submitted_at)}.{" "}
+            {row.review_kind === "fail" && !row.recovered_at ? "O ML analisa o caso; avisamos aqui quando decidir." : ""}
+          </AlertDescription>
+        </Alert>
+      ) : row.phase === "at_warehouse" ? (
+        <Alert>
+          <WarehouseIcon />
+          <AlertTitle>Esta devolução vai para o armazém do Mercado Livre</AlertTitle>
+          <AlertDescription>O ML confere o produto primeiro. Se ele liberar a sua revisão, avisamos no app e por e-mail.</AlertDescription>
+        </Alert>
+      ) : row.phase === "waiting" ? (
+        <Alert>
+          <PackageOpenIcon />
+          <AlertTitle>A devolução ainda não chegou</AlertTitle>
+          <AlertDescription>Quando chegar e o Mercado Livre liberar a revisão, avisamos no app e por e-mail.</AlertDescription>
+        </Alert>
+      ) : null}
+
+      <div className="grid gap-4 lg:grid-cols-2">
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <WarehouseIcon className="size-4" />
+              Avaliação do produto
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {warehouse.length ? (
+              <ul className="flex flex-col gap-3">
+                {warehouse.map((review, index) => (
+                  <li key={index} className="flex flex-col gap-1 rounded-lg border px-3 py-2.5 text-sm">
+                    <span className="font-medium">
+                      {review.method === "triage" ? "Armazém do ML" : "Revisão"}
+                      {review.order_id && row.is_cart ? " · pedido " + review.order_id : ""}
+                    </span>
+                    <span className="text-muted-foreground">
+                      {[
+                        review.product_condition ? "Produto " + (CONDITION_LABELS[review.product_condition] ?? review.product_condition) : null,
+                        review.reason_id && WAREHOUSE_REASON_LABELS[review.reason_id] ? WAREHOUSE_REASON_LABELS[review.reason_id] : null,
+                        review.product_destination && DESTINATION_LABELS[review.product_destination]
+                          ? DESTINATION_LABELS[review.product_destination]
+                          : null,
+                      ]
+                        .filter(Boolean)
+                        .join(" · ") || "Sem detalhes"}
+                    </span>
+                    {review.benefited && BENEFITED_LABELS[review.benefited] ? (
+                      <span className={review.benefited === "seller" ? "text-emerald-700 dark:text-emerald-300" : "text-muted-foreground"}>
+                        {BENEFITED_LABELS[review.benefited]}
+                      </span>
+                    ) : null}
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="text-sm text-muted-foreground">O Mercado Livre ainda não avaliou o produto desta devolução.</p>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <HistoryIcon className="size-4" />
+              Histórico na maanu
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="flex flex-col gap-3">
+            {actions.length ? (
+              <ul className="flex flex-col gap-3">
+                {actions.map((action) => (
+                  <li key={action.id} className="flex flex-col gap-0.5 text-sm">
+                    <span className="font-medium">
+                      {action.action === "return_review_ok" ? "Chegou certinho" : "Chegou com problema"}
+                      {action.status === "failed" ? " (o ML recusou)" : ""}
+                    </span>
+                    <span className="text-xs text-muted-foreground">
+                      {formatDateTime(action.performed_at)}
+                      {reasonLabel(action.details.reason) ? " · " + reasonLabel(action.details.reason) : ""}
+                      {Array.isArray(action.details.attachments) && action.details.attachments.length
+                        ? " · " + action.details.attachments.length + " foto(s)"
+                        : ""}
+                    </span>
+                    {action.error ? <span className="text-xs text-destructive">{action.error}</span> : null}
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="text-sm text-muted-foreground">Nenhuma revisão enviada pela maanu nesta devolução.</p>
+            )}
+            <Link href={claimHref(row.claim_row_id, account.id)} className="text-sm font-medium text-primary hover:underline">
+              Ver a reclamação no Escudo de Reputação
+            </Link>
+          </CardContent>
+        </Card>
+      </div>
+    </>
+  )
+}

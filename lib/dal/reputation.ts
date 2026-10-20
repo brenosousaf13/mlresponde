@@ -1,5 +1,6 @@
 import "server-only"
 
+import { RETURN_ALERT_KINDS } from "@/lib/reputation/alerts"
 import { computeSlack, type ReputationReading } from "@/lib/reputation/metrics"
 import { buildForecast } from "@/lib/reputation/claims"
 import { colorValue } from "@/lib/reputation/shipments"
@@ -52,6 +53,8 @@ export async function getReputationPage(organizationId: string, accountId: strin
       .select("id, kind, severity, title, body, data, opened_at")
       .eq("ml_account_id", accountId)
       .eq("status", "open")
+      // Os alertas de devolução aparecem no Recuperador.
+      .not("kind", "in", "(" + RETURN_ALERT_KINDS.join(",") + ")")
       .order("opened_at", { ascending: false })
       .limit(50),
     supabase

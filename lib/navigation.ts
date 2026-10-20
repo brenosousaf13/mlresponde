@@ -10,6 +10,7 @@ export type NavItemConfig = {
     | "pos_venda"
     | "clientes"
     | "reputacao"
+    | "recuperador"
     | "melhorias"
     | "resultados"
     | "assistente"
@@ -24,6 +25,7 @@ export const NAV_ITEMS: readonly NavItemConfig[] = [
   { section: "pos_venda", title: "Pós-venda", href: "/pos-venda", icon: "pos_venda" },
   { section: "clientes", title: "Clientes", href: "/clientes", icon: "clientes" },
   { section: "reputacao", title: "Reputação", href: "/reputacao", icon: "reputacao" },
+  { section: "recuperador", title: "Recuperador", href: "/recuperador", icon: "recuperador" },
   { section: "resultados", title: "Resultados", href: "/resultados", icon: "resultados" },
   { section: "melhorias", title: "Melhorias de anúncio", href: "/melhorias", icon: "melhorias" },
   { section: "assistente", title: "Assistente de IA", href: "/assistente", icon: "assistente" },
@@ -39,6 +41,7 @@ export const PAGE_TITLES: Record<string, string> = {
   "/pos-venda": "Pós-venda",
   "/clientes": "Clientes",
   "/reputacao": "Reputação",
+  "/recuperador": "Recuperador",
   "/resultados": "Resultados",
   "/melhorias": "Melhorias de anúncio",
   "/assistente": "Assistente de IA",

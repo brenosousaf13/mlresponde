@@ -38,7 +38,7 @@ import {
   toClaimRow,
   type ClaimRow,
 } from "@/lib/reputation/claims"
-import { buildAlertEmail, claimLink, reputationUrl } from "@/lib/reputation/email"
+import { alertUrl, buildAlertEmail } from "@/lib/reputation/email"
 import { computeSlack, readReputation, reputationRaw, reputationSignature } from "@/lib/reputation/metrics"
 import { classifyShipment, nextShipmentCheck, readShipmentCosts, readSla, shipmentRisk } from "@/lib/reputation/shipments"
 import type { ReputationColor } from "@/lib/reputation/thresholds"
@@ -791,7 +791,7 @@ export async function sendPendingEmails(deadline: number, now: Date = new Date()
       accountName: accountName.get(group.accountId) ?? "sua conta",
       storeName: storeName.get(group.organizationId) ?? "sua loja",
       items: group.ids.map((id) => ({ title: byId.get(id)?.title ?? "", body: byId.get(id)?.body ?? "" })),
-      url: reputationUrl(siteUrl, group.accountId, claimLink(group.kind, group.ids.map((id) => byId.get(id)?.data))),
+      url: alertUrl(siteUrl, group.kind, group.accountId, group.ids.map((id) => byId.get(id)?.data)),
     })
     const results = await Promise.all(
       to.map((address, index) => sendEmail({ to: address, ...email, idempotencyKey: "reputacao-" + group.ids[0] + "-" + index }))
