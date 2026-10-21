@@ -4,7 +4,9 @@
 > inteiro antes de trabalhar e atualizá-lo ao terminar. Se algo aqui divergir do código, o código vence —
 > e este arquivo deve ser corrigido na mesma sessão.
 
-Última atualização: **2026-10-20** (Sessão 31 — **Recuperador com a regra real do ML** (no ar, `6607ff4` + `97edb66`): a
+Última atualização: **2026-10-20** (Sessão 32 — **"Chegou certinho" do Recuperador corrigido** (no ar, `fc2fbe7`): o ML
+recusava o corpo `{}` que a documentação manda ("Required request body is missing or incorrect"); agora vai `[]` (conferido na API);
+Sessão 31 — **Recuperador com a regra real do ML** (no ar, `6607ff4` + `97edb66`): a
 contestação da revisão do armazém do Full (reclamação encerrada com `return_review_fail`) e a revisão de devolução que chegou ao
 vendedor com a reclamação já encerrada passaram a aparecer em "Revise agora" (antes ficavam como "Encerrada" e o dinheiro sumia);
 pacote a caminho do armazém não pede mais revisão; carrinho revisa só o pedido da reclamação (`order_id`); `applied_coverage`
@@ -1171,7 +1173,7 @@ exportação só faz GET e a importação recusa qualquer destino que não seja 
    = só motivos de pedido + `order_id` do pedido da reclamação; checklist e guia de fotos por motivo, fotos reduzidas no navegador
    (JPG ≤ 1.600 px, até 5, ≤ 4 MB; SRF2/SRF4 exigem foto); relato pela IA (`recovery_return_message`, não conta na cota; na
    contestação recebe o motivo do comprador e o texto do ML) editável (≤ 1.000 caracteres, sem contato externo); fotos em
-   `/claims/{id}/returns/attachments`; envio em `POST /post-purchase/v1/returns/{return_id}/return-review` (`{}` ou
+   `/claims/{id}/returns/attachments`; envio em `POST /post-purchase/v1/returns/{return_id}/return-review` (`[]` = chegou certinho; **não `{}`**, que a documentação manda mas o ML recusa — Sessão 32 — ou
    `[{ reason, message, attachments, order_id? }]`). Histórico imutável (com `mode`, `is_cart`, `order_id`) e releitura.
 
 ### 7.0d v2 — Painel do administrador (`/admin`)
@@ -1734,11 +1736,24 @@ webhook do ML validado, fila/reprocessamento de jobs, observabilidade, controle 
 | 2026-10-20 | Alertas do Recuperador na **mesma tabela e no mesmo e-mail** do Escudo (`reputation_alerts`, CHECK estendido), com selo próprio e fora da tela da Reputação | Reaproveita o envio (Resend, 1 e-mail por conta/tipo a cada 30 min) e o liga/desliga já existente, sem tabela nova. |
 | 2026-10-20 | Na v1 a IA **só escreve o relato** (não olha as fotos); fotos seguem um guia por motivo e são reduzidas no navegador | A IA do app ainda não lê imagens; as fotos de celular não caberiam no limite de 4 MB da Server Action sem reduzir. |
 | 2026-10-20 | Achado de devolução tem **confiança média** e só gera texto pronto (sem contestar pelo vendedor) | O ML não tem API para contestar a decisão do armazém; a decisão final é do ML. |
+| 2026-10-20 | "Chegou certinho" envia **`[]`** ao `return-review`, contra a documentação (`{}`) | Testado na API em 2026-10-20 numa devolução encerrada (sem efeito): `{}` → 400 "Required request body is missing or incorrect" (falha na leitura do corpo, o endpoint espera lista); `[]` → passa para a validação da ação ("Not found player config…"). Primeiro "Chegou certinho" real (Girassol, reclamação 5589751302) falhou com `{}`. |
 | 2026-10-20 | Rotina de perguntas: **1 consulta por minuto** (era a cada ~10 s); Escudo **a cada 2 min** com token reaproveitado e gravações agrupadas | Custo da Vercel (função ligada ~20 h/dia esperando). O webhook do ML chega normalmente; se falhar, a pergunta leva até ~1 min. Breno aprovou (Sessão 30b). |
 
 ---
 
 ## 12. Diário de sessões (mais recente no topo)
+
+### 2026-10-20 — Sessão 32 · "Chegou certinho" recusado pelo ML (IA: Claude, via app Codex)
+- Breno tentou marcar "Chegou certinho" na devolução da reclamação 5589751302 (Girassol/LOJAJEANSDAMODA, prazo 20/10 23:01) e
+  o histórico mostrou "Chegou certinho (o ML recusou)" com "Required request body is missing or incorrect". `recovery_actions`
+  confirmou 400 do ML com o corpo `{}` (o que a documentação de Devoluções manda para a revisão OK).
+- Diagnóstico na API real, sem efeito em nada: POST numa devolução **encerrada e sem revisão liberada** da mesma conta: `{}` →
+  400 "Required request body is missing or incorrect"; `[]` → 400 "Not found player config for role respondent" (o corpo foi
+  aceito e a recusa veio da regra da ação). O endpoint unificado espera uma **lista** (a mesma da revisão com problema).
+- Correção: `reviewPayload("ok")` devolve `[]` (`lib/recovery/review.ts`), teste ajustado. 4 verificações ok; `fc2fbe7` na `v2`.
+  A revisão OK em si não foi enviada pela IA: fica para o Breno clicar de novo (o envio é irreversível).
+- Em aberto: revisão OK em **carrinho** (`[]` revisa a devolução inteira, todos os pedidos); o ML não documenta `order_id`
+  no OK. Hoje a maanu deixa enviar OK em carrinho; conferir no 1º caso real.
 
 ### 2026-10-20 — Sessão 30b · Custo da Vercel: perguntas 1x/min e Escudo a cada 2 min (IA: Claude, via app Codex)
 - Pedido do Breno: o ciclo da Vercel (6/out–6/nov) já tinha usado US$ 16,20 dos US$ 20 de crédito. Análise (`vercel usage` e
@@ -2736,7 +2751,9 @@ webhook do ML validado, fila/reprocessamento de jobs, observabilidade, controle 
    Log Ingestion por dia (meta: < ~33 MB/dia para caber em 1 GB/mês); se ainda passar, as próximas fontes são
    `reputation_claims`, `reputation_alerts` (leituras por rodada do Escudo) e `ml_orders`.
 
-0n. **Recuperador (Sessão 30; regras refeitas na Sessão 31) — ✅ no ar** (`555bdb1`, `6607ff4`, `97edb66`). **Breno (o que
+0n. **Recuperador (Sessão 30; regras refeitas na Sessão 31) — ✅ no ar** (`555bdb1`, `6607ff4`, `97edb66`; "Chegou certinho"
+   corrigido na Sessão 32, `fc2fbe7`: corpo `[]`). **Próxima IA:** conferir em `recovery_actions` o 1º `return_review_ok` com
+   `status` success e a devolução virando `reviewed`; em carrinho, ver se `[]` revisou só o pedido certo ou todos. **Breno (o que
    falta para provar que recupera dinheiro):** (a) **avisar as lojas agora** (Girassol/LOJAJEANSDAMODA e as contas MARIAMARIA e
    MENINAMENINA): há devoluções para revisar com prazo de 20/10 a 23/10 e ~26 contestações do Full (~R$ 1.560) com prazo
    estimado até meados de dezembro; (b) **a 1ª contestação real** só com o clique do dono da loja (o POST é irreversível): escolher
