@@ -181,49 +181,22 @@ export function SpotlightWordmark({ className }: { className?: string }) {
 }
 
 /**
- * Letras gigantes preenchidas por um gradiente teal que corre (rodapé e convite final). Cada letra pula ao passar o
- * mouse e entra subindo.
+ * Letras gigantes sólidas em teal (rodapé). Cada letra entra subindo e pula ao passar o mouse; o ponto quica.
  */
 export function AuroraWordmark({ className }: { className?: string }) {
-  const rawId = useId().replace(/[^a-zA-Z0-9]/g, "")
-  const gradientId = `aurora-${rawId}`
   const wrapRef = useRef<HTMLDivElement>(null)
-  const svgRef = useRef<SVGSVGElement>(null)
   const seen = useInView(wrapRef, { once: true, threshold: 0.25 })
-
-  useEffect(() => {
-    const svg = svgRef.current
-    if (svg && window.matchMedia("(prefers-reduced-motion: reduce)").matches) svg.pauseAnimations?.()
-  }, [])
-
-  const width = WORDMARK.width
   return (
     <div ref={wrapRef} className={cn("wm-clip", className)}>
-      <svg ref={svgRef} viewBox={VIEWBOX} className="wm" data-intro={seen ? "true" : "pending"} aria-hidden focusable="false">
-        <defs>
-          <linearGradient id={gradientId} gradientUnits="userSpaceOnUse" x1="0" y1="0" x2={width * 0.7} y2="60" spreadMethod="reflect">
-            <stop offset="0" stopColor="var(--brand-mint)" />
-            <stop offset="0.5" stopColor="var(--brand-teal)" />
-            <stop offset="1" stopColor="#0e7c6b" />
-            <animateTransform attributeName="gradientTransform" type="translate" from="0 0" to={`${width * 1.4} 0`} dur="14s" repeatCount="indefinite" />
-          </linearGradient>
-        </defs>
+      <svg viewBox={VIEWBOX} className="wm" data-intro={seen ? "true" : "pending"} aria-hidden focusable="false">
         {LETTERS.map((letter, index) => (
-          <path key={letter.key} d={letter.d} fill={`url(#${gradientId})`} className="wm-letter" style={{ "--i": index } as CSSProperties} />
+          <path key={letter.key} d={letter.d} fill="var(--brand-teal)" className="wm-letter" style={{ "--i": index } as CSSProperties} />
         ))}
-        <circle
-          cx={WORDMARK.dot.cx}
-          cy={WORDMARK.dot.cy}
-          r={WORDMARK.dot.r}
-          className="wm-dot wm-dot-live"
-          fill="var(--brand-mint)"
-          style={{ "--i": LETTERS.length } as CSSProperties}
-        />
+        <circle cx={WORDMARK.dot.cx} cy={WORDMARK.dot.cy} r={WORDMARK.dot.r} className="wm-dot wm-dot-live" fill="var(--brand-mint)" style={{ "--i": LETTERS.length } as CSSProperties} />
       </svg>
     </div>
   )
 }
-
 /** Só o "m." (símbolo) com o ponto pulando, para espaços pequenos. */
 export function MarkBounce({ className }: { className?: string }) {
   return (

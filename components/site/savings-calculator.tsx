@@ -13,7 +13,7 @@ import {
   type SavingsInput,
 } from "@/lib/site/calculator"
 
-import { Container, Eyebrow, SectionTitle } from "./primitives"
+import { Container, SectionTitle } from "./primitives"
 import { Reveal } from "./reveal"
 import { SiteButton } from "./site-button"
 
@@ -44,18 +44,11 @@ export function SavingsCalculator({ signupHref }: { signupHref: string }) {
 
   return (
     <section id="calculadora" aria-labelledby="calculadora-title" className="scroll-mt-24 bg-brand-offwhite px-3 sm:px-4">
-      <div data-nav="dark" className="relative isolate site-clip rounded-[2rem] bg-brand-night py-20 text-white sm:rounded-[2.75rem] sm:py-28">
-        <div aria-hidden className="pointer-events-none absolute inset-0 -z-10">
-          <div className="site-motion absolute -bottom-1/2 left-1/2 h-[90%] w-[80%] -translate-x-1/2 animate-[site-aurora_20s_ease-in-out_infinite] rounded-full bg-[radial-gradient(closest-side,color-mix(in_oklch,var(--brand-teal)_35%,transparent),transparent)] blur-2xl" />
-          <div className="site-grid absolute inset-0" />
-          <div className="site-grain absolute inset-0" />
-        </div>
-
+      <div data-nav="dark" className="relative isolate site-clip rounded-3xl bg-brand-night py-20 text-white sm:py-28">
         <Container>
           <Reveal className="mx-auto max-w-3xl text-center">
-            <Eyebrow tone="dark">Calculadora</Eyebrow>
-            <SectionTitle id="calculadora-title" className="mt-5">
-              Quanto tempo a maanu <span className="site-gradient-text">te devolve?</span>
+            <SectionTitle id="calculadora-title">
+              Quanto tempo a maanu <span className="text-brand-mint">te devolve?</span>
             </SectionTitle>
             <p className="mx-auto mt-6 max-w-2xl text-lg leading-relaxed text-pretty text-white/70">
               Arraste e veja. É a mesma conta da tela Resultados da maanu: perguntas respondidas, vezes os minutos que cada uma
@@ -64,7 +57,7 @@ export function SavingsCalculator({ signupHref }: { signupHref: string }) {
           </Reveal>
 
           <Reveal delay={120} className="mx-auto mt-14 grid max-w-5xl gap-4 lg:grid-cols-2">
-            <div className="flex flex-col rounded-[1.75rem] border border-white/10 bg-white/[0.04] p-6 backdrop-blur sm:p-8">
+            <div className="flex flex-col rounded-2xl bg-white/[0.06] p-6 sm:p-8">
               <div className="flex items-center gap-2 text-sm font-medium text-white/80">
                 <Calculator className="size-4 text-brand-mint" aria-hidden /> A sua loja
               </div>
@@ -78,7 +71,7 @@ export function SavingsCalculator({ signupHref }: { signupHref: string }) {
                         <label id={`${id}-label`} className="text-sm text-white/70">
                           {field.label}
                         </label>
-                        <output htmlFor={id} className="shrink-0 font-mono text-sm font-semibold text-white tabular-nums">
+                        <output htmlFor={id} className="shrink-0 text-sm font-semibold text-white tabular-nums">
                           {field.format(input[field.key])}
                         </output>
                       </div>
@@ -90,19 +83,19 @@ export function SavingsCalculator({ signupHref }: { signupHref: string }) {
                         step={limits.step}
                         value={[input[field.key]]}
                         onValueChange={update(field.key)}
-                        className="mt-4 [&_[data-slot=slider-range]]:bg-brand-teal [&_[data-slot=slider-thumb]]:size-5 [&_[data-slot=slider-thumb]]:border-brand-teal [&_[data-slot=slider-thumb]]:shadow-[0_0_0_6px] [&_[data-slot=slider-thumb]]:shadow-brand-teal/25 [&_[data-slot=slider-track]]:h-1.5 [&_[data-slot=slider-track]]:bg-white/10"
+                        className="mt-4 [&_[data-slot=slider-range]]:bg-brand-teal [&_[data-slot=slider-thumb]]:size-5 [&_[data-slot=slider-thumb]]:border-brand-teal [&_[data-slot=slider-track]]:h-1.5 [&_[data-slot=slider-track]]:bg-white/10"
                       />
                     </div>
                   )
                 })}
               </div>
-              <p className="mt-auto rounded-2xl border border-white/10 bg-white/[0.03] p-4 text-sm leading-relaxed text-white/60">
+              <p className="mt-auto text-sm leading-relaxed text-white/65">
                 Na sua conta, a tela Resultados faz essa mesma conta com as perguntas que a maanu respondeu de verdade, e você
                 ajusta os minutos e o valor da hora quando quiser.
               </p>
             </div>
 
-            <div className="flex flex-col rounded-[1.75rem] bg-white p-6 text-brand-graphite sm:p-8" aria-live="polite">
+            <div className="flex flex-col rounded-2xl bg-white p-6 text-brand-graphite sm:p-8" aria-live="polite">
               <p className="text-sm text-muted-foreground">Por mês, você ganha de volta</p>
               <p className="mt-2 font-display text-6xl leading-none font-semibold tracking-[-0.04em] tabular-nums sm:text-7xl">
                 {formatHours(estimate.hoursPerMonth)}
@@ -116,14 +109,14 @@ export function SavingsCalculator({ signupHref }: { signupHref: string }) {
               <div className="my-7 h-px bg-border" />
 
               <dl className="mb-7 grid grid-cols-2 gap-3">
-                <div className="rounded-2xl bg-brand-offwhite p-4">
+                <div className="rounded-xl bg-brand-offwhite p-4">
                   <dt className="text-sm text-muted-foreground">Perguntas que saem da sua mão</dt>
                   <dd className="mt-1 font-display text-3xl font-semibold tracking-tight tabular-nums">
                     {formatInteger(estimate.questionsPerMonth)}
                     <span className="block text-sm font-medium text-muted-foreground sm:ml-1 sm:inline sm:text-base">por mês</span>
                   </dd>
                 </div>
-                <div className="rounded-2xl bg-brand-offwhite p-4">
+                <div className="rounded-xl bg-brand-offwhite p-4">
                   <dt className="text-sm text-muted-foreground">Tempo que volta para você</dt>
                   <dd className="mt-1 font-display text-3xl font-semibold tracking-tight tabular-nums">
                     {formatHours(estimate.hoursPerMonth / WEEKS_PER_MONTH)} h

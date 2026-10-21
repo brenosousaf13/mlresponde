@@ -77,13 +77,13 @@ export function HeroChat({ className }: { className?: string }) {
 
   const item = SCRIPT[index]
   return (
-    <div ref={ref} className={cn("w-full max-w-[19.5rem] rounded-[1.4rem] bg-white p-4 text-brand-graphite shadow-[0_30px_70px_-20px] shadow-black/60", className)}>
+    <div ref={ref} className={cn("w-full max-w-[19.5rem] rounded-2xl bg-white p-4 text-brand-graphite shadow-[0_30px_70px_-20px] shadow-black/60", className)}>
       <div className="flex items-center justify-between text-[11px] text-slate-500">
-        <span className="inline-flex items-center gap-1.5 font-mono tracking-wide">
+        <span className="inline-flex items-center gap-1.5 tabular-nums">
           <span className="size-1.5 rounded-full bg-amber-500" aria-hidden />
           {item.time} · pergunta nova
         </span>
-        <span className="font-mono">Mercado Livre</span>
+        <span>Mercado Livre</span>
       </div>
 
       <div className="mt-3 flex items-start gap-2">
@@ -103,7 +103,7 @@ export function HeroChat({ className }: { className?: string }) {
               <span className="text-xs">{phase === "ask" ? "Chegou" : "Lendo o anúncio"}</span>
               <span className="inline-flex gap-0.5" aria-hidden>
                 {[0, 1, 2].map((dot) => (
-                  <span key={dot} className="size-1 animate-bounce rounded-full bg-brand-teal" style={{ animationDelay: `${dot * 120}ms` }} />
+                  <span key={dot} className="size-1 animate-pulse rounded-full bg-brand-teal" style={{ animationDelay: `${dot * 120}ms` }} />
                 ))}
               </span>
             </span>
@@ -126,7 +126,7 @@ export function HeroChat({ className }: { className?: string }) {
           <CheckCheckIcon className="size-3.5" aria-hidden />
           Enviada ao Mercado Livre
         </span>
-        <span className="font-mono text-slate-500">
+        <span className="text-slate-500 tabular-nums">
           {item.seconds} s · certeza {item.certainty}%
         </span>
       </div>

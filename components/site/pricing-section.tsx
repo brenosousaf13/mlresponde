@@ -42,11 +42,9 @@ export function PricingSection({ signupHref }: { signupHref: string }) {
 
   return (
     <section id="planos" aria-labelledby="planos-title" data-nav="light" className="relative scroll-mt-24 bg-brand-offwhite py-24 text-brand-graphite sm:py-36">
-      <div aria-hidden className="light-grid pointer-events-none absolute inset-0 opacity-50 [mask-image:linear-gradient(#000,transparent_45%)]" />
       <Container className="relative max-w-7xl">
         <div className="mx-auto max-w-4xl text-center">
-          <p className="font-mono text-xs tracking-[0.2em] text-brand-teal-ink uppercase">Planos</p>
-          <Headline id="planos-title" as="h2" className="mt-5 font-display text-[2.4rem] leading-[1] font-semibold tracking-[-0.04em] sm:text-6xl">
+          <Headline id="planos-title" as="h2" className="font-display text-[2.4rem] leading-[1] font-semibold tracking-[-0.035em] sm:text-6xl">
             {formatBRL(pricePerDay(cheapest))} por dia pra nunca mais deixar comprador no vácuo
           </Headline>
           <Reveal delay={100}>
@@ -65,9 +63,9 @@ export function PricingSection({ signupHref }: { signupHref: string }) {
                 <article
                   aria-labelledby={`plano-${plan.id}`}
                   className={cn(
-                    "relative flex h-full flex-col rounded-[1.75rem] border p-7 transition-transform duration-300 hover:-translate-y-1",
+                    "relative flex h-full flex-col rounded-2xl border p-7",
                     highlight
-                      ? "border-transparent bg-brand-night text-white shadow-[0_40px_90px_-40px] shadow-brand-teal/60 ring-1 ring-brand-teal/40"
+                      ? "border-transparent bg-brand-night text-white"
                       : "border-brand-graphite/10 bg-white"
                   )}
                 >

@@ -3,7 +3,7 @@
 import { useEffect, useRef } from "react"
 
 /** Grade de quadrados que acendem de leve ao acaso (fundo do convite final, como no Escutaí). */
-export function TileField({ className }: { className?: string }) {
+export function TileField({ className }: { className?: string; "aria-hidden"?: boolean }) {
   const ref = useRef<HTMLDivElement>(null)
   useEffect(() => {
     const element = ref.current

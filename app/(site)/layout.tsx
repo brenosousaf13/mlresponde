@@ -18,7 +18,7 @@ export const viewport: Viewport = { themeColor: "#0F172A" }
 
 export default function SiteLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <div className={cn(funnelDisplay.variable, "min-h-svh overflow-x-clip bg-background")}>
+    <div className={cn(funnelDisplay.variable, "site-root min-h-svh overflow-x-clip bg-background")}>
       {/* Sem JavaScript, nada fica escondido esperando a animação de entrada. */}
       <noscript>
         <style>{"[data-reveal]{opacity:1!important;transform:none!important;filter:none!important}.mask-w>span,.dot-end,.wm-letter,.wm-dot{transform:none!important}.scroll-word{opacity:1!important}"}</style>

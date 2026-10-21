@@ -1754,6 +1754,21 @@ webhook do ML validado, fila/reprocessamento de jobs, observabilidade, controle 
 
 ## 12. Diário de sessões (mais recente no topo)
 
+### 2026-10-21 — Sessão 35b · Cabeçalho e "cara de IA" da nova home (IA: Codex, via app Codex) — PRÉVIA, NÃO PUBLICADA
+- Pedido do Breno (com print): o cabeçalho parecia "cortado no meio" em alguns pontos; e tirar da home as marcas de site feito por IA
+  usando o skill **Impeccable** (`.agents/skills/impeccable`; detector rodado com `impeccable detect`, 0 achados no fim).
+- **Cabeçalho** (`site-header.tsx`): antes eram logo, pílula de links e botões soltos sobre um véu em degradê, e o texto da
+  página aparecia cortado por trás. Agora é **uma barra só** (logo + links + botões na mesma pílula): transparente no topo, sólida depois
+  de rolar, escura sobre seção escura e clara sobre seção clara.
+- **Tirado da home:** etiquetas pequenas em fonte mono acima dos títulos (`Eyebrow` apagado) e numeração 01/02/03 sem função; texto em
+  degradê (palavra do topo e "te devolve?"); halos/brilhos de cor (botões, destaque da tela, sombras); vidro e desfoque decorativo;
+  grade e grão de fundo (`hero-grid`, `light-grid`, `site-grain`); blobs de luz; cartões flutuantes; ícones em cartinhas; cartões
+  dentro de cartões; selos e chips decorativos; moedas "R$" mono; entrada com desfoque. Bounce/elástico trocado por ease-out expo. O
+  número solto "R$ 1.247,30" do topo virou o aviso como chega ao vendedor ("O Mercado Livre deu razão a você"); a lista de avisos do
+  Recuperador virou lista tipográfica; títulos com tracking −0,035em e raio dos cartões 16px.
+- **Detalhes de acabamento:** seleção de texto, cursor, foco, barra de rolagem e números tabulares com as cores da marca (`.site-root`
+  em `site.css`). Mantidos: letras animadas, transição em pixels, seção fixa "Responde. Protege. Recupera.", u-cofrinho, telas reais.
+- typecheck, 605 testes, lint e build ok. Continua só no branch `codex/homepage-recuperar`, sem push.
 ### 2026-10-21 — Sessão 35 · Nova homepage com o Recuperador em evidência (IA: Codex, via app Codex) — PRÉVIA, NÃO PUBLICADA
 - Pedido do Breno: refazer TODA a homepage misturando o **Outlign** (outlign.co: estrutura, ritmo, tipografia grande, cartões
   empilhados, bento) e o **Escutaí** (arquivo `Escutaí · Landing.html`: animações), mantendo a identidade e os textos da maanu, com

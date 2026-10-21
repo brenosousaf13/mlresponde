@@ -34,7 +34,7 @@ export function MobileCtaBar({ signupHref }: { signupHref: string }) {
         visible ? "translate-y-0 opacity-100" : "pointer-events-none translate-y-6 opacity-0"
       )}
     >
-      <div className="flex items-center gap-3 rounded-full border border-white/10 bg-brand-graphite/90 p-1.5 pl-5 text-white shadow-2xl backdrop-blur-xl">
+      <div className="flex items-center gap-3 rounded-full bg-brand-graphite p-1.5 pl-5 text-white shadow-[0_18px_40px_-12px] shadow-black/50">
         <span className="min-w-0 flex-1 truncate text-sm text-white/75">{siteConfig.trialDays} dias grátis, sem cartão</span>
         <SiteButton href={signupHref} tabIndex={visible ? undefined : -1} variant="teal" size="sm" className="shadow-none">
           Testar grátis

@@ -12,8 +12,7 @@ export function FaqSection({ signupHref }: { signupHref: string }) {
     <section id="duvidas" aria-labelledby="duvidas-title" data-nav="light" className="relative scroll-mt-24 bg-brand-offwhite py-24 text-brand-graphite sm:py-36">
       <Container className="grid max-w-7xl gap-12 lg:grid-cols-[0.85fr_1.15fr] lg:gap-20">
         <div className="lg:sticky lg:top-28 lg:self-start">
-          <p className="font-mono text-xs tracking-[0.2em] text-brand-teal-ink uppercase">Dúvidas</p>
-          <Headline id="duvidas-title" as="h2" className="mt-5 font-display text-[2.4rem] leading-[1] font-semibold tracking-[-0.04em] sm:text-6xl">
+          <Headline id="duvidas-title" as="h2" className="font-display text-[2.4rem] leading-[1] font-semibold tracking-[-0.035em] sm:text-6xl">
             Perguntas frequentes, respondidas por humanos
           </Headline>
           <Reveal delay={100}>

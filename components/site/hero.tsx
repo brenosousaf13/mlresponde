@@ -1,30 +1,28 @@
 "use client"
 
-import { ArrowRightIcon, HandCoinsIcon, ShieldCheckIcon, SparklesIcon, ZapIcon } from "lucide-react"
+import { CheckIcon } from "lucide-react"
 import { useRef } from "react"
 
-import { formatBRL } from "@/lib/site/calculator"
 import { siteConfig } from "@/lib/config/site"
 
-import { CountUp } from "./count-up"
 import { Headline } from "./headline"
 import { HeroCanvas } from "./hero-canvas"
 import { HeroChat } from "./hero-chat"
 import { SpotlightWordmark } from "./letters"
 import { Marquee } from "./marquee"
-import { Phone } from "./phone"
 import { Container } from "./primitives"
+import { Phone } from "./phone"
 import { Shot } from "./shot"
 import { SiteButton } from "./site-button"
 import { clamp01, useScrollFrame } from "./use-scroll-frame"
 
 const TICKER = [
-  { icon: ZapIcon, text: "“Esse tênis tem no 42?” respondida em 6 s" },
-  { icon: HandCoinsIcon, text: "R$ 289,90 na mira: dá para contestar até amanhã" },
-  { icon: ShieldCheckIcon, text: "Cor verde mantida: folga de 5 reclamações" },
-  { icon: SparklesIcon, text: "Pergunta das 02:13 respondida enquanto você dormia" },
-  { icon: HandCoinsIcon, text: "Devolução chegou: revise em 1 toque" },
-  { icon: ZapIcon, text: "Na dúvida, a IA não inventa: a pergunta fica com você" },
+  "“Esse tênis tem no 42?” respondida em 6 segundos",
+  "Devolução chegou: revise em um toque",
+  "Cor verde mantida, com folga de 5 reclamações",
+  "Pergunta das 02:13 respondida enquanto você dormia",
+  "R$ 289,90 dá para contestar até amanhã",
+  "Na dúvida, a IA não inventa: a pergunta fica com você",
 ] as const
 
 export function Hero({ signupHref }: { signupHref: string }) {
@@ -44,35 +42,20 @@ export function Hero({ signupHref }: { signupHref: string }) {
     <section id="topo" ref={sectionRef} data-spot-area data-nav="dark" className="relative isolate overflow-clip bg-brand-night text-white">
       <div aria-hidden className="pointer-events-none absolute inset-0 -z-10">
         <HeroCanvas className="absolute -inset-10 size-[calc(100%+5rem)] blur-[5px] saturate-[1.15]" />
-        <div className="hero-grid absolute inset-0" />
-        <div className="absolute inset-x-0 top-0 h-72 bg-linear-to-b from-brand-night via-brand-night/60 to-transparent" />
-        <div className="site-grain absolute inset-0" />
       </div>
 
       <Container className="relative max-w-6xl pt-32 text-center sm:pt-40">
-        <a href="#recuperar" className="site-enter group mx-auto block w-fit" style={{ "--enter-delay": "100ms" } as React.CSSProperties}>
-          <span className="scan-border block">
-            <span className="flex items-center gap-2.5 rounded-full bg-brand-night py-1.5 pr-4 pl-1.5 text-sm text-white/85 transition-colors group-hover:bg-brand-graphite">
-              <span className="rounded-full bg-brand-teal px-2.5 py-0.5 text-[11px] font-bold tracking-wide text-brand-graphite uppercase">Novo</span>
-              <span className="text-left">
-                Recuperador: ache o dinheiro que passou batido no ML
-              </span>
-              <ArrowRightIcon className="size-4 shrink-0 text-brand-mint transition-transform group-hover:translate-x-0.5" aria-hidden />
-            </span>
-          </span>
-        </a>
-
         <Headline
           as="h1"
           immediate
           delay={150}
-          className="mx-auto mt-7 max-w-5xl font-display text-[2.85rem] leading-[0.98] font-semibold tracking-[-0.045em] sm:text-7xl lg:text-[5.5rem]"
+          className="mx-auto max-w-5xl font-display text-[2.85rem] leading-[0.98] font-semibold tracking-[-0.035em] sm:text-7xl lg:text-[5.5rem]"
         >
           Quem responde primeiro,<br className="hidden sm:block" /> <span className="text-brand-mint">vende primeiro</span>
         </Headline>
 
         <p
-          className="site-rise mx-auto mt-7 max-w-2xl text-lg leading-relaxed text-pretty text-white/70 sm:text-xl"
+          className="site-rise mx-auto mt-7 max-w-2xl text-lg leading-relaxed text-pretty text-white/75 sm:text-xl"
           style={{ "--enter-delay": "650ms" } as React.CSSProperties}
         >
           A {siteConfig.name} responde as perguntas dos seus anúncios com IA, em segundos e do jeito da sua loja, protege a cor
@@ -90,7 +73,7 @@ export function Hero({ signupHref }: { signupHref: string }) {
         </div>
       </Container>
 
-      {/* Tela real do app (dados fictícios) com a conversa ao vivo e o contador do Recuperador. */}
+      {/* Tela real do app (dados fictícios) com a conversa ao vivo e o aviso do Recuperador. */}
       <div className="relative mx-auto mt-14 w-full max-w-6xl px-4 sm:mt-20 sm:px-8">
         <div
           ref={frameRef}
@@ -110,44 +93,42 @@ export function Hero({ signupHref }: { signupHref: string }) {
             <Shot name="recuperadorVisao" priority sizes="(min-width: 1100px) 1088px, 100vw" />
           </div>
 
-          <Phone className="site-motion [animation:site-float_8s_ease-in-out_infinite] sm:hidden">
+          <Phone className="sm:hidden">
             <Shot name="mobileRecuperador" priority sizes="248px" className="h-full w-full object-cover object-top" />
           </Phone>
 
           <div className="mt-8 flex flex-col items-center gap-4 sm:mt-5 lg:mt-0 lg:block">
             <div className="lg:absolute lg:-bottom-6 lg:-left-3 xl:-left-10">
-              <HeroChat className="[animation:site-float_7s_ease-in-out_infinite] site-motion" />
+              <HeroChat />
             </div>
-            <div className="site-motion w-full max-w-[19.5rem] rounded-[1.4rem] border border-white/15 bg-brand-graphite/85 p-4 text-left shadow-[0_30px_80px_-20px] shadow-black/70 backdrop-blur-xl [animation:site-float_8s_ease-in-out_-3s_infinite] lg:absolute lg:top-10 lg:-right-3 xl:-right-10">
-              <p className="inline-flex items-center gap-2 text-[11px] font-medium tracking-wide text-brand-mint uppercase">
-                <span className="relative flex size-2" aria-hidden>
-                  <span className="site-motion absolute inline-flex size-full animate-[site-ping_1.8s_ease-out_infinite] rounded-full bg-brand-mint/70" />
-                  <span className="relative inline-flex size-2 rounded-full bg-brand-mint" />
+            {/* Aviso do Recuperador, como chega para o vendedor (e não um número solto). */}
+            <div className="w-full max-w-[19.5rem] rounded-2xl bg-brand-graphite p-4 text-left shadow-[0_30px_60px_-20px] shadow-black/70 lg:absolute lg:top-10 lg:-right-3 xl:-right-10">
+              <p className="flex items-center gap-2 text-xs font-medium text-brand-mint">
+                <span className="grid size-5 place-items-center rounded-full bg-brand-teal text-brand-graphite">
+                  <CheckIcon className="size-3" aria-hidden />
                 </span>
-                Recuperado pela maanu
+                O Mercado Livre deu razão a você
               </p>
-              <p className="mt-2 font-display text-[2.1rem] leading-none font-semibold tracking-[-0.03em] text-white">
-                <CountUp value={1247.3} format={formatBRL} duration={2600} />
+              <p className="mt-2.5 text-sm leading-snug font-medium text-white">Jaqueta Jeans Feminina Oversized, contestação aceita</p>
+              <p className="mt-1.5 text-sm text-white/70">
+                <span className="font-semibold text-white tabular-nums">R$ 219,90</span> voltaram para a sua conta.
               </p>
-              <p className="mt-2 text-xs leading-snug text-white/60">
-                5 revisões enviadas em que o Mercado Livre deu razão ao vendedor.{" "}
-                <span className="text-white/40">Dados de demonstração.</span>
-              </p>
+              <p className="mt-2 text-[11px] text-white/45">Exemplo com dados de demonstração.</p>
             </div>
           </div>
         </div>
       </div>
 
-      <Marquee className="mt-16 sm:mt-24" speed={52}>
-        {TICKER.map((item) => (
-          <span key={item.text} className="mx-2 inline-flex items-center gap-2.5 rounded-full border border-white/10 bg-white/[0.04] py-2 pr-5 pl-3 text-sm whitespace-nowrap text-white/80 backdrop-blur">
-            <item.icon className="size-4 text-brand-mint" aria-hidden />
-            {item.text}
+      <Marquee className="mt-16 sm:mt-24" speed={60}>
+        {TICKER.map((text) => (
+          <span key={text} className="flex items-center gap-5 pr-5 text-lg font-medium whitespace-nowrap text-white/80 sm:gap-7 sm:pr-7 sm:text-2xl">
+            {text}
+            <span aria-hidden className="size-2.5 shrink-0 rounded-full bg-brand-teal" />
           </span>
         ))}
       </Marquee>
 
-      <div aria-hidden className="mt-14 px-3 pre-pixel sm:mt-20 sm:px-6">
+      <div aria-hidden className="pre-pixel mt-14 px-3 sm:mt-20 sm:px-6">
         <SpotlightWordmark className="mx-auto max-w-[96rem]" />
       </div>
     </section>

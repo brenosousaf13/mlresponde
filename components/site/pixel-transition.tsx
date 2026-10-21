@@ -8,8 +8,8 @@ import { useScrollFrame } from "./use-scroll-frame"
 export const PIXEL_COLORS = {
   night: "#0b1220",
   light: "#f8fafc",
-  deep: "#0a2a28",
-  tealDark: "#0e5f54",
+  deep: "#0c4a43",
+  tealDark: "#0c4a43",
 } as const
 
 export type PixelColor = keyof typeof PIXEL_COLORS

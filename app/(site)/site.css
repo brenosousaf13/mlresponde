@@ -62,39 +62,6 @@
   to { transform: scaleY(1); }
 }
 
-/* Texto com gradiente teal que "corre" devagar. */
-.site-gradient-text {
-  background-image: linear-gradient(
-    100deg,
-    var(--brand-mint) 0%,
-    var(--brand-teal) 30%,
-    var(--brand-mint) 55%,
-    var(--brand-teal) 80%,
-    var(--brand-mint) 100%
-  );
-  background-size: 200% 100%;
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
-  animation: site-shine 7s linear infinite;
-}
-
-/* Grade fina dos painéis escuros (efeito "tecnologia"), some nas bordas. */
-.site-grid {
-  background-image:
-    linear-gradient(to right, color-mix(in oklch, white 7%, transparent) 1px, transparent 1px),
-    linear-gradient(to bottom, color-mix(in oklch, white 7%, transparent) 1px, transparent 1px);
-  background-size: 56px 56px;
-  mask-image: radial-gradient(ellipse 70% 60% at 50% 40%, black 30%, transparent 100%);
-}
-
-/* Grão leve por cima dos gradientes (tira o aspecto "plástico"). */
-.site-grain {
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.5'/%3E%3C/svg%3E");
-  mix-blend-mode: overlay;
-  opacity: 0.18;
-}
-
 /* Bordas que somem nas laterais (faixas que correm). */
 .site-fade-x {
   mask-image: linear-gradient(to right, transparent, black 8%, black 92%, transparent);
@@ -103,19 +70,16 @@
 /* Entrada ao rolar: [data-reveal] some até ficar visível (components/site/reveal.tsx). */
 [data-reveal] {
   opacity: 0;
-  transform: translate3d(0, 22px, 0);
-  filter: blur(6px);
+  transform: translate3d(0, 16px, 0);
   transition:
-    opacity 0.8s cubic-bezier(0.2, 0.7, 0.2, 1),
-    transform 0.8s cubic-bezier(0.2, 0.7, 0.2, 1),
-    filter 0.8s cubic-bezier(0.2, 0.7, 0.2, 1);
+    opacity 0.7s cubic-bezier(0.16, 1, 0.3, 1),
+    transform 0.7s cubic-bezier(0.16, 1, 0.3, 1);
   transition-delay: var(--reveal-delay, 0ms);
 }
 
 [data-reveal][data-visible="true"] {
   opacity: 1;
   transform: none;
-  filter: none;
 }
 
 /* Entrada da primeira dobra (sem esperar o JavaScript). */
@@ -125,8 +89,8 @@
 }
 
 @keyframes site-enter {
-  from { opacity: 0; transform: translate3d(0, 18px, 0); filter: blur(8px); }
-  to { opacity: 1; transform: none; filter: none; }
+  from { opacity: 0; transform: translate3d(0, 18px, 0); }
+  to { opacity: 1; transform: none; }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -225,25 +189,23 @@ html.lenis, html.lenis body { height: auto; }
 .wm-letter {
   transform-box: fill-box;
   transform-origin: 50% 100%;
-  transition: transform 0.45s cubic-bezier(0.3, 1.6, 0.5, 1), fill 0.4s;
+  transition: transform 0.45s cubic-bezier(0.16, 1, 0.3, 1), fill 0.4s;
   cursor: default;
 }
 .wm[data-intro="true"] .wm-letter { animation: wm-rise 1.1s cubic-bezier(0.2, 0.9, 0.15, 1) both; animation-delay: calc(var(--i) * 85ms + var(--wm-delay, 0ms)); }
 .wm[data-intro="pending"] .wm-letter { transform: translate3d(0, 118%, 0); }
 .wm-letter:hover { transform: translate3d(0, -7%, 0) rotate(-1.5deg); }
 .wm-dot { transform-box: fill-box; transform-origin: 50% 50%; }
-.wm[data-intro="true"] .wm-dot { animation: wm-dot 1.2s cubic-bezier(0.3, 1.8, 0.5, 1) both; animation-delay: calc(var(--i) * 85ms + var(--wm-delay, 0ms) + 120ms); }
+.wm[data-intro="true"] .wm-dot { animation: wm-dot 1.2s cubic-bezier(0.16, 1, 0.3, 1) both; animation-delay: calc(var(--i) * 85ms + var(--wm-delay, 0ms) + 120ms); }
 .wm[data-intro="pending"] .wm-dot { transform: scale(0); }
-.wm-dot-live { animation: wm-bounce 3.4s ease-in-out 2s infinite; }
 @keyframes wm-rise { from { transform: translate3d(0, 118%, 0); } to { transform: none; } }
-@keyframes wm-dot { 0% { transform: scale(0); } 60% { transform: scale(1.5); } 100% { transform: scale(1); } }
-@keyframes wm-bounce { 0%, 70%, 100% { transform: translate3d(0, 0, 0) scale(1); } 78% { transform: translate3d(0, -34%, 0) scale(0.92, 1.12); } 86% { transform: translate3d(0, 0, 0) scale(1.18, 0.84); } 93% { transform: translate3d(0, -8%, 0); } }
-.wm-logo:hover .wm-letter { animation: wm-hop 0.6s cubic-bezier(0.3, 1.5, 0.5, 1) both; animation-delay: calc(var(--i) * 45ms); }
+@keyframes wm-dot { 0% { transform: scale(0); } 100% { transform: scale(1); } }
+.wm-logo:hover .wm-letter { animation: wm-hop 0.6s cubic-bezier(0.16, 1, 0.3, 1) both; animation-delay: calc(var(--i) * 45ms); }
 @keyframes wm-hop { 0%, 100% { transform: none; } 40% { transform: translate3d(0, -26%, 0); } }
 
 /* ---------- Ponto da marca como pontuação dos títulos ---------- */
 .dot-end { display: inline-block; width: 0.17em; height: 0.17em; margin-left: 0.035em; border-radius: 999px; background: var(--brand-teal); vertical-align: baseline; transform: scale(0); }
-[data-on="true"] .dot-end, .dot-end[data-on="true"] { animation: wm-dot 0.9s cubic-bezier(0.3, 1.8, 0.5, 1) 0.55s both; }
+[data-on="true"] .dot-end, .dot-end[data-on="true"] { animation: wm-dot 0.9s cubic-bezier(0.16, 1, 0.3, 1) 0.55s both; }
 .dot-end-mint { background: var(--brand-mint); }
 
 /* ---------- Títulos: palavras sobem por uma máscara (Escutaí) ---------- */
@@ -252,47 +214,21 @@ html.lenis, html.lenis body { height: auto; }
 [data-on="true"] .mask-w > span { animation: mask-up 1.05s cubic-bezier(0.16, 1, 0.3, 1) both; animation-delay: calc(var(--w) * 70ms + var(--mask-delay, 0ms)); }
 @keyframes mask-up { from { transform: translate3d(0, 112%, 0); } to { transform: none; } }
 
-/* ---------- Fundo do topo e das caixas escuras ---------- */
-.hero-grid {
-  background-image:
-    linear-gradient(to right, color-mix(in oklch, white 6%, transparent) 1px, transparent 1px),
-    linear-gradient(to bottom, color-mix(in oklch, white 6%, transparent) 1px, transparent 1px);
-  background-size: 72px 72px;
-  mask-image: radial-gradient(80% 70% at 50% 35%, #000 25%, transparent 100%);
-}
-.light-grid {
-  background-image:
-    linear-gradient(to right, color-mix(in oklch, var(--brand-graphite) 7%, transparent) 1px, transparent 1px),
-    linear-gradient(to bottom, color-mix(in oklch, var(--brand-graphite) 7%, transparent) 1px, transparent 1px);
-  background-size: 64px 64px;
-}
-
-/* ---------- Borda animada (o "scanner" do Escutaí) ---------- */
-.scan-border {
-  position: relative;
-  padding: 1.5px;
-  border-radius: 999px;
-  background: linear-gradient(90deg, #a9f0dc, var(--brand-teal), #0e7c6b, var(--brand-teal), #a9f0dc);
-  background-size: 300% 100%;
-  animation: scan-border 4s linear infinite;
-}
-@keyframes scan-border { to { background-position: 300% 0; } }
-
 /* ---------- Marquee ---------- */
 .marquee-track { display: flex; width: max-content; animation: site-marquee var(--marquee-speed, 46s) linear infinite; }
 .marquee-track.rev { animation-direction: reverse; }
 .marquee:hover .marquee-track { animation-play-state: paused; }
 
 /* ---------- Telas do app em moldura ---------- */
-.shot-frame { position: relative; border-radius: 1.1rem; background: #fff; box-shadow: 0 0 0 1px rgb(15 23 42 / 0.08), 0 40px 90px -30px rgb(2 6 23 / 0.55); overflow: hidden; }
-.shot-frame-dark { box-shadow: 0 0 0 1px rgb(255 255 255 / 0.1), 0 50px 120px -30px rgb(0 0 0 / 0.7); }
+.shot-frame { position: relative; border-radius: 0.9rem; background: #fff; box-shadow: 0 40px 90px -30px rgb(2 6 23 / 0.55); overflow: hidden; }
+.shot-frame-dark { box-shadow: 0 50px 100px -30px rgb(0 0 0 / 0.75); }
 .shot-bar { display: flex; align-items: center; gap: 6px; height: 2rem; padding: 0 0.9rem; background: #f1f5f9; border-bottom: 1px solid rgb(15 23 42 / 0.07); }
 .shot-bar i { width: 9px; height: 9px; border-radius: 999px; background: rgb(15 23 42 / 0.14); }
 .shot-bar span { margin-left: 0.6rem; padding: 0.12rem 0.8rem; border-radius: 6px; background: rgb(255 255 255 / 0.9); font-size: 11px; color: rgb(71 85 105); }
 
 /* Destaque que passa de cartão em cartão sobre a captura da tela. */
 @keyframes spot { 0%, 4% { opacity: 0; transform: scale(1.03); } 10%, 28% { opacity: 1; transform: scale(1); } 36%, 100% { opacity: 0; transform: scale(1); } }
-.spot { position: absolute; border-radius: 1rem; border: 2px solid var(--brand-mint); box-shadow: 0 0 0 6px color-mix(in oklch, var(--brand-teal) 25%, transparent), 0 0 50px -4px color-mix(in oklch, var(--brand-mint) 70%, transparent); opacity: 0; animation: spot 9s ease-in-out infinite; animation-delay: calc(var(--k) * 3s); pointer-events: none; }
+.spot { position: absolute; border-radius: 1rem; border: 2px solid var(--brand-mint); outline: 2px solid color-mix(in oklch, var(--brand-mint) 35%, transparent); outline-offset: 4px; opacity: 0; animation: spot 9s ease-in-out infinite; animation-delay: calc(var(--k) * 3s); pointer-events: none; }
 
 /* ---------- Moedas caindo na letra "u" ---------- */
 @keyframes coin-drop {
@@ -305,15 +241,9 @@ html.lenis, html.lenis body { height: auto; }
 .coin { position: absolute; top: 0; display: grid; place-items: center; width: 2.4rem; height: 2.4rem; border-radius: 999px; font-weight: 800; font-size: 0.68rem; letter-spacing: -0.02em; color: #7a4a00; background: radial-gradient(circle at 30% 28%, #fff3bf, #f6c453 55%, #d8962a); box-shadow: inset 0 0 0 2px rgb(255 255 255 / 0.35), 0 10px 24px -8px rgb(246 196 83 / 0.6); opacity: 0; animation: coin-drop 3.6s cubic-bezier(0.45, 0, 0.9, 0.6) infinite; animation-delay: var(--d); left: var(--x); }
 
 /* ---------- Palavras grandes do "Responde. Protege. Recupera." ---------- */
-.pillar-word {
-  --p: 0%;
-  background-image: linear-gradient(90deg, var(--brand-mint) calc(var(--p) - 8%), color-mix(in oklch, white 22%, transparent) var(--p));
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
-  transform-origin: left center;
-}
-
+/* Duas camadas iguais: a de baixo apagada e a de cima em teal, revelada da esquerda para a direita pela rolagem (--p, 0 a 100). */
+.pillar-word { position: relative; display: block; color: color-mix(in oklch, white 20%, transparent); }
+.pillar-fill { position: absolute; inset: 0 auto auto 0; color: var(--brand-mint); clip-path: inset(0 calc(100% - var(--p, 0%)) 0 0); white-space: nowrap; }
 /* ---------- Cartões empilhados ---------- */
 .stack-card { transform-origin: 50% 0; transform: scale(var(--s, 1)); }
 .stack-card .stack-shade { opacity: var(--shade, 0); }
@@ -358,3 +288,13 @@ html.lenis, html.lenis body { height: auto; }
 
 /* Espaço livre no fim de uma seção que termina numa transição em pixels (os quadrados sobem por cima dele). */
 .pre-pixel { padding-bottom: calc(clamp(56px, 6.6vw, 112px) * 3.4); }
+
+/* ---------- Partes do navegador que também levam a marca ---------- */
+.site-root ::selection { background: var(--brand-teal); color: var(--brand-graphite); }
+.site-root a:focus-visible, .site-root button:focus-visible, .site-root [role="button"]:focus-visible { outline: 2px solid var(--brand-teal); outline-offset: 3px; border-radius: 6px; }
+.site-root { caret-color: var(--brand-teal); font-variant-numeric: proportional-nums; }
+.site-root time, .site-root output, .site-root dd { font-variant-numeric: tabular-nums; }
+html:has(.site-root) { scrollbar-width: thin; scrollbar-color: color-mix(in oklch, var(--brand-teal) 70%, var(--brand-graphite)) var(--brand-night); }
+html:has(.site-root) ::-webkit-scrollbar { width: 11px; }
+html:has(.site-root) ::-webkit-scrollbar-track { background: var(--brand-night); }
+html:has(.site-root) ::-webkit-scrollbar-thumb { background: color-mix(in oklch, var(--brand-teal) 70%, var(--brand-graphite)); border: 3px solid var(--brand-night); border-radius: 999px; }

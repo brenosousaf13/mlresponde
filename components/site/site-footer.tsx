@@ -21,7 +21,6 @@ export function SiteFooter({ signupHref, loginHref }: { signupHref: string; logi
   const phone = whatsapp ? formatWhatsapp(normalizeWhatsapp(whatsapp)) : ""
   return (
     <footer data-nav="dark" className="relative overflow-clip bg-brand-night text-white">
-      <div aria-hidden className="hero-grid pointer-events-none absolute inset-x-0 top-0 h-[40rem] opacity-60" />
       <Container className="relative max-w-7xl pt-20 sm:pt-28">
         <div className="flex flex-col gap-10 lg:flex-row lg:items-start lg:justify-between">
           <div className="max-w-md">

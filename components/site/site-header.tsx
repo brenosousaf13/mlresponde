@@ -4,8 +4,6 @@ import { Menu } from "lucide-react"
 import dynamic from "next/dynamic"
 import { useEffect, useRef, useState } from "react"
 
-import { cn } from "@/lib/utils"
-
 import { AnimatedWordmark } from "./letters"
 import { SITE_NAV } from "./nav"
 import { SiteButton } from "./site-button"
@@ -16,8 +14,9 @@ const MobileMenu = dynamic(loadMobileMenu, { ssr: false })
 const preloadMobileMenu = () => void loadMobileMenu()
 
 /**
- * Barra flutuante em "pílula" (como a do Outlign) que troca de claro para escuro conforme a seção que passa por baixo
- * dela (como a do Escutaí): cada seção marca o seu tema com `data-nav="dark|light"`.
+ * Uma barra só, flutuante, com logo, links e botões dentro dela. No topo é transparente; depois de rolar ganha fundo
+ * sólido, que troca de escuro para claro conforme a seção que passa por baixo (cada seção marca o tema com
+ * `data-nav="dark|light"`). Antes eram peças soltas sobre um véu de degradê, e o conteúdo parecia cortado atrás delas.
  */
 export function SiteHeader({ signupHref, loginHref }: { signupHref: string; loginHref: string }) {
   const headerRef = useRef<HTMLElement>(null)
@@ -57,30 +56,25 @@ export function SiteHeader({ signupHref, loginHref }: { signupHref: string; logi
     <header
       ref={headerRef}
       data-theme="dark"
-      className="group/header fixed inset-x-0 top-0 z-50 px-3 pt-3 text-white transition-colors duration-300 data-[theme=light]:text-brand-graphite sm:px-5 sm:pt-4"
+      data-scrolled="false"
+      className="group/header fixed inset-x-0 top-0 z-50 px-3 pt-3 text-white sm:px-5 sm:pt-4"
     >
-      {/* Véu atrás da barra depois de rolar: o texto da página não passa por baixo da logo e dos botões. */}
       <div
-        aria-hidden
-        className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-[5.2rem] bg-gradient-to-b from-brand-night from-55% via-brand-night/85 to-transparent opacity-0 transition-opacity duration-300 group-data-[scrolled=true]/header:opacity-100 group-data-[theme=light]/header:from-brand-offwhite group-data-[theme=light]/header:via-brand-offwhite/85"
-      />
-      <div className="relative mx-auto flex h-14 max-w-7xl items-center justify-between gap-3">
+        className={[
+          "relative mx-auto flex h-14 max-w-7xl items-center justify-between gap-3 rounded-full border border-transparent pr-2 pl-5 transition-[background-color,border-color,color] duration-300",
+          "group-data-[scrolled=true]/header:border-white/10 group-data-[scrolled=true]/header:bg-brand-night/95 group-data-[scrolled=true]/header:backdrop-blur-md",
+          "group-data-[scrolled=true]/header:group-data-[theme=light]/header:border-brand-graphite/10 group-data-[scrolled=true]/header:group-data-[theme=light]/header:bg-white/95 group-data-[theme=light]/header:text-brand-graphite",
+        ].join(" ")}
+      >
         <a
           href="#topo"
           aria-label="maanu, voltar ao início"
-          className="relative z-10 block w-[6.6rem] rounded-md outline-none focus-visible:ring-3 focus-visible:ring-brand-teal/60 sm:w-[7.4rem]"
+          className="relative z-10 block w-[6.2rem] rounded-md outline-none focus-visible:ring-3 focus-visible:ring-brand-teal/60 sm:w-[6.8rem]"
         >
           <AnimatedWordmark intro />
         </a>
 
-        {/* Pílula de links no centro (computador). */}
-        <nav
-          aria-label="Seções da página"
-          className={cn(
-            "absolute top-1/2 left-1/2 hidden -translate-x-1/2 -translate-y-1/2 items-center gap-0.5 rounded-full border p-1 backdrop-blur-xl transition-colors duration-300 lg:flex",
-            "border-white/12 bg-white/[0.07] group-data-[theme=light]/header:border-brand-graphite/10 group-data-[theme=light]/header:bg-white/80 group-data-[theme=light]/header:shadow-[0_10px_40px_-18px] group-data-[theme=light]/header:shadow-brand-graphite/30"
-          )}
-        >
+        <nav aria-label="Seções da página" className="absolute top-1/2 left-1/2 hidden -translate-x-1/2 -translate-y-1/2 items-center gap-0.5 lg:flex">
           {SITE_NAV.map((item) => (
             <a
               key={item.href}
@@ -103,7 +97,7 @@ export function SiteHeader({ signupHref, loginHref }: { signupHref: string; logi
             href={signupHref}
             size="sm"
             variant="teal"
-            className="hidden shadow-none sm:inline-flex group-data-[theme=light]/header:bg-brand-graphite group-data-[theme=light]/header:text-white group-data-[theme=light]/header:hover:bg-brand-graphite/90"
+            className="hidden sm:inline-flex group-data-[theme=light]/header:bg-brand-graphite group-data-[theme=light]/header:text-white group-data-[theme=light]/header:hover:bg-brand-graphite/90"
           >
             Testar grátis
           </SiteButton>
@@ -117,7 +111,7 @@ export function SiteHeader({ signupHref, loginHref }: { signupHref: string; logi
             onPointerEnter={preloadMobileMenu}
             onFocus={preloadMobileMenu}
             onTouchStart={preloadMobileMenu}
-            className="inline-flex size-11 items-center justify-center rounded-full border border-white/15 bg-white/[0.07] backdrop-blur-xl transition-colors group-data-[theme=light]/header:border-brand-graphite/10 group-data-[theme=light]/header:bg-white/80 lg:hidden"
+            className="inline-flex size-10 items-center justify-center rounded-full bg-white/10 transition-colors group-data-[theme=light]/header:bg-brand-graphite/8 lg:hidden"
           >
             <Menu className="size-5" aria-hidden />
           </button>

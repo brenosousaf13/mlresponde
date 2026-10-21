@@ -6,9 +6,9 @@ import { cn } from "@/lib/utils"
 
 const VARIANTS = {
   /** Teal sobre fundo escuro. */
-  teal: "bg-brand-teal text-brand-graphite shadow-[0_0_44px_-12px] shadow-brand-teal/70 hover:bg-brand-mint",
+  teal: "bg-brand-teal text-brand-graphite hover:bg-brand-mint",
   /** Grafite sobre fundo claro (seta em teal aceso). */
-  graphite: "bg-brand-graphite text-white shadow-[0_18px_40px_-22px] shadow-brand-graphite/70 hover:bg-brand-graphite/90",
+  graphite: "bg-brand-graphite text-white hover:bg-brand-graphite/90",
   /** Contorno sobre fundo escuro. */
   "outline-dark": "border-white/15 bg-white/[0.04] text-white hover:bg-white/10 hover:text-white",
   /** Contorno sobre fundo claro. */
