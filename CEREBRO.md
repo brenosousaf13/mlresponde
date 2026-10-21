@@ -4,7 +4,9 @@
 > inteiro antes de trabalhar e atualizá-lo ao terminar. Se algo aqui divergir do código, o código vence —
 > e este arquivo deve ser corrigido na mesma sessão.
 
-Última atualização: **2026-10-20** (Sessão 32 — **"Chegou certinho" do Recuperador corrigido** (no ar, `fc2fbe7`): o ML
+Última atualização: **2026-10-21** (Sessão 33 — **primeira assinatura paga** (Girassol Moda Jeans, Starter, 21/10 13:04,
+ativada pelo webhook); o aviso "O sistema de pagamento recusou o pedido" que a cliente viu das 07:22 às 07:37 era a
+AbacatePay respondendo **HTTP 502** (lado deles), sem mudança de código; Sessão 32 — **"Chegou certinho" do Recuperador corrigido** (no ar, `fc2fbe7`): o ML
 recusava o corpo `{}` que a documentação manda ("Required request body is missing or incorrect"); agora vai `[]` (conferido na API);
 Sessão 31 — **Recuperador com a regra real do ML** (no ar, `6607ff4` + `97edb66`): a
 contestação da revisão do armazém do Full (reclamação encerrada com `return_review_fail`) e a revisão de devolução que chegou ao
@@ -1743,6 +1745,26 @@ webhook do ML validado, fila/reprocessamento de jobs, observabilidade, controle 
 
 ## 12. Diário de sessões (mais recente no topo)
 
+### 2026-10-21 — Sessão 33 · "O sistema de pagamento recusou o pedido" e 1ª assinatura paga (IA: Claude, via app Codex)
+- Breno mandou o print: a Girassol Moda Jeans tentou assinar de manhã e viu "O sistema de pagamento recusou o pedido. Tente de
+  novo ou fale com o suporte." (`providerMessage` em `lib/billing/engine.ts`). Pedido: não perder a venda e validar que nada
+  da assinatura fosse afetado.
+- Diagnóstico (só leitura): `billing_checkouts` com 6 tentativas `failed` das 07:22 às 07:37 (Starter e Pro), todas com
+  "A AbacatePay respondeu com erro (HTTP 502)"; logs da Vercel iguais (`POST /assinatura`, só o `/subscriptions/create`
+  falhou; o `/customers/create` passou). Nada mudou no código da cobrança desde 16/10; a página de status da AbacatePay não
+  registrou incidente. Conclusão: instabilidade passageira **do lado da AbacatePay** (502 = erro deles, não do pedido nem do
+  cartão). Diferente do caso de 16/10 (`CARD is not available for this store`, cartão não habilitado).
+- Prova no ar, sem cobrança: loja temporária "QA assinatura" (CNPJ da maanu) criou páginas de pagamento do Starter e do Pro
+  normalmente às 12:46/12:50. A loja, o usuário e as 2 páginas no banco foram apagados em seguida. Na AbacatePay ficaram um
+  cliente com o CNPJ da maanu e 2 páginas não pagas (`bill_exff…`, `bill_nWQY…`), inofensivas (expiram; podem ser apagadas).
+- Nova tentativa da Girassol às 12:54: página criada, **paga às 13:04 (VISA)**, webhook `subscription.completed` processado
+  ("assinatura ativada: starter (monthly) até 2026-11-21"); `organizations`: Starter, `active`, mensal, R$ 97, 1 conta do ML
+  (a loja tem 1 ativa). **Primeira assinatura paga da maanu**, ponta a ponta em produção.
+- Nenhuma alteração de código, banco (além da loja temporária criada e apagada) ou variáveis.
+- Melhoria sugerida e **não feita** (aguarda o Breno, §13 item 0p): quando a AbacatePay responder 5xx ou cair a rede, trocar o
+  "recusou o pedido" (parece cartão recusado) por "o sistema de pagamento está instável, tente em alguns minutos" com o
+  WhatsApp da maanu, e avisar o administrador.
+
 ### 2026-10-20 — Sessão 32 · "Chegou certinho" recusado pelo ML (IA: Claude, via app Codex)
 - Breno tentou marcar "Chegou certinho" na devolução da reclamação 5589751302 (Girassol/LOJAJEANSDAMODA, prazo 20/10 23:01) e
   o histórico mostrou "Chegou certinho (o ML recusou)" com "Required request body is missing or incorrect". `recovery_actions`
@@ -2743,6 +2765,9 @@ webhook do ML validado, fila/reprocessamento de jobs, observabilidade, controle 
 
 ## 13. Próximos passos
 
+0p. **Breno — decidir a mensagem quando a AbacatePay cair (Sessão 33).** Hoje um 5xx/queda da AbacatePay mostra "O sistema de
+   pagamento recusou o pedido" (parece cartão recusado). Proposta: mensagem de instabilidade + WhatsApp da maanu no aviso e
+   alerta ao administrador. Mexe na tela Assinatura: validar com página de pagamento real (sem pagar) antes de publicar.
 0o. **Custo da Vercel (Sessão 30b).** **Próxima IA:** em 1–2 dias, conferir `npx vercel usage`/`metrics` (Fluid Provisioned
    Memory da `maanu` deve cair bastante), o cron `/api/cron/reputacao` 200 a cada 2 min, `reputation_sync.last_error` vazio e
    se as reclamações abertas das lojas grandes continuam com detalhe em até ~30–45 min. **Breno (opcional):** desligar a v1
@@ -2826,7 +2851,9 @@ webhook do ML validado, fila/reprocessamento de jobs, observabilidade, controle 
    blog/guias ("como responder perguntas no Mercado Livre") para atrair busca orgânica de quem ainda não conhece a maanu.
 0h. **Breno — conferir o aviso de acesso restrito (Sessão 24):** com um cliente comum logado, abrir
    `maanu.com.br/admin/cobranca` e conferir "Você não tem acesso a esta página" e "Voltar ao meu painel".
-0g. **Breno — cobrança pela AbacatePay (Sessão 23).** ✅ **No ar em produção desde 2026-10-16 (Sessão 23c).** Faltam:
+0g. **Breno — cobrança pela AbacatePay (Sessão 23).** ✅ **No ar em produção desde 2026-10-16 (Sessão 23c).** ✅ **1ª assinatura
+   real paga em 2026-10-21** (Girassol, Starter, webhook e liberação do plano ok, Sessão 33): a compra de verificação do item
+   (a) deixou de ser necessária. Faltam:
    (a) a **compra real de verificação** (conta separada, nem admin nem cliente; Starter; depois cancelar e pedir o estorno no
    painel da AbacatePay) — a IA confere os registros; (b) ✅ anual decidido: **só o mensal** (Sessão 23d) — os 3 produtos anuais criados na
    AbacatePay são ignorados e podem ser arquivados lá; ✅ cartão de crédito habilitado na loja em 16/10 (antes a API
