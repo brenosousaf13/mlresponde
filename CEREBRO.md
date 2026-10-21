@@ -4,7 +4,7 @@
 > inteiro antes de trabalhar e atualizá-lo ao terminar. Se algo aqui divergir do código, o código vence —
 > e este arquivo deve ser corrigido na mesma sessão.
 
-Última atualização: **2026-10-21** (Sessão 35 — **nova homepage (prévia, NÃO publicada)** na branch `codex/homepage-recuperar`: mistura da estrutura do Outlign com o movimento do Escutaí na identidade da maanu, com o **Recuperador em destaque** e capturas REAIS do app com dados fictícios (`/home/*.webp`); letras da maanu animadas; aguardando aprovação do Breno; Sessão 34 — **prévia local da homepage descartada a pedido do Breno** (branch
+Última atualização: **2026-10-21** (Sessão 35c — **nova homepage PUBLICADA** em maanu.com.br (merge fast-forward na `v2`, `2998a80`, aprovada pelo Breno; substitui a página de vendas anterior); Sessão 35 — nova homepage na branch `codex/homepage-recuperar`: mistura da estrutura do Outlign com o movimento do Escutaí na identidade da maanu, com o **Recuperador em destaque** e capturas REAIS do app com dados fictícios (`/home/*.webp`); letras da maanu animadas; aprovada e publicada na 35c; Sessão 34 — **prévia local da homepage descartada a pedido do Breno** (branch
 `codex/homepage-recuperar`, sem publicação; o branch voltou ao baseline da Sessão 33); Sessão 33 — **primeira assinatura paga**
 (Girassol Moda Jeans, Starter, 21/10 13:04,
 ativada pelo webhook); o aviso "O sistema de pagamento recusou o pedido" que a cliente viu das 07:22 às 07:37 era a
@@ -1754,6 +1754,11 @@ webhook do ML validado, fila/reprocessamento de jobs, observabilidade, controle 
 
 ## 12. Diário de sessões (mais recente no topo)
 
+### 2026-10-21 — Sessão 35c · Nova homepage publicada (IA: Codex, via app Codex)
+- Breno aprovou ("pode publicar e substituir a pagina atual"). As 4 verificações já tinham passado (typecheck, 605 testes, lint, build).
+  `git merge --ff-only` da `codex/homepage-recuperar` na `v2` e `git push origin v2` (`24f6d29..2998a80`). A `main` (v1) não foi tocada.
+- Conferido em produção: maanu.com.br já serve a nova página (textos do Recuperador e "Por dentro"), imagens `/home/*.webp` respondem 200 e
+  `/demo-print/*` não aparece (307 para o app/login; a rota também dá 404 em produção). Sem mudança em banco, Vercel ou ML.
 ### 2026-10-21 — Sessão 35b · Cabeçalho e "cara de IA" da nova home (IA: Codex, via app Codex) — PRÉVIA, NÃO PUBLICADA
 - Pedido do Breno (com print): o cabeçalho parecia "cortado no meio" em alguns pontos; e tirar da home as marcas de site feito por IA
   usando o skill **Impeccable** (`.agents/skills/impeccable`; detector rodado com `impeccable detect`, 0 achados no fim).
@@ -2833,7 +2838,7 @@ webhook do ML validado, fila/reprocessamento de jobs, observabilidade, controle 
    Log Ingestion por dia (meta: < ~33 MB/dia para caber em 1 GB/mês); se ainda passar, as próximas fontes são
    `reputation_claims`, `reputation_alerts` (leituras por rodada do Escudo) e `ml_orders`.
 
-0q. **Homepage nova (Sessão 35) — prévia aguardando o Breno.** Branch `codex/homepage-recuperar` (commit local, SEM push, nada no ar).
+0q. **Homepage nova (Sessão 35) — ✅ PUBLICADA em 2026-10-21 (`2998a80` na `v2`).** Conferido em produção: maanu.com.br serve a página nova, `/home/*.webp` 200, `/demo-print` não é exposto (redireciona para o app/login). Pendências: medir Lighthouse (celular), depoimentos/vídeo quando existirem, conferir no celular real. (Texto antigo, já cumprido: prévia na branch `codex/homepage-recuperar`.)
    Ver em `npm run dev` → `http://localhost:3000/`. **Se aprovar:** (1) merge/push na `v2` publica em maanu.com.br (rodar as 4
    verificações antes); (2) conferir no celular real; (3) decidir se o `demo-print` fica no repositório (só existe em dev) e se as
    `public/home/*.webp` ganham versão nova quando o app mudar (rodar `capturas-home.mjs`). **Se pedir ajustes:** textos em
