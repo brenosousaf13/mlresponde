@@ -3,7 +3,8 @@ import { containsExternalContact } from "@/lib/answers/compose"
 /**
  * Revisão de devolução pelo vendedor (puro, testado em tests/unit/recovery.test.ts): motivos do ML, checklist, fotos,
  * validação e o corpo do POST /post-purchase/v1/returns/{return_id}/return-review (documentação conferida em 2026-10-20):
- *  - "Chegou certinho": corpo {}.
+ *  - "Chegou certinho": corpo [] (lista vazia). A documentação manda {}, mas o ML recusa {} com "Required request body is
+ *    missing or incorrect" (conferido na API em 2026-10-20: {} → 400 na leitura do corpo; [] passa para a validação da ação).
  *  - "Chegou com problema": [{ reason, message, attachments?, order_id? }]; attachments obrigatórios em SRF2 e SRF4.
  *    order_id só em carrinho (devolução com vários pedidos), para revisar UM pedido: a maanu revisa o pedido desta
  *    reclamação (cada pedido do carrinho tem a sua reclamação) e, por isso, em carrinho só oferece motivos de pedido.
@@ -155,12 +156,12 @@ export function validateReview(input: {
   return validateReturnMessage(input.message) ?? validatePhotos(input.photos, reason.id)
 }
 
-/** Corpo do POST return-review. orderId só em carrinho (revisa o pedido desta reclamação). */
+/** Corpo do POST return-review: [] = chegou certinho; orderId só em carrinho (revisa o pedido desta reclamação). */
 export function reviewPayload(
   decision: ReviewDecision,
   fail?: { reasonId: string; message: string; attachments: readonly string[]; orderId?: number | null }
-): Record<string, never> | { reason: string; message: string; attachments?: string[]; order_id?: number }[] {
-  if (decision === "ok" || !fail) return {}
+): { reason: string; message: string; attachments?: string[]; order_id?: number }[] {
+  if (decision === "ok" || !fail) return []
   return [
     {
       reason: fail.reasonId,

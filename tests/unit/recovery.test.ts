@@ -622,8 +622,8 @@ describe("revisão: motivos, validação e corpo", () => {
     expect(validateReview({ ...input, photos: Array.from({ length: 5 }, () => ({ ...photo, size: 900_000 })) })).toContain("4 MB")
   })
 
-  it("corpo do POST: {} para certinho; motivo, relato e fotos para problema", () => {
-    expect(reviewPayload("ok")).toEqual({})
+  it("corpo do POST: [] para certinho ({} o ML recusa); motivo, relato e fotos para problema", () => {
+    expect(reviewPayload("ok")).toEqual([])
     expect(reviewPayload("fail", { reasonId: "SRF3", message: " Faltou peça. ", attachments: [] })).toEqual([
       { reason: "SRF3", message: "Faltou peça." },
     ])
@@ -634,7 +634,7 @@ describe("revisão: motivos, validação e corpo", () => {
     expect(reviewPayload("fail", { reasonId: "SRF2", message: "Quebrado", attachments: ["f1.jpg"], orderId: 2000011248679992 })).toEqual([
       { reason: "SRF2", message: "Quebrado", attachments: ["f1.jpg"], order_id: 2000011248679992 },
     ])
-    expect(reviewPayload("ok", { reasonId: "SRF2", message: "x", attachments: [], orderId: 1 })).toEqual({})
+    expect(reviewPayload("ok", { reasonId: "SRF2", message: "x", attachments: [], orderId: 1 })).toEqual([])
   })
 
   it("relato sem IA usa só os fatos", () => {

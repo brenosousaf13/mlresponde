@@ -287,7 +287,7 @@ export async function uploadReturnAttachment(accountId: string, claimId: number,
   return name
 }
 
-/** Revisão da devolução: {} = chegou certinho; [{ reason, message, attachments }] = chegou com problema. */
+/** Revisão da devolução: [] = chegou certinho ({} é recusado pelo ML); [{ reason, message, attachments }] = chegou com problema. */
 export async function submitReturnReview(accountId: string, returnId: number, body: unknown, budget: CallBudget): Promise<MlActionResult> {
   const data = await reputationRequest<unknown>(accountId, "/post-purchase/v1/returns/" + returnId + "/return-review", budget, {
     method: "POST",
