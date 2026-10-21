@@ -209,3 +209,152 @@
     animation: none;
   }
 }
+
+/* =====================================================================================================================
+ * Nova homepage (estrutura do Outlign + movimento do Escutaí, com a marca maanu). Tudo respeita "reduzir movimento".
+ * ===================================================================================================================== */
+
+html.lenis, html.lenis body { height: auto; }
+.lenis.lenis-smooth { scroll-behavior: auto !important; }
+.lenis.lenis-smooth [data-lenis-prevent] { overscroll-behavior: contain; }
+.lenis.lenis-stopped { overflow: clip; }
+
+/* ---------- Letras da maanu (components/site/letters.tsx) ---------- */
+.wm { display: block; width: 100%; height: auto; overflow: visible; }
+.wm-clip { clip-path: inset(-60% -6% 0 -6%); }
+.wm-letter {
+  transform-box: fill-box;
+  transform-origin: 50% 100%;
+  transition: transform 0.45s cubic-bezier(0.3, 1.6, 0.5, 1), fill 0.4s;
+  cursor: default;
+}
+.wm[data-intro="true"] .wm-letter { animation: wm-rise 1.1s cubic-bezier(0.2, 0.9, 0.15, 1) both; animation-delay: calc(var(--i) * 85ms + var(--wm-delay, 0ms)); }
+.wm[data-intro="pending"] .wm-letter { transform: translate3d(0, 118%, 0); }
+.wm-letter:hover { transform: translate3d(0, -7%, 0) rotate(-1.5deg); }
+.wm-dot { transform-box: fill-box; transform-origin: 50% 50%; }
+.wm[data-intro="true"] .wm-dot { animation: wm-dot 1.2s cubic-bezier(0.3, 1.8, 0.5, 1) both; animation-delay: calc(var(--i) * 85ms + var(--wm-delay, 0ms) + 120ms); }
+.wm[data-intro="pending"] .wm-dot { transform: scale(0); }
+.wm-dot-live { animation: wm-bounce 3.4s ease-in-out 2s infinite; }
+@keyframes wm-rise { from { transform: translate3d(0, 118%, 0); } to { transform: none; } }
+@keyframes wm-dot { 0% { transform: scale(0); } 60% { transform: scale(1.5); } 100% { transform: scale(1); } }
+@keyframes wm-bounce { 0%, 70%, 100% { transform: translate3d(0, 0, 0) scale(1); } 78% { transform: translate3d(0, -34%, 0) scale(0.92, 1.12); } 86% { transform: translate3d(0, 0, 0) scale(1.18, 0.84); } 93% { transform: translate3d(0, -8%, 0); } }
+.wm-logo:hover .wm-letter { animation: wm-hop 0.6s cubic-bezier(0.3, 1.5, 0.5, 1) both; animation-delay: calc(var(--i) * 45ms); }
+@keyframes wm-hop { 0%, 100% { transform: none; } 40% { transform: translate3d(0, -26%, 0); } }
+
+/* ---------- Ponto da marca como pontuação dos títulos ---------- */
+.dot-end { display: inline-block; width: 0.17em; height: 0.17em; margin-left: 0.035em; border-radius: 999px; background: var(--brand-teal); vertical-align: baseline; transform: scale(0); }
+[data-on="true"] .dot-end, .dot-end[data-on="true"] { animation: wm-dot 0.9s cubic-bezier(0.3, 1.8, 0.5, 1) 0.55s both; }
+.dot-end-mint { background: var(--brand-mint); }
+
+/* ---------- Títulos: palavras sobem por uma máscara (Escutaí) ---------- */
+.mask-w { display: inline-block; overflow: hidden; vertical-align: top; padding-bottom: 0.14em; margin-bottom: -0.14em; padding-right: 0.03em; }
+.mask-w > span { display: inline-block; transform: translate3d(0, 112%, 0); will-change: transform; }
+[data-on="true"] .mask-w > span { animation: mask-up 1.05s cubic-bezier(0.16, 1, 0.3, 1) both; animation-delay: calc(var(--w) * 70ms + var(--mask-delay, 0ms)); }
+@keyframes mask-up { from { transform: translate3d(0, 112%, 0); } to { transform: none; } }
+
+/* ---------- Fundo do topo e das caixas escuras ---------- */
+.hero-grid {
+  background-image:
+    linear-gradient(to right, color-mix(in oklch, white 6%, transparent) 1px, transparent 1px),
+    linear-gradient(to bottom, color-mix(in oklch, white 6%, transparent) 1px, transparent 1px);
+  background-size: 72px 72px;
+  mask-image: radial-gradient(80% 70% at 50% 35%, #000 25%, transparent 100%);
+}
+.light-grid {
+  background-image:
+    linear-gradient(to right, color-mix(in oklch, var(--brand-graphite) 7%, transparent) 1px, transparent 1px),
+    linear-gradient(to bottom, color-mix(in oklch, var(--brand-graphite) 7%, transparent) 1px, transparent 1px);
+  background-size: 64px 64px;
+}
+
+/* ---------- Borda animada (o "scanner" do Escutaí) ---------- */
+.scan-border {
+  position: relative;
+  padding: 1.5px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #a9f0dc, var(--brand-teal), #0e7c6b, var(--brand-teal), #a9f0dc);
+  background-size: 300% 100%;
+  animation: scan-border 4s linear infinite;
+}
+@keyframes scan-border { to { background-position: 300% 0; } }
+
+/* ---------- Marquee ---------- */
+.marquee-track { display: flex; width: max-content; animation: site-marquee var(--marquee-speed, 46s) linear infinite; }
+.marquee-track.rev { animation-direction: reverse; }
+.marquee:hover .marquee-track { animation-play-state: paused; }
+
+/* ---------- Telas do app em moldura ---------- */
+.shot-frame { position: relative; border-radius: 1.1rem; background: #fff; box-shadow: 0 0 0 1px rgb(15 23 42 / 0.08), 0 40px 90px -30px rgb(2 6 23 / 0.55); overflow: hidden; }
+.shot-frame-dark { box-shadow: 0 0 0 1px rgb(255 255 255 / 0.1), 0 50px 120px -30px rgb(0 0 0 / 0.7); }
+.shot-bar { display: flex; align-items: center; gap: 6px; height: 2rem; padding: 0 0.9rem; background: #f1f5f9; border-bottom: 1px solid rgb(15 23 42 / 0.07); }
+.shot-bar i { width: 9px; height: 9px; border-radius: 999px; background: rgb(15 23 42 / 0.14); }
+.shot-bar span { margin-left: 0.6rem; padding: 0.12rem 0.8rem; border-radius: 6px; background: rgb(255 255 255 / 0.9); font-size: 11px; color: rgb(71 85 105); }
+
+/* Destaque que passa de cartão em cartão sobre a captura da tela. */
+@keyframes spot { 0%, 4% { opacity: 0; transform: scale(1.03); } 10%, 28% { opacity: 1; transform: scale(1); } 36%, 100% { opacity: 0; transform: scale(1); } }
+.spot { position: absolute; border-radius: 1rem; border: 2px solid var(--brand-mint); box-shadow: 0 0 0 6px color-mix(in oklch, var(--brand-teal) 25%, transparent), 0 0 50px -4px color-mix(in oklch, var(--brand-mint) 70%, transparent); opacity: 0; animation: spot 9s ease-in-out infinite; animation-delay: calc(var(--k) * 3s); pointer-events: none; }
+
+/* ---------- Moedas caindo na letra "u" ---------- */
+@keyframes coin-drop {
+  0% { transform: translate3d(0, -190px, 0) rotate(0deg) scale(0.7); opacity: 0; }
+  12% { opacity: 1; }
+  62% { transform: translate3d(0, 28px, 0) rotate(300deg) scale(1); opacity: 1; }
+  74% { transform: translate3d(0, 6px, 0) rotate(330deg) scale(1, 0.92); opacity: 1; }
+  100% { transform: translate3d(0, 34px, 0) rotate(360deg) scale(0.4); opacity: 0; }
+}
+.coin { position: absolute; top: 0; display: grid; place-items: center; width: 2.4rem; height: 2.4rem; border-radius: 999px; font-weight: 800; font-size: 0.68rem; letter-spacing: -0.02em; color: #7a4a00; background: radial-gradient(circle at 30% 28%, #fff3bf, #f6c453 55%, #d8962a); box-shadow: inset 0 0 0 2px rgb(255 255 255 / 0.35), 0 10px 24px -8px rgb(246 196 83 / 0.6); opacity: 0; animation: coin-drop 3.6s cubic-bezier(0.45, 0, 0.9, 0.6) infinite; animation-delay: var(--d); left: var(--x); }
+
+/* ---------- Palavras grandes do "Responde. Protege. Recupera." ---------- */
+.pillar-word {
+  --p: 0%;
+  background-image: linear-gradient(90deg, var(--brand-mint) calc(var(--p) - 8%), color-mix(in oklch, white 22%, transparent) var(--p));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  transform-origin: left center;
+}
+
+/* ---------- Cartões empilhados ---------- */
+.stack-card { transform-origin: 50% 0; transform: scale(var(--s, 1)); }
+.stack-card .stack-shade { opacity: var(--shade, 0); }
+
+/* ---------- Cursor de digitação ---------- */
+.caret { display: inline-block; width: 2px; height: 1em; margin-left: 2px; background: currentColor; vertical-align: -0.12em; animation: site-caret 1s steps(1) infinite; }
+
+/* ---------- Quadrados que acendem (convite final) ---------- */
+.tile-cell { transition: background-color 1.2s; }
+
+@media (prefers-reduced-motion: reduce) {
+  .wm[data-intro] .wm-letter, .wm[data-intro] .wm-dot { animation: none !important; transform: none !important; }
+  .wm-dot-live, .scan-border, .marquee-track, .spot, .coin { animation: none !important; }
+  .coin { opacity: 0; }
+  .mask-w > span { transform: none !important; animation: none !important; }
+  .dot-end { transform: none !important; animation: none !important; }
+}
+/* Palavras que acendem com a rolagem (components/site/scroll-words.tsx). */
+.scroll-word { opacity: calc(0.16 + 0.84 * clamp(0, calc(var(--p) * (var(--n) + 3) - var(--i)), 1)); transition: opacity 0.12s linear; }
+@media (prefers-reduced-motion: reduce) { .scroll-word { opacity: 1; transition: none; } }
+/* Legendas que acendem junto com o destaque da tela (Recuperador). */
+@keyframes cap-glow { 0%, 4% { opacity: 0.45; } 10%, 28% { opacity: 1; } 36%, 100% { opacity: 0.45; } }
+.cap-glow { animation: cap-glow 9s ease-in-out infinite; animation-delay: calc(var(--k) * 3s); }
+@media (prefers-reduced-motion: reduce) { .cap-glow { animation: none; opacity: 1; } }
+
+/* Letra "u" que se enche conforme as moedas caem. */
+@keyframes u-fill { 0% { transform: translate3d(0, 100%, 0); } 78% { transform: translate3d(0, 6%, 0); } 90% { transform: translate3d(0, 6%, 0); } 100% { transform: translate3d(0, 100%, 0); } }
+.u-liquid { animation: u-fill 10.8s cubic-bezier(0.4, 0, 0.2, 1) infinite; }
+@keyframes coin-fall {
+  0% { transform: translate3d(0, -4rem, 0) rotate(0deg); opacity: 0; }
+  10% { opacity: 1; }
+  70% { transform: translate3d(0, calc(var(--fall) * 0.92), 0) rotate(380deg); opacity: 1; }
+  82% { transform: translate3d(0, var(--fall), 0) rotate(420deg) scale(0.9); opacity: 0; }
+  100% { transform: translate3d(0, var(--fall), 0); opacity: 0; }
+}
+.coin-fall { animation: coin-fall 3.6s cubic-bezier(0.5, 0, 0.9, 0.55) infinite; animation-delay: var(--d); }
+
+@keyframes alert-in { 0% { opacity: 0; transform: translate3d(0, 18px, 0) scale(0.97); } 12%, 82% { opacity: 1; transform: none; } 94%, 100% { opacity: 0; transform: translate3d(0, -10px, 0); } }
+.alert-in { animation: alert-in 7.5s cubic-bezier(0.2, 0.7, 0.2, 1) infinite; animation-delay: calc(var(--k) * 1.1s); }
+@media (prefers-reduced-motion: reduce) { .u-liquid, .coin-fall, .alert-in { animation: none; } .u-liquid { transform: translate3d(0, 30%, 0); } .coin-fall { opacity: 0; } .alert-in { opacity: 1; } }
+@keyframes cta-shift { from { background-position: 0% 0%; } to { background-position: 100% 100%; } }
+
+/* Espaço livre no fim de uma seção que termina numa transição em pixels (os quadrados sobem por cima dele). */
+.pre-pixel { padding-bottom: calc(clamp(56px, 6.6vw, 112px) * 3.4); }

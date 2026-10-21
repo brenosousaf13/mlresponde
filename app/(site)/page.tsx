@@ -1,20 +1,21 @@
 import type { Metadata } from "next"
 
-import { CertaintySection } from "@/components/site/certainty-section"
-import { DailyRoutine } from "@/components/site/daily-routine"
+import { Bento } from "@/components/site/bento"
 import { FaqSection } from "@/components/site/faq-section"
 import { FinalCta } from "@/components/site/final-cta"
 import { Hero } from "@/components/site/hero"
-import { HowItWorks } from "@/components/site/how-it-works"
-import { ListingReading } from "@/components/site/listing-reading"
 import { MobileCtaBar } from "@/components/site/mobile-cta-bar"
+import { Pillars } from "@/components/site/pillars"
+import { PixelTransition } from "@/components/site/pixel-transition"
 import { PricingSection } from "@/components/site/pricing-section"
 import { ProblemSection } from "@/components/site/problem-section"
-import { QuestionTicker } from "@/components/site/question-ticker"
-import { ReputationSection } from "@/components/site/reputation-section"
+import { RecoverSection } from "@/components/site/recover-section"
 import { SavingsCalculator } from "@/components/site/savings-calculator"
 import { SiteFooter } from "@/components/site/site-footer"
 import { SiteHeader } from "@/components/site/site-header"
+import { SmoothScroll } from "@/components/site/smooth-scroll"
+import { Statement } from "@/components/site/statement"
+import { TourStack } from "@/components/site/tour-stack"
 import { siteConfig } from "@/lib/config/site"
 import { SALES_PAGE_PATH, appHref } from "@/lib/site/host"
 import { SALES_PAGE_INDEXABLE, SEO_DESCRIPTION, SEO_IMAGE, SEO_TITLE, structuredDataJson } from "@/lib/site/seo"
@@ -66,16 +67,22 @@ export default function SalesPage() {
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: structuredDataJson() }}
       />
+      <SmoothScroll />
       <SiteHeader signupHref={signupHref} loginHref={loginHref} />
       <main>
         <Hero signupHref={signupHref} />
-        <QuestionTicker />
+        <PixelTransition from="night" to="light" />
         <ProblemSection />
-        <HowItWorks />
-        <ListingReading />
-        <CertaintySection />
-        <DailyRoutine />
-        <ReputationSection signupHref={signupHref} />
+        <PixelTransition from="light" to="night" />
+        <Pillars />
+        <PixelTransition from="night" to="deep" />
+        <RecoverSection signupHref={signupHref} />
+        <PixelTransition from="tealDark" to="light" />
+        <TourStack />
+        <Bento signupHref={signupHref} />
+        <PixelTransition from="light" to="night" />
+        <Statement signupHref={signupHref} />
+        <PixelTransition from="night" to="light" />
         <PricingSection signupHref={signupHref} />
         <SavingsCalculator signupHref={signupHref} />
         <FaqSection signupHref={signupHref} />

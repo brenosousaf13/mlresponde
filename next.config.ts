@@ -22,6 +22,18 @@ const nextConfig: NextConfig = {
       },
     ]
   },
+  async rewrites() {
+    // Vitrine de demonstração (app/demo-print): só em desenvolvimento, com ?demo-print=1. Mantém a URL do app (o menu
+    // marca o item certo) e mostra a tela com dados fictícios. Em produção não existe.
+    if (process.env.NODE_ENV === "production") return []
+    return {
+      beforeFiles: [
+        { source: "/:tela", has: [{ type: "query", key: "demo-print" }], destination: "/demo-print/:tela" },
+      ],
+      afterFiles: [],
+      fallback: [],
+    }
+  },
   async redirects() {
     return [
       // "Respostas da IA" virou "Assistente de IA" (2026-10-11).

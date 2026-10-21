@@ -43,8 +43,8 @@ export function SavingsCalculator({ signupHref }: { signupHref: string }) {
   }
 
   return (
-    <section id="calculadora" aria-labelledby="calculadora-title" className="scroll-mt-24 px-3 sm:px-4">
-      <div className="relative isolate site-clip rounded-[2rem] bg-brand-night py-20 text-white sm:rounded-[2.75rem] sm:py-28">
+    <section id="calculadora" aria-labelledby="calculadora-title" className="scroll-mt-24 bg-brand-offwhite px-3 sm:px-4">
+      <div data-nav="dark" className="relative isolate site-clip rounded-[2rem] bg-brand-night py-20 text-white sm:rounded-[2.75rem] sm:py-28">
         <div aria-hidden className="pointer-events-none absolute inset-0 -z-10">
           <div className="site-motion absolute -bottom-1/2 left-1/2 h-[90%] w-[80%] -translate-x-1/2 animate-[site-aurora_20s_ease-in-out_infinite] rounded-full bg-[radial-gradient(closest-side,color-mix(in_oklch,var(--brand-teal)_35%,transparent),transparent)] blur-2xl" />
           <div className="site-grid absolute inset-0" />

@@ -25,6 +25,7 @@ export default function MobileMenu({
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
+        data-lenis-prevent=""
         side="right"
         className="w-[86%] border-white/10 bg-brand-night text-white [&>[data-slot=sheet-close]]:text-white [&>[data-slot=sheet-close]]:hover:bg-white/10"
       >

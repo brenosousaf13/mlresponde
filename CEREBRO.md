@@ -4,7 +4,9 @@
 > inteiro antes de trabalhar e atualizá-lo ao terminar. Se algo aqui divergir do código, o código vence —
 > e este arquivo deve ser corrigido na mesma sessão.
 
-Última atualização: **2026-10-21** (Sessão 33 — **primeira assinatura paga** (Girassol Moda Jeans, Starter, 21/10 13:04,
+Última atualização: **2026-10-21** (Sessão 35 — **nova homepage (prévia, NÃO publicada)** na branch `codex/homepage-recuperar`: mistura da estrutura do Outlign com o movimento do Escutaí na identidade da maanu, com o **Recuperador em destaque** e capturas REAIS do app com dados fictícios (`/home/*.webp`); letras da maanu animadas; aguardando aprovação do Breno; Sessão 34 — **prévia local da homepage descartada a pedido do Breno** (branch
+`codex/homepage-recuperar`, sem publicação; o branch voltou ao baseline da Sessão 33); Sessão 33 — **primeira assinatura paga**
+(Girassol Moda Jeans, Starter, 21/10 13:04,
 ativada pelo webhook); o aviso "O sistema de pagamento recusou o pedido" que a cliente viu das 07:22 às 07:37 era a
 AbacatePay respondendo **HTTP 502** (lado deles), sem mudança de código; Sessão 32 — **"Chegou certinho" do Recuperador corrigido** (no ar, `fc2fbe7`): o ML
 recusava o corpo `{}` que a documentação manda ("Required request body is missing or incorrect"); agora vai `[]` (conferido na API);
@@ -309,6 +311,11 @@ app/
   layout.tsx                      # pt-BR, Geist, metadata da marca (TooltipProvider + Toaster saíram daqui na Sessão 25:
                                   # ficam em components/providers/app-providers.tsx, usado pelos layouts do app, admin,
                                   # (auth), onboarding e acesso-negado; a página de vendas não carrega esse código)
+  demo-print/                     # VITRINE DE CAPTURAS (Sessão 35, SÓ em desenvolvimento; em produção 404): monta as telas reais do
+                                  # app (Recuperador, Perguntas, Reputação, Resultados) com dados FICTÍCIOS (_data.ts, loja "Casa
+                                  # Aurora Store"), sem banco e sem login. Acesso: `npm run dev` + `/<tela>?demo-print=1|devolucoes|raio-x`
+                                  # (reescrita em next.config.ts + passe livre no proxy.ts, ambos só fora de produção).
+                                  # Capturas: `node docs/brand/scripts/capturas-home.mjs` → public/home/*.webp (+ -1000.webp)
   (site)/                         # PÁGINA DE VENDAS (Sessão 25), em "/" desde a Sessão 27 (SALES_PAGE_PATH, lib/site/host.ts;
                                   # /institucional → / com 308 em next.config.ts; app/page.tsx foi apagado):
                                   # layout.tsx (fonte Funnel Display + site.css com as animações), page.tsx
@@ -1573,6 +1580,8 @@ webhook do ML validado, fila/reprocessamento de jobs, observabilidade, controle 
 
 | Data | Decisão | Motivo / contexto |
 |---|---|---|
+| 2026-10-21 | Nova homepage (Sessão 35): estrutura do Outlign + animações do Escutaí + cores/logo da maanu; **Recuperador em destaque** (seção própria `#recuperar`, 2ª depois do topo) e telas REAIS com dados fictícios no lugar de desenhos | Pedido do Breno: o Recuperador será o maior diferencial. Prévia local, não publicada, para aprovação. |
+| 2026-10-21 | A prévia da nova homepage feita na branch `codex/homepage-recuperar` foi descartada; o branch voltou ao baseline da Sessão 33 | Pedido do Breno após revisar a proposta; não publicar nem manter os arquivos da prévia. |
 | 2026-04-14 | IA migrada de Claude para OpenAI `gpt-4o-mini` | Pedido do cliente. |
 | 2026-04-14 → 05-15 | Processamento roda no próprio webhook via `after()` em vez de `fetch` para `/api/process` | A Vercel matava o `fetch` não aguardado; `after()` mantém a função viva após o 200. |
 | 2026-04-15 / 05-15 | Deduplicação de webhooks pela unique de `question_id` no insert | ML envia notificações repetidas; checagens de status geravam deadlock/falsos erros. |
@@ -1744,6 +1753,39 @@ webhook do ML validado, fila/reprocessamento de jobs, observabilidade, controle 
 ---
 
 ## 12. Diário de sessões (mais recente no topo)
+
+### 2026-10-21 — Sessão 35 · Nova homepage com o Recuperador em evidência (IA: Codex, via app Codex) — PRÉVIA, NÃO PUBLICADA
+- Pedido do Breno: refazer TODA a homepage misturando o **Outlign** (outlign.co: estrutura, ritmo, tipografia grande, cartões
+  empilhados, bento) e o **Escutaí** (arquivo `Escutaí · Landing.html`: animações), mantendo a identidade e os textos da maanu, com
+  prints **reais** do app com dados fictícios, bom no celular, **letras da maanu animadas** e o **Recuperador** como destaque.
+- Estudo dos dois: Escutaí = HTML único (GSAP + ScrollTrigger + Lenis; canvas de quadrados revelados por luz que segue o mouse;
+  palavras que sobem por máscara; seção fixa "Responde/Avisa/Traz de volta" com palavra se preenchendo; transição em pixels entre
+  seções claras e escuras; cartões empilhados; barra que troca claro/escuro conforme a seção; logo gigante no rodapé). Outlign =
+  Laravel/Statamic (Alpine + Swiper + GSAP; fontes Denim INK + Inter + JetBrains Mono; barra em pílula; texto que acende palavra
+  por palavra ao rolar; "statement" numerado; bento de recursos; depoimentos; rodapé com a logo enorme).
+- **Telas reais** (`app/demo-print`, só em dev): as telas verdadeiras do app (Recuperador visão/devoluções/Raio-X, Perguntas,
+  Reputação, Resultados) montadas com dados inventados (loja "Casa Aurora Store"), capturadas com Playwright + Edge
+  (`docs/brand/scripts/capturas-home.mjs`) em `public/home/*.webp` (+ `-1000` para celular + 3 capturas mobile). Fotos dos anúncios
+  fictícios trocadas por ilustrações durante a captura. Nenhum dado de cliente real.
+- **Nova página** (`app/(site)/page.tsx` + `components/site/*`; arquivos antigos da página apagados): topo escuro com canvas de
+  quadrados + título que sobe por máscara + tela do app em paralaxe com conversa ao vivo e contador do "Recuperado pela maanu" +
+  faixa que corre + **logo "maanu." gigante de contorno, preenchida por uma luz que segue o mouse** → transição em pixels →
+  "O problema" (texto que acende ao rolar; 3º item = devolução) → **"Responde. Protege. Recupera."** (seção fixa no computador;
+  lista no celular) → **Recuperador** (`#recuperar`, fundo teal: a letra **"u" vira cofrinho que enche com moedas caindo**, tela real
+  com 3 destaques que acendem em sequência, 3 cenas: avisos, celular, Raio-X, convite) → "Por dentro" (cartões empilhados com telas
+  reais) → bento de recursos → "Com a maanu, você" → planos (com Recuperador) → calculadora → dúvidas (+ pergunta nova do Recuperador)
+  → convite final (quadrados que acendem) → rodapé com a logo gigante em gradiente. As **letras da maanu** (`components/site/letters.tsx`)
+  vêm do `logo-paths.ts` cortado em 5 letras + ponto: sobem uma a uma, pulam ao passar o mouse, o ponto quica. Rolagem suave com
+  **Lenis** (dependência nova). Tudo respeita "reduzir movimento". SEO/FAQ/llms.txt atualizados para citar o Recuperador.
+- Conferido: 390 px e 1440 px por capturas de página inteira (sem rolagem horizontal, sem erros de console); typecheck, 605 testes
+  (teste novo `tests/unit/site-letters.test.ts`), lint e build ok. Sem mudança em banco, Vercel, ML ou Supabase.
+- **Não publicado**: commit local na branch `codex/homepage-recuperar`. Ver `§13 item 0q`.
+### 2026-10-21 — Sessão 34 · Prévia da homepage descartada (IA: Codex, via app Codex)
+- O Breno pediu para apagar a versão da homepage criada na branch local `codex/homepage-recuperar` depois de revisar a prévia.
+- O commit local da proposta (`4be4ab4`) foi removido com `git reset --hard` para o baseline da Sessão 33 (`24f6d29`). Os arquivos
+  de homepage, capturas, rota de demonstração e documentos de design da proposta foram removidos; a pasta preexistente `CRIATIVOS/`
+  foi preservada. Nada foi enviado para a `v2` nem para a produção.
+- Próximo trabalho de homepage só deve começar após uma nova direção aprovada pelo Breno.
 
 ### 2026-10-21 — Sessão 33 · "O sistema de pagamento recusou o pedido" e 1ª assinatura paga (IA: Claude, via app Codex)
 - Breno mandou o print: a Girassol Moda Jeans tentou assinar de manhã e viu "O sistema de pagamento recusou o pedido. Tente de
@@ -2775,6 +2817,14 @@ webhook do ML validado, fila/reprocessamento de jobs, observabilidade, controle 
    Management. Ideia não feita: memória menor (1 GB) para as funções de cron em `vercel.json`. **Supabase Free:** conferir o
    Log Ingestion por dia (meta: < ~33 MB/dia para caber em 1 GB/mês); se ainda passar, as próximas fontes são
    `reputation_claims`, `reputation_alerts` (leituras por rodada do Escudo) e `ml_orders`.
+
+0q. **Homepage nova (Sessão 35) — prévia aguardando o Breno.** Branch `codex/homepage-recuperar` (commit local, SEM push, nada no ar).
+   Ver em `npm run dev` → `http://localhost:3000/`. **Se aprovar:** (1) merge/push na `v2` publica em maanu.com.br (rodar as 4
+   verificações antes); (2) conferir no celular real; (3) decidir se o `demo-print` fica no repositório (só existe em dev) e se as
+   `public/home/*.webp` ganham versão nova quando o app mudar (rodar `capturas-home.mjs`). **Se pedir ajustes:** textos em
+   `components/site/*`, animações em `app/(site)/site.css`. Pendências conhecidas: sem depoimentos/logos de clientes (a maanu ainda
+   não tem; o Outlign tem), sem vídeo de demonstração, e o Lighthouse da nova página ainda não foi medido (a anterior estava em 90+
+   no celular; a nova usa Lenis, canvas e scroll-linked CSS).
 
 0n. **Recuperador (Sessão 30; regras refeitas na Sessão 31) — ✅ no ar** (`555bdb1`, `6607ff4`, `97edb66`; "Chegou certinho"
    corrigido na Sessão 32, `fc2fbe7`: corpo `[]`). **Próxima IA:** conferir em `recovery_actions` o 1º `return_review_ok` com

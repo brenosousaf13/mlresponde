@@ -53,6 +53,9 @@ export async function proxy(request: NextRequest) {
     return res
   }
 
+  // Vitrine de demonstração (app/demo-print, ?demo-print=1): só no computador de desenvolvimento, sem login.
+  if (process.env.NODE_ENV !== "production" && request.nextUrl.searchParams.has("demo-print")) return NextResponse.next()
+
   // A página de vendas é estática e não usa a sessão: nem consulta o login.
   if (siteRoute.kind === "landing") return withRobots(NextResponse.next())
   if (siteRoute.kind === "redirect") return NextResponse.redirect(siteRoute.url, 307)

@@ -37,6 +37,12 @@ export const FAQ: readonly FaqItem[] = [
       "Ela só responde sozinha quando tem certeza, e você escolhe o nível de rigor. Na dúvida, a pergunta fica com você com uma sugestão pronta. Se você corrigir uma resposta, use “Ensinar a IA” e ela aprende para as próximas.",
   },
   {
+    id: "recuperador",
+    question: "O que é o Recuperador e a maanu recupera o dinheiro sozinha?",
+    answer:
+      "O Recuperador é a parte da maanu que olha as devoluções da sua conta no Mercado Livre, incluída em todos os planos. Quando o produto volta sem condição de venda, o armazém do Mercado Livre pode devolver o dinheiro ao comprador, e o prazo para contestar é curto. A maanu avisa na hora, no app e por e-mail, mostra o valor e o prazo, e te ajuda a contestar ou revisar pelo celular: você escolhe o motivo, tira as fotos e a IA escreve o relato. Ela não contesta sozinha, só envia o que você confirmar, e quem decide cada caso é o Mercado Livre. O Raio-X ainda lê as devoluções dos últimos 90 dias para mostrar o que ficou para trás.",
+  },
+  {
     id: "reputacao",
     question: "O que é o Escudo de Reputação?",
     answer:

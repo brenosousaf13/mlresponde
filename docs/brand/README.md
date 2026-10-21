@@ -52,7 +52,7 @@ com fonte.
 
 **Página de vendas** (`app/(site)`, desde a Sessão 25): títulos em **Funnel Display** (`font-display`, carregada só nas
 rotas do site; no app cai na Geist), texto corrido em Geist e rótulos técnicos (horários, tempos, "COMO FUNCIONA") em
-Geist Mono. Animações e efeitos em `app/(site)/site.css` (todas respeitam "reduzir movimento").
+Geist Mono. Animações e efeitos em `app/(site)/site.css` (todas respeitam "reduzir movimento"). A nova homepage (Sessão 35) anima as próprias letras da logo (`components/site/letters.tsx`: `AnimatedWordmark`, `SpotlightWordmark`, `AuroraWordmark`) e usa o ponto teal como pontuação dos títulos (`Headline`); as telas do app mostradas nela são capturas reais com dados fictícios (`app/demo-print` + `docs/brand/scripts/capturas-home.mjs` → `public/home/`).
 
 ## Regenerar os arquivos
 

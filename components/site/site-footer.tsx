@@ -1,9 +1,9 @@
 import { AtSign, Mail, MessageCircle } from "lucide-react"
 
-import { LogoWordmark } from "@/components/brand/logo"
 import { companyInfo, siteConfig } from "@/lib/config/site"
 import { formatWhatsapp, normalizeWhatsapp } from "@/lib/validation/forms"
 
+import { AuroraWordmark } from "./letters"
 import { Container } from "./primitives"
 import { SiteButton } from "./site-button"
 
@@ -20,26 +20,28 @@ export function SiteFooter({ signupHref, loginHref }: { signupHref: string; logi
   const { cnpj, email, whatsapp, instagram } = companyInfo
   const phone = whatsapp ? formatWhatsapp(normalizeWhatsapp(whatsapp)) : ""
   return (
-    <footer className="px-3 pt-3 pb-3 sm:px-4 sm:pt-4 sm:pb-4">
-      <div className="site-clip rounded-[2rem] bg-brand-graphite text-white sm:rounded-[2.75rem]">
-        <Container className="py-16 sm:py-20">
-          <div className="flex flex-col gap-8 border-b border-white/10 pb-12 lg:flex-row lg:items-end lg:justify-between">
-            <div>
-              <LogoWordmark label={siteConfig.name} className="h-9 text-white" />
-              <p className="mt-4 max-w-sm text-white/60">{siteConfig.slogan}</p>
-            </div>
-            <SiteButton href={signupHref} variant="teal" className="shadow-none">
+    <footer data-nav="dark" className="relative overflow-clip bg-brand-night text-white">
+      <div aria-hidden className="hero-grid pointer-events-none absolute inset-x-0 top-0 h-[40rem] opacity-60" />
+      <Container className="relative max-w-7xl pt-20 sm:pt-28">
+        <div className="flex flex-col gap-10 lg:flex-row lg:items-start lg:justify-between">
+          <div className="max-w-md">
+            <p className="font-display text-3xl leading-[1.05] font-semibold tracking-[-0.03em] sm:text-4xl">
+              Responde. Protege. <span className="text-brand-mint">Recupera.</span>
+            </p>
+            <p className="mt-4 text-white/60">{siteConfig.slogan}</p>
+            <SiteButton href={signupHref} variant="teal" className="mt-8 shadow-none">
               Testar grátis por {siteConfig.trialDays} dias
             </SiteButton>
           </div>
 
-          <div className="grid gap-10 py-12 sm:grid-cols-2 lg:grid-cols-4">
-            <nav aria-label="Produto">
+          <div className="grid flex-1 grid-cols-2 gap-x-6 gap-y-10 lg:max-w-3xl lg:grid-cols-4">
+            <nav aria-label="Produto" className="col-span-2 sm:col-span-1">
               <p className="font-medium">Produto</p>
               <ul className="mt-4 flex flex-col gap-3 text-sm">
                 <li><a className={linkClass} href="#como-funciona">Como funciona</a></li>
-                <li><a className={linkClass} href="#recursos">Recursos</a></li>
+                <li><a className={linkClass} href="#recuperar">Recuperador</a></li>
                 <li><a className={linkClass} href="#reputacao">Escudo de Reputação</a></li>
+                <li><a className={linkClass} href="#recursos">Recursos</a></li>
                 <li><a className={linkClass} href="#planos">Planos e preços</a></li>
                 <li><a className={linkClass} href="#calculadora">Calculadora</a></li>
                 <li><a className={linkClass} href="#duvidas">Dúvidas frequentes</a></li>
@@ -59,7 +61,7 @@ export function SiteFooter({ signupHref, loginHref }: { signupHref: string; logi
                 <li><a className={linkClass} href="/privacidade">Política de Privacidade</a></li>
               </ul>
             </nav>
-            <div>
+            <div className="col-span-2 sm:col-span-1">
               <p className="font-medium">Contato</p>
               {/* Só os canais já informados (companyInfo); nada de "a definir" para quem avalia o site. */}
               <ul className="mt-4 flex flex-col gap-3 text-sm">
@@ -97,21 +99,29 @@ export function SiteFooter({ signupHref, loginHref }: { signupHref: string; logi
               </ul>
             </div>
           </div>
+        </div>
+      </Container>
 
-          <div className="flex flex-col gap-4 border-t border-white/10 pt-8 text-xs leading-relaxed text-white/60">
-            <p className="flex flex-wrap items-center gap-x-2 gap-y-1">
-              <span>© {YEAR} {siteConfig.name}</span>
-              <span aria-hidden>·</span>
-              <span>CNPJ {cnpj}</span>
-            </p>
-            <p className="max-w-3xl">
-              A {siteConfig.name} não é afiliada nem patrocinada pelo Mercado Livre. Mercado Livre é marca de seus respectivos
-              donos e é citada apenas para indicar a integração. As respostas automáticas são geradas por inteligência
-              artificial a partir das informações dos seus anúncios e das regras que você cadastra.
-            </p>
-          </div>
-        </Container>
+      {/* A logo gigante: as letras entram subindo, pulam ao passar o mouse e o ponto quica. */}
+      <div className="relative mt-20 px-3 sm:mt-28 sm:px-6">
+        <AuroraWordmark className="mx-auto max-w-[110rem]" />
       </div>
+
+      <Container className="relative max-w-7xl pt-8 pb-8">
+        <div className="flex flex-col gap-4 border-t border-white/10 pt-8 text-xs leading-relaxed text-white/60">
+          <p className="flex flex-wrap items-center gap-x-2 gap-y-1">
+            <span>© {YEAR} {siteConfig.name}</span>
+            <span aria-hidden>·</span>
+            <span>CNPJ {cnpj}</span>
+          </p>
+          <p className="max-w-3xl">
+            A {siteConfig.name} não é afiliada nem patrocinada pelo Mercado Livre. Mercado Livre é marca de seus respectivos
+            donos e é citada apenas para indicar a integração. As respostas automáticas são geradas por inteligência artificial
+            a partir das informações dos seus anúncios e das regras que você cadastra. As telas desta página usam dados fictícios
+            de uma loja de demonstração.
+          </p>
+        </div>
+      </Container>
     </footer>
   )
 }
