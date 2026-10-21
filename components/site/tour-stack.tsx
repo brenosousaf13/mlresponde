@@ -8,6 +8,7 @@ import { cn } from "@/lib/utils"
 import { Headline } from "./headline"
 import { Container } from "./primitives"
 import { Reveal } from "./reveal"
+import { TourCarousel } from "./tour-carousel"
 import { Shot, type ShotKey } from "./shot"
 import { clamp01, useScrollFrame } from "./use-scroll-frame"
 
@@ -85,7 +86,7 @@ export function TourStack() {
           </p>
         </div>
 
-        <div ref={listRef} className="flex flex-col gap-6 lg:gap-7">
+        <div ref={listRef} className="flex flex-col gap-6 max-sm:hidden lg:gap-7">
           {CARDS.map((card, index) => (
             <article
               id={card.id}
@@ -125,6 +126,7 @@ export function TourStack() {
           ))}
         </div>
       </Container>
+      <TourCarousel />
     </section>
   )
 }

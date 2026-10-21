@@ -1754,6 +1754,17 @@ webhook do ML validado, fila/reprocessamento de jobs, observabilidade, controle 
 
 ## 12. Diário de sessões (mais recente no topo)
 
+### 2026-10-21 — Sessão 35d · Home no celular: topo recomposto e "Por dentro" em carrossel (IA: Codex, via app Codex)
+- Pedido do Breno (prints do celular): topo com tela do app, conversa e aviso empilhados, e "Por dentro" com quatro cartões e telas uma
+  embaixo da outra. **Só celular (< 640 px, `max-sm:`/`sm:hidden`); tablet e computador não mudaram.**
+- **Topo:** a moldura do celular ficou mais curta e a conversa ao vivo e o aviso do Recuperador passaram a **se sobrepor** a ela, um de
+  cada lado (conversa à direita, aviso à esquerda), em vez de três blocos em fila (`hero.tsx`, `hero-chat.tsx`).
+- **Por dentro:** no celular vira um **carrossel que se desliza com o dedo** (`components/site/tour-carousel.tsx`): cartão com título e
+  uma frase, e a tela do app em moldura de celular saindo pela base; o próximo cartão aparece de canto e há pontos de posição. Usa capturas
+  mobile reais (dados fictícios); novas `public/home/mobile-reputacao.webp` e `mobile-resultados.webp` (o script
+  `capturas-home.mjs` aceita `ONLY=nome1,nome2` para refazer só algumas). Os cartões empilhados continuam em tablet/computador.
+- Não mexido no celular: "Responde. Protege. Recupera." (lista) e as cenas do Recuperador (ainda empilhadas; candidatas a próximo ajuste).
+- typecheck, 605 testes, lint, build e detector do Impeccable ok.
 ### 2026-10-21 — Sessão 35c · Nova homepage publicada (IA: Codex, via app Codex)
 - Breno aprovou ("pode publicar e substituir a pagina atual"). As 4 verificações já tinham passado (typecheck, 605 testes, lint, build).
   `git merge --ff-only` da `codex/homepage-recuperar` na `v2` e `git push origin v2` (`24f6d29..2998a80`). A `main` (v1) não foi tocada.

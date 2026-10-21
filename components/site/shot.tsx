@@ -15,6 +15,8 @@ export const SHOTS = {
   mobileRecuperador: { src: "/home/mobile-recuperador.webp", width: 780, height: 1688, alt: "Recuperador no celular" },
   mobileDevolucoes: { src: "/home/mobile-devolucoes.webp", width: 780, height: 1688, alt: "Lista de devoluções no celular" },
   mobilePerguntas: { src: "/home/mobile-perguntas.webp", width: 780, height: 1688, alt: "Perguntas no celular" },
+  mobileReputacao: { src: "/home/mobile-reputacao.webp", width: 780, height: 1688, alt: "Escudo de Reputação no celular" },
+  mobileResultados: { src: "/home/mobile-resultados.webp", width: 780, height: 1688, alt: "Resultados no celular" },
 } as const
 
 export type ShotKey = keyof typeof SHOTS

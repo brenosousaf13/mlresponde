@@ -93,16 +93,17 @@ export function Hero({ signupHref }: { signupHref: string }) {
             <Shot name="recuperadorVisao" priority sizes="(min-width: 1100px) 1088px, 100vw" />
           </div>
 
-          <Phone className="sm:hidden">
+          <Phone className="max-sm:[&>div]:h-[22rem] sm:hidden">
             <Shot name="mobileRecuperador" priority sizes="248px" className="h-full w-full object-cover object-top" />
           </Phone>
 
-          <div className="mt-8 flex flex-col items-center gap-4 sm:mt-5 lg:mt-0 lg:block">
-            <div className="lg:absolute lg:-bottom-6 lg:-left-3 xl:-left-10">
-              <HeroChat />
+          <div className="mt-8 flex flex-col items-center gap-4 max-sm:-mt-24 max-sm:items-stretch max-sm:gap-0 sm:mt-5 lg:mt-0 lg:block">
+            {/* No celular as duas peças se sobrepõem à tela do app, uma de cada lado, em vez de empilhar. */}
+            <div className="max-sm:relative max-sm:z-10 max-sm:ml-auto max-sm:w-[90%] lg:absolute lg:-bottom-6 lg:-left-3 xl:-left-10">
+              <HeroChat className="max-sm:max-w-none" />
             </div>
             {/* Aviso do Recuperador, como chega para o vendedor (e não um número solto). */}
-            <div className="w-full max-w-[19.5rem] rounded-2xl bg-brand-graphite p-4 text-left shadow-[0_30px_60px_-20px] shadow-black/70 lg:absolute lg:top-10 lg:-right-3 xl:-right-10">
+            <div className="w-full max-w-[19.5rem] rounded-2xl bg-brand-graphite p-4 text-left shadow-[0_30px_60px_-20px] shadow-black/70 max-sm:relative max-sm:z-20 max-sm:mt-[-1.25rem] max-sm:mr-auto max-sm:w-[86%] max-sm:max-w-none lg:absolute lg:top-10 lg:-right-3 xl:-right-10">
               <p className="flex items-center gap-2 text-xs font-medium text-brand-mint">
                 <span className="grid size-5 place-items-center rounded-full bg-brand-teal text-brand-graphite">
                   <CheckIcon className="size-3" aria-hidden />

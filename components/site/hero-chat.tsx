@@ -93,7 +93,7 @@ export function HeroChat({ className }: { className?: string }) {
         <p className="rounded-2xl rounded-tl-sm bg-slate-100 px-3 py-2 text-[13px] leading-snug">{item.question}</p>
       </div>
 
-      <div className="mt-2.5 flex min-h-[5.6rem] flex-row-reverse items-start gap-2">
+      <div className="mt-2.5 flex min-h-[5.6rem] max-sm:min-h-[4.7rem] flex-row-reverse items-start gap-2">
         <span className="grid size-7 shrink-0 place-items-center rounded-full bg-brand-teal text-white">
           <BotIcon className="size-3.5" aria-hidden />
         </span>

@@ -35,6 +35,8 @@ const SHOTS = [
   { name: "mobile-recuperador", path: "/recuperador", w: 390, h: 844, mobile: true },
   { name: "mobile-devolucoes", path: "/recuperador", variant: "devolucoes", w: 390, h: 844, mobile: true },
   { name: "mobile-perguntas", path: "/perguntas", w: 390, h: 844, mobile: true },
+  { name: "mobile-reputacao", path: "/reputacao", w: 390, h: 844, mobile: true },
+  { name: "mobile-resultados", path: "/resultados", w: 390, h: 844, mobile: true },
 ]
 
 const ICONS = {
@@ -53,7 +55,11 @@ function illustration(slug) {
 
 const browser = await chromium.launch({ executablePath: exe, headless: true })
 
+// ONLY="mobile-reputacao,mobile-resultados" refaz só essas capturas (as outras ficam como estão).
+const only = process.env.ONLY?.split(",").map((name) => name.trim())
+
 for (const shot of SHOTS) {
+  if (only && !only.includes(shot.name)) continue
   const context = await browser.newContext({
     viewport: { width: shot.w, height: shot.h },
     deviceScaleFactor: shot.mobile ? 3 : 2,
