@@ -4,7 +4,7 @@
 > inteiro antes de trabalhar e atualizá-lo ao terminar. Se algo aqui divergir do código, o código vence —
 > e este arquivo deve ser corrigido na mesma sessão.
 
-Última atualização: **2026-10-21** (Sessão 35c — **nova homepage PUBLICADA** em maanu.com.br (merge fast-forward na `v2`, `2998a80`, aprovada pelo Breno; substitui a página de vendas anterior); Sessão 35 — nova homepage na branch `codex/homepage-recuperar`: mistura da estrutura do Outlign com o movimento do Escutaí na identidade da maanu, com o **Recuperador em destaque** e capturas REAIS do app com dados fictícios (`/home/*.webp`); letras da maanu animadas; aprovada e publicada na 35c; Sessão 34 — **prévia local da homepage descartada a pedido do Breno** (branch
+Última atualização: **2026-10-23** (Sessão 36 — **IA do Recuperador (4 itens do MVP diferencial) feita na `v2`, SEM push e SEM deploy**: "Sugerir ação" (contestar / não contestar / ressarcimento parcial, regras + IA), "Ver as fotos" (IA com visão confere as fotos antes do envio), relato escrito sozinho e acompanhamento depois do envio; migração `20261023120000_recuperador_ia.sql` escrita e **NÃO aplicada** (§6.1m); Sessão 35c — **nova homepage PUBLICADA** em maanu.com.br (merge fast-forward na `v2`, `2998a80`, aprovada pelo Breno; substitui a página de vendas anterior); Sessão 35 — nova homepage na branch `codex/homepage-recuperar`: mistura da estrutura do Outlign com o movimento do Escutaí na identidade da maanu, com o **Recuperador em destaque** e capturas REAIS do app com dados fictícios (`/home/*.webp`); letras da maanu animadas; aprovada e publicada na 35c; Sessão 34 — **prévia local da homepage descartada a pedido do Breno** (branch
 `codex/homepage-recuperar`, sem publicação; o branch voltou ao baseline da Sessão 33); Sessão 33 — **primeira assinatura paga**
 (Girassol Moda Jeans, Starter, 21/10 13:04,
 ativada pelo webhook); o aviso "O sistema de pagamento recusou o pedido" que a cliente viu das 07:22 às 07:37 era a
@@ -354,10 +354,12 @@ app/
                                   # syncClaimAction (≤ 1x/min)
     recuperador/                  # RECUPERADOR (Sessão 30, todos os planos): abas por link ?aba= (Visão geral: 3 números +
                                   # "Revise agora"; devolucoes ?filtro=revisar|andamento|encerradas; raio-x: progresso + achados)
-    recuperador/devolucoes/[id]/  # devolução (feita para celular): resumo, revisão "chegou certinho"/"chegou com problema"
-                                  # (ReturnReviewFlow), avaliação do armazém, histórico na maanu
+    recuperador/devolucoes/[id]/  # devolução (feita para celular): resumo, acompanhamento depois do envio (ReturnFollowUpCard),
+                                  # sugestão de ação (ReturnSuggestionCard), revisão "chegou certinho"/"chegou com problema"
+                                  # (ReturnReviewFlow + PhotoReviewPanel), avaliação do armazém, histórico na maanu
     recuperador/actions.ts        # refreshRecovery e syncReturnAction (≤ 1x/min), loadReturnReasons, draftReturnMessageAction
-                                  # (IA), submitReturnReviewAction (só dono/admin, confirmed, fotos ≤ 4 MB)
+                                  # (IA), suggestReturnActionAction (IA, só lê), reviewReturnPhotosAction (IA com visão, só lê),
+                                  # submitReturnReviewAction (só dono/admin, confirmed, fotos ≤ 4 MB)
     pos-venda/actions.ts          # sendReply (FormData com anexos), generateSuggestion, refreshFromMl, retryWithAgent,
                                   # archive/restoreConversation, syncConversations, setAgentEnabled, updateAgentSettings,
                                   # add/deleteAfterSaleExample, testAfterSaleAgent
@@ -534,7 +536,12 @@ lib/
                                   #   corpo do POST com order_id no carrinho, relato sem IA), review-ai (prompt/JSON Schema/
                                   #   validação; modo contestação com o motivo do comprador e o texto do ML), review-model (IA),
                                   #   alerts (return_review_due|closing, return_recovered), images (redução das fotos),
-                                  #   presentation, engine (rodadas, Raio-X, alertas, relato, envio da revisão)
+                                  #   presentation, engine (rodadas, Raio-X, alertas, relato, envio da revisão).
+                                  #   Sessão 36 (testados em tests/unit/recovery-ai*.test.ts): suggest (Sugerir ação: regras,
+                                  #   prompt, JSON Schema, validação) + suggest-model (IA), photo-review (Ver as fotos: schema,
+                                  #   prompt com image_url, veredito, photoReviewGate) + photo-review-model (IA com visão),
+                                  #   follow-up (acompanhamento depois do envio), assist (carrega do banco, cache 15 min,
+                                  #   limite por hora, plano B por regras)
   mercadolivre/reputation.ts      # cliente do Escudo: /users, /shipments (+/sla, /costs), /post-purchase/v1/claims (busca,
                                   #   detalhe, mensagens, affects, ofertas e as ações POST) e, do Recuperador, /v2/claims/{id}/
                                   #   returns, /returns/{id}/reviews, /returns/reasons, fotos e /return-review.
@@ -908,6 +915,14 @@ localmente, definir no terminal).
 - CHECKs recriados com os valores antigos + novos: `reputation_alerts.kind` (+ `return_review_due`, `return_review_closing`,
   `return_recovered`) e `ai_usage_events.feature` (+ `recovery_return_message`).
 
+### 6.1m v2 — IA do Recuperador (migração `20261023120000_recuperador_ia.sql`, Sessão 36, **NÃO APLICADA**)
+
+- Só alarga o CHECK `ai_usage_events.feature` (+ `recovery_suggest_action`, `recovery_photo_review`); nenhuma linha, tabela, view ou
+  função nova (por isso sem GRANT novo). **Aplicar ANTES de publicar o código** — sem ela as duas features funcionam, mas o uso
+  não é gravado (o insert falha e só vai para o log; `recordAiUsage` nunca derruba a resposta) e os limites por hora ficam sem efeito.
+  Troca de CHECK = `drop constraint if exists` + `add constraint` (mesmo padrão das migrações anteriores): precisa do OK do Breno
+  por mexer no banco de produção. O Painel do administrador (`lib/admin/labels.ts`/`types.ts`) já mostra os 2 nomes novos.
+
 ### 6.2 v1 — produção (✅ CONFIRMADO em 2026-10-11)
 
 > Fonte: inventário só leitura de prod (`docs/db/inventario-schema.sql`, rodado pelo Breno no SQL Editor).
@@ -1184,6 +1199,26 @@ exportação só faz GET e a importação recusa qualquer destino que não seja 
    contestação recebe o motivo do comprador e o texto do ML) editável (≤ 1.000 caracteres, sem contato externo); fotos em
    `/claims/{id}/returns/attachments`; envio em `POST /post-purchase/v1/returns/{return_id}/return-review` (`[]` = chegou certinho; **não `{}`**, que a documentação manda mas o ML recusa — Sessão 32 — ou
    `[{ reason, message, attachments, order_id? }]`). Histórico imutável (com `mode`, `is_cart`, `order_id`) e releitura.
+9. **IA além do relato (Sessão 36; nada envia ao ML sem o `confirmed` do dono; só features `recovery_*`, fora da cota do plano):**
+   - **Sugerir ação** (`/recuperador/devolucoes/[id]`, card antes do fluxo): `contest | do_not_contest | partial_refund` + motivo
+     curto + confiança + fatos usados. As **regras** (`suggestActionByRules`: `appealStrength`, motivo do comprador, classificação
+     do armazém, devolução parcial, `status_money`, reputação `affects_reputation`, prazo) aparecem na hora (calculadas na página);
+     a IA (`recovery_suggest_action`, JSON estrito, raciocínio low) refina em seguida pela Server Action e, se divergir das regras,
+     a confiança fica no máximo média; IA pausada/erro/limite (120/h por loja) → fica nas regras. Em `arrival` o dono é quem vê o
+     pacote (`needsInspection`). **Frete da devolução não é guardado** (só aparece como "não disponível" no prompt).
+   - **Ver as fotos** (`recovery_photo_review`): depois que o dono para de adicionar fotos (700 ms), a IA **com visão**
+     (`image_url` em data URL, `detail: auto`; o GPT-6 Luna aceita imagem; só `gpt-3.5` troca para o padrão) devolve o que cada
+     foto mostra, quais itens do `PHOTO_GUIDE` do motivo estão cobertos, o que falta e se as fotos sustentam o motivo/checklist.
+     O veredito (`ok | needs_more | unusable`) é fechado por regras (a IA só pode piorar). **Antes do envio**: o botão de enviar
+     espera a conferência e, se faltar foto, só libera com o "enviar mesmo assim" do dono (`photoReviewGate`); IA indisponível
+     (pausa, erro, 40/h por loja) **nunca trava** o envio. As fotos não são guardadas pela maanu (vão só ao provedor da IA).
+   - **Relato automático**: ao escolher o motivo e o que viu (e, em SRF2/SRF4, depois da 1ª foto) o fluxo chama
+     `draftReturnMessageAction` sozinho, 1 vez por motivo e só se o dono não escreveu nada; "Escrever de novo com a IA" regenera;
+     aviso se as marcações/fotos mudaram depois do texto.
+   - **Acompanhamento depois do envio** (`ReturnFollowUpCard` na devolução e selo na lista "Em andamento"): `analyzing` (dias desde
+     o envio, passos, o que acontece se o ML ressarcir ou negar, última leitura do ML, aviso após 10 dias), `recovered`, `denied`
+     (`seller_status` success depois de uma revisão "com problema": "O Mercado Livre manteve a decisão"), `confirmed_ok`, `closed`.
+     O ML **não informa prazo de decisão** pela API: a tela diz isso. **Não há alerta quando o ML nega** (só `return_recovered`).
 
 ### 7.0d v2 — Painel do administrador (`/admin`)
 1. Entrar normalmente em `/login` com o usuário admin → menu do usuário → **Painel do administrador** (ou abrir `/admin`).
@@ -1580,6 +1615,7 @@ webhook do ML validado, fila/reprocessamento de jobs, observabilidade, controle 
 
 | Data | Decisão | Motivo / contexto |
 |---|---|---|
+| 2026-10-23 | **IA do Recuperador (Sessão 36)**: sugerir ação (regras + IA, plano B por regras), conferir fotos com visão ANTES do envio (bloqueia até conferir; "enviar mesmo assim" é do dono), relato automático e acompanhamento pós-envio; features `recovery_suggest_action` e `recovery_photo_review`, fora da cota | Brief do diferencial (`maanu-recuperar-ia-diferencial.md`): humano no loop, nada sai sozinho. Sem WhatsApp. O motor de sincronização não foi tocado. Sem alerta novo (exigiria CHECK de `reputation_alerts` antes do deploy). |
 | 2026-10-21 | Nova homepage (Sessão 35): estrutura do Outlign + animações do Escutaí + cores/logo da maanu; **Recuperador em destaque** (seção própria `#recuperar`, 2ª depois do topo) e telas REAIS com dados fictícios no lugar de desenhos | Pedido do Breno: o Recuperador será o maior diferencial. Prévia local, não publicada, para aprovação. |
 | 2026-10-21 | A prévia da nova homepage feita na branch `codex/homepage-recuperar` foi descartada; o branch voltou ao baseline da Sessão 33 | Pedido do Breno após revisar a proposta; não publicar nem manter os arquivos da prévia. |
 | 2026-04-14 | IA migrada de Claude para OpenAI `gpt-4o-mini` | Pedido do cliente. |
@@ -1754,6 +1790,25 @@ webhook do ML validado, fila/reprocessamento de jobs, observabilidade, controle 
 
 ## 12. Diário de sessões (mais recente no topo)
 
+### 2026-10-23 — Sessão 36 · IA do Recuperador: sugerir ação, ver as fotos, relato automático e acompanhamento (IA: Codex, via app Codex)
+- Pedido do Breno (brief `maanu-recuperar-ia-mvp-brief.md` + `maanu-recuperar-fluxo-ia.md` + `maanu-recuperar-ia-diferencial.md`): os 4
+  must-haves de IA do Recuperador na `v2`. **SEM push e SEM deploy**; commits locais. Contrato para o Picasso polir a UI no resumo
+  `C:\Users\Breno\Desktop\Projetos\maanu-recuperar-ia-mvp-codex-summary.txt`.
+- **1) Sugerir ação** — `lib/recovery/suggest.ts` (regras, prompt, JSON Schema, validação), `suggest-model.ts` (IA),
+  `assist.ts` (`suggestReturnAction`: carrega do banco, cache de 15 min por instância, limite 120/h, plano B por regras),
+  Server Action `suggestReturnActionAction`, card `ReturnSuggestionCard` na devolução antes do fluxo.
+- **2) Ver as fotos** — `lib/recovery/photo-review.ts` (schema estrito, mensagens com `image_url`, veredito por regras,
+  `photoReviewGate`), `photo-review-model.ts` (Chat Completions com visão), `assist.reviewReturnPhotos` (valida como no envio, limite 40/h),
+  Server Action `reviewReturnPhotosAction`, `PhotoReviewPanel` no fluxo; botão de enviar espera a conferência.
+- **3) Relato automático** — `ReturnReviewFlow` chama `draftReturnMessageAction` sozinho (1x por motivo, só se o dono não escreveu).
+- **4) Acompanhamento** — `lib/recovery/follow-up.ts` + `ReturnFollowUpCard` (substitui os 2 avisos soltos da devolução) + selo na
+  lista (`ReturnListRow.follow_up`). Sem mudar o motor de sincronização nem criar alerta.
+- Também: `buyerReasonKind` em `returns.ts`; `affects_reputation` no `getReturnDetail`; features nos tipos da IA e do admin;
+  migração `20261023120000_recuperador_ia.sql` (**não aplicada**, §6.1m). Testes novos: `tests/unit/recovery-ai.test.ts` (25),
+  `recovery-ai-models.test.ts` (4, pedido real à OpenAI com a chamada simulada), `recovery-ai-assist.test.ts` (6, banco e IA simulados)
+  e `tests/integration/recovery-ai-live.test.ts` (IA de verdade; **não rodado: sem `OPENAI_API_KEY` local**).
+- Verificado: typecheck, testes (todos), lint e build ok. **Não verificado no navegador/contra a OpenAI e o ML reais** (a tela da
+  devolução exige login na produção).
 ### 2026-10-21 — Sessão 35d · Home no celular: topo recomposto e "Por dentro" em carrossel (IA: Codex, via app Codex)
 - Pedido do Breno (prints do celular): topo com tela do app, conversa e aviso empilhados, e "Por dentro" com quatro cartões e telas uma
   embaixo da outra. **Só celular (< 640 px, `max-sm:`/`sm:hidden`); tablet e computador não mudaram.**
@@ -2837,6 +2892,16 @@ webhook do ML validado, fila/reprocessamento de jobs, observabilidade, controle 
 ---
 
 ## 13. Próximos passos
+
+0r. **IA do Recuperador (Sessão 36) — feita na `v2`, SEM push/deploy.** **Breno/próxima IA:** (1) aprovar e **aplicar a migração
+   `20261023120000_recuperador_ia.sql`** (§6.1m) antes de publicar; (2) rodar `tests/integration/recovery-ai-live.test.ts` com uma
+   `OPENAI_API_KEY` (custa centavos) e **testar no celular** uma devolução real: card de sugestão, fotos (SRF2/SRF4) com a conferência
+   e o "enviar mesmo assim", relato automático e o acompanhamento depois do 1º envio; (3) Picasso: polir a UI usando o contrato do
+   resumo (`Projetos\maanu-recuperar-ia-mvp-codex-summary.txt`); (4) decidir se vale um **alerta quando o ML nega** (exige estender o
+   CHECK de `reputation_alerts` e aplicar antes do deploy) e guardar o **frete da devolução** (`/claims/{id}/charges/return-cost`) para
+   a sugestão; (5) citar no aviso de privacidade que as fotos da conferência vão ao provedor da IA (a etiqueta pode ter dados do comprador);
+   (6) calibrar o score/tom com 5–10 devoluções reais (Menina Linda); (7) ideias: registrar o desfecho (ganhou/perdeu) para a sugestão
+   aprender, conferir fotos em lote, % sugerido no ressarcimento parcial.
 
 0p. **Breno — decidir a mensagem quando a AbacatePay cair (Sessão 33).** Hoje um 5xx/queda da AbacatePay mostra "O sistema de
    pagamento recusou o pedido" (parece cartão recusado). Proposta: mensagem de instabilidade + WhatsApp da maanu no aviso e
