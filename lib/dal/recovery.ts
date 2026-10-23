@@ -109,14 +109,45 @@ export type RecoveryOverview = {
   scan: { status: string; returns_total: number; returns_done: number; completed_at: string | null } | null
   /** O Escudo já terminou a busca inicial das reclamações desta conta (o Raio-X depende dela). */
   claimsReady: boolean
-  /** Revise agora: o pacote chegou até o vendedor ou dá para contestar o armazém. amount = soma dos valores conhecidos. */
+  /**
+   * Card "Revise agora": ações de revisão ou contestação liberadas.
+   *
+   * IMPORTANTE — o modelo mental correto:
+   *  - actionableAmount: soma dos valores das vendas contestáveis/revisáveis AGORA. NÃO é "dinheiro retido no MP":
+   *    a maioria desses claims já teve status_money=refunded (o dinheiro foi para o comprador) e a contestação
+   *    é sobre cobertura/produto, não sobre retenção.
+   *  - retainedAmount/retainedCount: apenas os claims contestáveis onde status_money=retained (dinheiro ainda no MP).
+   *  - refundedAmount/refundedCount: contestáveis onde status_money=refunded (já saiu; contestação é sobre produto).
+   *  - withoutAmount: claims sem valor lido no banco.
+   *  - arrivals: quantidade de revisões de pacote que chegou (mode=arrival).
+   *  - appeals: quantidade de contestações de armazém liberadas (mode=appeal).
+   */
   waiting: {
     count: number
-    amount: number
+    /** Soma dos valores das vendas contestáveis/revisáveis agora. Não é sinônimo de "retido". */
+    actionableAmount: number
+    /** Valor retido no MP dentro deste card (status_money=retained). */
+    retainedAmount: number
+    retainedCount: number
+    /** Valor já devolvido ao comprador dentro deste card (status_money=refunded). */
+    refundedAmount: number
+    refundedCount: number
     withoutAmount: number
     appeals: number
+    arrivals: number
     nextDeadline: string | null
     rows: ReturnListRow[]
+  }
+  /**
+   * Resumo do dinheiro retido no Mercado Pago (todas as fases, não só needs_review).
+   *
+   * retainedTotal: total de status_money=retained no banco (inclui em trânsito / at_warehouse).
+   * freightAtRisk: frete reverso em risco. DataAvailable=false até a coluna return_cost ser adicionada
+   *   ao schema — não exibir número inventado.
+   */
+  money: {
+    retainedTotal: number
+    freightAtRisk: { amount: number; count: number; dataAvailable: false }
   }
   /** Raio-X: contestações enviadas que o ML ainda analisa. */
   appealed: { count: number; amount: number }
@@ -133,7 +164,7 @@ function sum(rows: readonly { amount?: unknown; recovered_amount?: unknown }[], 
 
 export async function getRecoveryOverview(accountId: string): Promise<RecoveryOverview> {
   const supabase = await createClient()
-  const [sync, scan, escudo, waiting, findings, recovered, andamento, encerradas] = await Promise.all([
+  const [sync, scan, escudo, waiting, findings, recovered, retainedGlobal, andamento, encerradas] = await Promise.all([
     supabase.from("recovery_sync").select("last_returns_at, last_error, last_error_at").eq("ml_account_id", accountId).maybeSingle(),
     supabase
       .from("recovery_scans")
@@ -150,6 +181,13 @@ export async function getRecoveryOverview(accountId: string): Promise<RecoveryOv
       .limit(300),
     supabase.from("recovery_findings").select("kind, status, amount, evidence").eq("ml_account_id", accountId).limit(5000),
     supabase.from("recovery_returns").select("recovered_amount").eq("ml_account_id", accountId).not("recovered_at", "is", null).limit(5000),
+    // Total retido no MP (todas as fases) — usado no card money
+    supabase
+      .from("recovery_returns")
+      .select("amount")
+      .eq("ml_account_id", accountId)
+      .eq("status_money", "retained")
+      .limit(5000),
     supabase
       .from("recovery_returns")
       .select("id", { count: "exact", head: true })
@@ -161,7 +199,7 @@ export async function getRecoveryOverview(accountId: string): Promise<RecoveryOv
       .eq("ml_account_id", accountId)
       .eq("phase", "closed"),
   ])
-  for (const result of [sync, scan, escudo, waiting, findings, recovered, andamento, encerradas]) if (result.error) throw result.error
+  for (const result of [sync, scan, escudo, waiting, findings, recovered, retainedGlobal, andamento, encerradas]) if (result.error) throw result.error
   // Linha lida pela regra antiga (antes da Sessão 31) que não é revisável de verdade some na hora; a releitura corrige.
   const waitingRows = (waiting.data ?? []).map((row) => toListRow(row as Record<string, unknown>)).filter((row) => row.mode !== null)
   const outcomes = (findings.data ?? []).map((row) => ({
@@ -171,6 +209,11 @@ export async function getRecoveryOverview(accountId: string): Promise<RecoveryOv
   const appealed = outcomes.filter((row) => row.outcome === "appealed")
   const lost = outcomes.filter((row) => row.outcome === "expired")
   const reimbursed = outcomes.filter((row) => row.outcome === "reimbursed")
+
+  // Segmentação por status_money dentro do card "Revise agora"
+  const waitingRetained = waitingRows.filter((row) => row.status_money === "retained")
+  const waitingRefunded = waitingRows.filter((row) => row.status_money === "refunded")
+
   const nowTime = Date.now()
   return {
     sync: sync.data ?? null,
@@ -178,11 +221,21 @@ export async function getRecoveryOverview(accountId: string): Promise<RecoveryOv
     claimsReady: Boolean(escudo.data?.claims_backfilled_at),
     waiting: {
       count: waitingRows.length,
-      amount: sum(waitingRows, "amount"),
+      actionableAmount: sum(waitingRows, "amount"),
+      retainedAmount: sum(waitingRetained, "amount"),
+      retainedCount: waitingRetained.length,
+      refundedAmount: sum(waitingRefunded, "amount"),
+      refundedCount: waitingRefunded.length,
       withoutAmount: waitingRows.filter((row) => row.amount === null).length,
       appeals: waitingRows.filter((row) => row.mode === "appeal").length,
+      arrivals: waitingRows.filter((row) => row.mode === "arrival").length,
       nextDeadline: waitingRows.find((row) => row.deadline_at && Date.parse(row.deadline_at) > nowTime)?.deadline_at ?? null,
       rows: waitingRows,
+    },
+    money: {
+      retainedTotal: sum(retainedGlobal.data ?? [], "amount"),
+      // return_cost não existe como coluna em recovery_returns ainda — placeholder honesto
+      freightAtRisk: { amount: 0, count: 0, dataAvailable: false },
     },
     appealed: { count: appealed.length, amount: sum(appealed, "amount") },
     lost: { count: lost.length, amount: sum(lost, "amount") },

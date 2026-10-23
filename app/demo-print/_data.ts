@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Dados FICTÍCIOS da vitrine de demonstração (loja inventada "Casa Aurora Store"). Nada aqui vem de cliente real.
  * As fotos dos anúncios usam o endereço `demo-*.mlstatic.com`; o script de captura devolve ilustrações no lugar.
  */
@@ -92,11 +92,20 @@ export const OVERVIEW: RecoveryOverview = {
   claimsReady: true,
   waiting: {
     count: WAITING_ROWS.length,
-    amount: WAITING_ROWS.reduce((total, row) => total + (row.amount ?? 0), 0),
+    actionableAmount: WAITING_ROWS.reduce((total, row) => total + (row.amount ?? 0), 0),
+    retainedAmount: WAITING_ROWS.filter((row) => row.status_money === "retained").reduce((t, r) => t + (r.amount ?? 0), 0),
+    retainedCount: WAITING_ROWS.filter((row) => row.status_money === "retained").length,
+    refundedAmount: WAITING_ROWS.filter((row) => row.status_money === "refunded").reduce((t, r) => t + (r.amount ?? 0), 0),
+    refundedCount: WAITING_ROWS.filter((row) => row.status_money === "refunded").length,
     withoutAmount: 0,
     appeals: WAITING_ROWS.filter((row) => row.mode === "appeal").length,
+    arrivals: WAITING_ROWS.filter((row) => row.mode === "arrival").length,
     nextDeadline: inHours(20),
     rows: WAITING_ROWS,
+  },
+  money: {
+    retainedTotal: 0,
+    freightAtRisk: { amount: 0, count: 0, dataAvailable: false as const },
   },
   appealed: { count: 2, amount: 538.8 },
   lost: { count: 6, amount: 1286.5 },
