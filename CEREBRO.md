@@ -382,9 +382,9 @@ app/
   admin/billing-actions.ts      # registerAbacateWebhook, refreshAbacateCatalog, adminCancelSubscription; tela admin/(painel)/cobranca
   api/cron/questions/route.ts   # Vercel Cron 1/min (só em produção; Bearer CRON_SECRET): runQuestionRounds = busca as
                                 # perguntas novas no ML 1 vez (Sessão 30b) + fila de novas tentativas (maxDuration 120)
-  api/cron/pos-venda/route.ts   # fila do pós-venda (1/min) + a cada 15 min não lidas e conferência (Bearer CRON_SECRET)
-  api/cron/clientes/route.ts    # aba Clientes (1/min, Bearer CRON_SECRET): runCustomerSync = conferência + cidade/nome
-  api/cron/reputacao/route.ts   # Escudo (1/min, Bearer CRON_SECRET): runReputationSync({ claimsHook }) (termômetro 30 min,
+  api/cron/pos-venda/route.ts   # fila do pós-venda (a cada 5 min desde a Sessão 37; o webhook processa na hora) + a cada 15 min não lidas e conferência (Bearer CRON_SECRET)
+  api/cron/clientes/route.ts    # aba Clientes (a cada 5 min desde a Sessão 37, Bearer CRON_SECRET): runCustomerSync = conferência + cidade/nome
+  api/cron/reputacao/route.ts   # Escudo (a cada 2 min, Bearer CRON_SECRET): runReputationSync({ claimsHook }) (termômetro 30 min,
                                 # despachos 10 min, reclamações 5 min, e-mails) + processClaimAnalyses (até 3 análises da IA)
   api/cron/recuperador/route.ts # Recuperador (1/min, Bearer CRON_SECRET): runRecoverySync (até 10 contas, 60 chamadas ao ML;
                                 # os e-mails dos alertas saem na rodada do Escudo)
@@ -572,7 +572,7 @@ tests/integration/ai-live.test.ts # 22 cenários com a IA real; só roda com RUN
 tests/integration/after-sale-live.test.ts # 12 cenários do agente de pós-venda com a IA real (mesmas variáveis)
 tests/integration/customers-db.test.ts # aba Clientes no banco real com o ML simulado (RUN_CUSTOMERS_DB=1; loja temporária apagada)
 tests/integration/reputation-db.test.ts # Escudo no banco real com o ML simulado (RUN_REPUTATION_DB=1; loja temporária apagada)
-vercel.json                       # crons /api/cron/questions, /pos-venda, /clientes e /reputacao a cada minuto (só produção)
+vercel.json                       # crons (só produção): /questions e /recuperador 1/min, /reputacao */2, /pos-venda e /clientes */5 (Sessão 37)
 docs/                             # specs (superpowers/specs), db (inventário/snapshot de prod), v2 (referências),
                                   # brand (apresentação e originais da marca, guia README.md, scripts/ para regerar)
 public/brand/                     # maanu-logo(.svg/.png, -branco), maanu-m(.svg, -branco), maanu-icone(.svg, -512.png)
@@ -1043,7 +1043,7 @@ exportação só faz GET e a importação recusa qualquer destino que não seja 
    nova tentativa; 404/4xx = sem descrição) + `/products/{catalog_product_id}` + `/catalog/charts/{SIZE_GRID_ID}` (opcionais).
 3. Erros: `failed` + nova tentativa em 1/2/4/8/16 min; após 5 → `needs_review` (`processing_error`). Token inválido →
    `needs_review` (`account_inactive`).
-4. Fila: webhook processa até 5 atrasadas e cada execução do cron (1/min) roda até 10. **Staging não tem cron.**
+4. Fila: webhook processa até 5 atrasadas e cada execução do cron de perguntas (1/min) roda até 10. **Staging não tem cron.**
 5. Ao conectar/reconectar conta: sincroniza as perguntas sem resposta do ML (até 200) e processa.
 6. Painel do vendedor: **Perguntas** = caixa de entrada (filtros em cartões, nesta ordem desde a Sessão 22: Respondidas pela
    IA / Respondidas por você / Para responder / Todas — a tela abre no 1º, Respondidas pela IA (`DEFAULT_INBOX_TAB`); os links de "aguardando você" do Painel, Resultados e avisos usam `?aba=responder`; busca por pergunta/anúncio/código MLB, conta, lista + conversa, responder na tela com rascunho, "Sugestão
@@ -1073,7 +1073,7 @@ exportação só faz GET e a importação recusa qualquer destino que não seja 
 ### 7.0c v2 — Pós-venda (planos Pro e Escala e teste grátis; era "Essencial" até a Sessão 20)
 1. ML → webhook `topic=messages` (`actions` com `created`) → só contas cujo plano inclui pós-venda → 200 → `after()`:
    `GET /messages/{id}` → pack (`message_resources`) → `registerConversation` → `processConversation`.
-   Também entram: "Sincronizar com o ML" e conexão da conta (`/messages/unread`), cron (fila 1/min; a cada 15 min não lidas
+   Também entram: "Sincronizar com o ML" e conexão da conta (`/messages/unread`), cron (fila a cada 5 min desde a Sessão 37; a cada 15 min não lidas
    das contas com o agente ligado e conferência das conversas esperando o vendedor há > 30 min).
 2. `processConversation`: lock → relê no ML todas as páginas da conversa (`mark_as_read=false`), pack/vendas e envio → grava.
    ML bloqueou → `blocked`; sem mensagem do comprador esperando → `answered`; conta inativa / assinatura / plano /
@@ -1116,7 +1116,7 @@ exportação só faz GET e a importação recusa qualquer destino que não seja 
 ### 7.0c4 v2 — Clientes (Sessão 28, todos os planos; sem importação do histórico desde a 28b)
 1. Conta conectada → linha `done` em `ml_customer_sync` com `tracking_since` = agora. Só vendas feitas a partir daí contam
    (`ingest_ml_orders` descarta as anteriores, mesmo que o ML avise delas ao mudarem de situação).
-2. **Conferência** (cron `/api/cron/clientes`, 1/min, `runCustomerSync`; cada conta a cada 10 min, `claim_customer_sync('poll')`):
+2. **Conferência** (cron `/api/cron/clientes`, a cada 5 min desde a Sessão 37, `runCustomerSync`; cada conta a cada 10–15 min, `claim_customer_sync('poll')`):
    `GET /orders/search?seller=&order.date_created.from=tracking_since&order.date_last_updated.from=última − 5 min&sort=date_desc`,
    até 4 páginas de 50; filtro recusado (400) → vendas criadas nos últimos 3 dias (nunca antes de `tracking_since`).
 3. **Cidade/UF e nome** (até 60 chamadas por rodada, quem comprou por último primeiro): `GET /shipments/{id}`
@@ -1788,10 +1788,22 @@ webhook do ML validado, fila/reprocessamento de jobs, observabilidade, controle 
 | 2026-10-20 | Achado de devolução tem **confiança média** e só gera texto pronto (sem contestar pelo vendedor) | O ML não tem API para contestar a decisão do armazém; a decisão final é do ML. |
 | 2026-10-20 | "Chegou certinho" envia **`[]`** ao `return-review`, contra a documentação (`{}`) | Testado na API em 2026-10-20 numa devolução encerrada (sem efeito): `{}` → 400 "Required request body is missing or incorrect" (falha na leitura do corpo, o endpoint espera lista); `[]` → passa para a validação da ação ("Not found player config…"). Primeiro "Chegou certinho" real (Girassol, reclamação 5589751302) falhou com `{}`. |
 | 2026-10-20 | Rotina de perguntas: **1 consulta por minuto** (era a cada ~10 s); Escudo **a cada 2 min** com token reaproveitado e gravações agrupadas | Custo da Vercel (função ligada ~20 h/dia esperando). O webhook do ML chega normalmente; se falhar, a pergunta leva até ~1 min. Breno aprovou (Sessão 30b). |
+| 2026-10-23 | Crons **pós-venda e clientes a cada 5 min** (era 1/min); **Escudo (`/reputacao`) fica em `*/2`**; perguntas e Recuperador ficam em 1/min | Log Ingestion do Supabase (Free). Pós-venda: o webhook já processa a conversa na hora; o cron é só rede de segurança (retry de 1 min vira ≤5 min; o `getUTCMinutes() % 15 === 0` continua batendo em 0/15/30/45). Clientes: a conferência por conta já é de 10 min e a janela parte de `last_polled_at − 5 min` (não do intervalo do cron); o webhook `orders_v2` cobre o tempo real; cidade/UF cai de 60 chamadas/min para 60 a cada 5 min (só acabamento). Escudo **não** afrouxado: `DETAILS_PER_RUN = 12`, `ANALYSES_PER_RUN = 3` e as 140 chamadas são por rodada e foram calibrados para 2 min; em `*/5` as lojas com 80–130 reclamações abertas (detalhe a cada 30 min) cairiam de ~6 para ~2,4 detalhes/min e nunca fechariam o ciclo, e `claims` (5 min) / `shipments` (10 min) / termômetro (30 min) passariam a 10 / 15 / 35 min pelo atraso de início da rodada. Para afrouxar o Escudo no futuro: subir `DETAILS_PER_RUN`/`ANALYSES_PER_RUN`/`calls` em proporção. |
 
 ---
 
 ## 12. Diário de sessões (mais recente no topo)
+
+### 2026-10-23 — Sessão 37 · Crons pós-venda e clientes a cada 5 min (Log Ingestion do Supabase) (IA: Codex)
+- Pedido do Breno (brief curto, só commit, sem push/deploy): reduzir a frequência dos crons em `vercel.json` para baixar o Log
+  Ingestion. `/pos-venda` e `/clientes`: `* * * * *` → `*/5 * * * *`. `/questions` e `/recuperador` ficam em 1/min.
+  `/reputacao` **fica em `*/2`** (não foi seguro afrouxar; motivo na tabela de decisões de 2026-10-23).
+- Conferido sem mudar TS: pós-venda (webhook processa na hora; `% 15` bate em 0/15/30/45; retry de 1 min vira ≤5 min; 10 por
+  rodada) e clientes (`claim_customer_sync` 10 min por conta; janela `last_polled_at − 5 min`; webhook `orders_v2`; 60
+  cidades/UF por rodada). Os comentários de código ainda dizem "1 por minuto" em `app/api/cron/{pos-venda,clientes}/route.ts`
+  e `lib/customers/engine.ts` (`CUSTOMER_CRON_LIMITS`): só texto, ajustar na próxima mexida. Sem build/teste (só config).
+- **Próxima IA:** conferir `/api/cron/pos-venda` e `/clientes` 200 a cada 5 min e o Log Ingestion por dia; se a fila de
+  "cidade/UF" dos clientes novos demorar, subir `CUSTOMER_CRON_LIMITS.locations`.
 
 ### 2026-10-23 — Sessão 36b · Polish visual da IA do Recuperador (IA: Codex)
 - Executado `CODEX-IA-POLISH.txt` na `v2`. Mudanças só em `return-suggestion-card.tsx`, `photo-review-panel.tsx`,
