@@ -4,8 +4,10 @@ import { revalidatePath } from "next/cache"
 import { z } from "zod"
 
 import { canManageOrganization, requireSection } from "@/lib/dal/app-context"
+import { reviewReturnPhotos, suggestReturnAction, type PhotoReviewResult } from "@/lib/recovery/assist"
 import { draftReturnMessage, returnReasonsFor, submitReturnReviewFor, syncRecoveryNow, syncReturnNow } from "@/lib/recovery/engine"
-import type { ReturnReason } from "@/lib/recovery/review"
+import { validatePhotos, type ReturnReason } from "@/lib/recovery/review"
+import type { ReturnSuggestion } from "@/lib/recovery/suggest"
 import { createServiceClient } from "@/lib/supabase/admin"
 
 export type RecoveryActionState = { ok: boolean; message: string }
@@ -112,6 +114,56 @@ export async function draftReturnMessageAction(
     return { ok: true, ...draft }
   } catch (error) {
     return failure(error, "relato da devolução")
+  }
+}
+
+/**
+ * "Sugerir ação": a maanu recomenda contestar, não contestar ou pedir ressarcimento parcial (regras + IA, plano B por regras).
+ * Só lê: não envia nada ao ML e não grava nada além do uso da IA. Os fatos vêm do banco, nunca da tela.
+ */
+export async function suggestReturnActionAction(
+  returnRowId: string
+): Promise<{ ok: true; suggestion: ReturnSuggestion } | { ok: false; message: string }> {
+  const context = await requireSection("recuperador")
+  if (!uuid.safeParse(returnRowId).success) return { ok: false, message: "Devolução não encontrada." }
+  try {
+    return await suggestReturnAction(context.organization.id, returnRowId)
+  } catch (error) {
+    return failure(error, "sugestão de ação")
+  }
+}
+
+const photoReviewSchema = z.object({
+  returnRowId: z.string().uuid(),
+  reasonId: z.string().min(2).max(20),
+  reasonLabel: z.string().min(1).max(200),
+  checks: z.array(z.string().max(40)).max(10),
+})
+
+/**
+ * "Ver as fotos": a IA com visão confere as fotos anexadas (o que cada uma mostra, o que falta no guia do motivo) ANTES do
+ * envio. Não envia nada ao ML e não guarda as fotos. Se a IA não puder conferir, `unavailable` = true e a tela não trava o envio.
+ */
+export async function reviewReturnPhotosAction(formData: FormData): Promise<PhotoReviewResult> {
+  const context = await requireSection("recuperador")
+  const parsed = photoReviewSchema.safeParse({
+    returnRowId: String(formData.get("returnRowId") ?? ""),
+    reasonId: String(formData.get("reasonId") ?? ""),
+    reasonLabel: String(formData.get("reasonLabel") ?? ""),
+    checks: formData.getAll("checks").map(String),
+  })
+  if (!parsed.success) return { ok: false, message: "Escolha o motivo antes de conferir as fotos.", unavailable: false }
+  if (!(await returnBelongs(context.organization.id, parsed.data.returnRowId))) {
+    return { ok: false, message: "Devolução não encontrada.", unavailable: false }
+  }
+  const photos = formData.getAll("photos").filter((value): value is File => value instanceof File && value.size > 0)
+  const invalid = validatePhotos(photos, null)
+  if (invalid) return { ok: false, message: invalid, unavailable: false }
+  try {
+    return await reviewReturnPhotos(context.organization.id, parsed.data.returnRowId, { ...parsed.data, photos })
+  } catch (error) {
+    console.error("[recuperador] conferência das fotos:", error instanceof Error ? error.message : error)
+    return { ok: false, message: "Não foi possível conferir as fotos agora. Você pode enviar mesmo assim.", unavailable: true }
   }
 }
 

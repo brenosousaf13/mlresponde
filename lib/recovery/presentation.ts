@@ -1,4 +1,7 @@
+import type { FollowUpTone } from "@/lib/recovery/follow-up"
+import type { PhotoReviewVerdict } from "@/lib/recovery/photo-review"
 import type { ReturnPhase, ReviewMode } from "@/lib/recovery/returns"
+import type { SuggestedAction } from "@/lib/recovery/suggest"
 
 /** Visual do Recuperador (puro). */
 
@@ -15,6 +18,35 @@ export const PHASE_BADGE: Record<ReturnPhase, string> = {
 export const MODE_LABELS: Record<ReviewMode, string> = {
   arrival: "Revise agora",
   appeal: "Dá para contestar",
+}
+
+/** Selo da ação sugerida pela IA (só tokens do tema/tons já usados no Recuperador). */
+export const SUGGESTION_BADGE: Record<SuggestedAction, string> = {
+  contest: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300",
+  do_not_contest: "bg-muted text-muted-foreground",
+  partial_refund: "bg-amber-500/10 text-amber-700 dark:text-amber-300",
+}
+
+/** Caixa do resultado da conferência das fotos. */
+export const PHOTO_VERDICT_BOX: Record<PhotoReviewVerdict, string> = {
+  ok: "border-emerald-500/40 bg-emerald-500/5",
+  needs_more: "border-amber-500/40 bg-amber-500/5",
+  unusable: "border-red-500/40 bg-red-500/5",
+}
+
+/** Caixa e selo do acompanhamento depois do envio. */
+export const FOLLOW_UP_BOX: Record<FollowUpTone, string> = {
+  info: "border-primary/40 bg-primary/5",
+  success: "border-emerald-500/40 bg-emerald-500/5",
+  warning: "border-amber-500/40 bg-amber-500/5",
+  neutral: "",
+}
+
+export const FOLLOW_UP_BADGE: Record<FollowUpTone, string> = {
+  info: "bg-sky-500/10 text-sky-700 dark:text-sky-300",
+  success: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300",
+  warning: "bg-amber-500/10 text-amber-700 dark:text-amber-300",
+  neutral: "bg-muted text-muted-foreground",
 }
 
 /** Texto do prazo na lista e na devolução. */

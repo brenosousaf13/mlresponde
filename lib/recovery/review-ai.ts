@@ -4,8 +4,9 @@ import { RETURN_MESSAGE_MAX, fallbackReturnMessage } from "@/lib/recovery/review
 /**
  * Relato da revisão de devolução pela IA (puro, testado em tests/unit/recovery.test.ts). A IA só escreve, a partir do
  * motivo, do que o dono marcou e (na contestação da revisão do armazém) do que o comprador declarou e do que o ML
- * registrou: não vê as fotos (fase futura), não inventa dano e não põe contato externo. O dono lê, edita e decide; nada é
- * enviado sozinho.
+ * registrou: não vê as fotos (quem olha as fotos é a conferência com visão, photo-review.ts, antes do envio), não inventa
+ * dano e não põe contato externo. O dono lê, edita e decide; nada é enviado sozinho. O fluxo chama este relato sozinho quando
+ * o motivo e o que o dono viu estão escolhidos; o botão "Escrever de novo com a IA" regenera.
  */
 
 export type ReturnMessageInput = {
