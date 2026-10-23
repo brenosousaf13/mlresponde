@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Dados FICTÍCIOS da vitrine de demonstração (loja inventada "Casa Aurora Store"). Nada aqui vem de cliente real.
  * As fotos dos anúncios usam o endereço `demo-*.mlstatic.com`; o script de captura devolve ilustrações no lugar.
  */
@@ -39,6 +39,7 @@ function returnRow(partial: Partial<ReturnListRow> & Pick<ReturnListRow, "id" | 
     recovered_amount: null,
     is_cart: false,
     mode: "arrival",
+    follow_up: null,
     ...partial,
   }
 }

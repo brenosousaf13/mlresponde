@@ -1,5 +1,6 @@
 import "server-only"
 
+import { followUpSummary, type FollowUpSummary } from "@/lib/recovery/follow-up"
 import {
   findingOutcome,
   rowReviewMode,
@@ -54,6 +55,8 @@ export type ReturnListRow = {
   is_cart: boolean
   /** O que o vendedor pode fazer agora (arrival = revisar o pacote que chegou; appeal = contestar o armazém). */
   mode: ReviewMode | null
+  /** Acompanhamento da revisão que a maanu enviou (em análise, ressarcido, ML negou...); null = nada enviado. */
+  follow_up: FollowUpSummary | null
 }
 
 function toListRow(row: Record<string, unknown>): ReturnListRow {
@@ -88,6 +91,16 @@ function toListRow(row: Record<string, unknown>): ReturnListRow {
     recovered_amount: row.recovered_amount === null || row.recovered_amount === undefined ? null : Number(row.recovered_amount),
     is_cart: Boolean(row.is_cart),
     mode,
+    follow_up: followUpSummary({
+      phase: String(row.phase),
+      review_kind: (row.review_kind as string | null) ?? null,
+      review_submitted_at: (row.review_submitted_at as string | null) ?? null,
+      recovered_at: (row.recovered_at as string | null) ?? null,
+      recovered_amount: row.recovered_amount === null || row.recovered_amount === undefined ? null : Number(row.recovered_amount),
+      currency_id: (row.currency_id as string | null) ?? null,
+      reviews: row.reviews,
+      order_id: (row.order_id as number | string | null) ?? null,
+    }),
   }
 }
 
@@ -299,6 +312,8 @@ export type ReturnDetail = {
     reason_detail: string | null
     buyer_nickname: string | null
     status: string
+    /** affected = a reclamação conta contra a reputação do vendedor (usado na sugestão de ação). */
+    affects_reputation: string | null
     /** O que o ML mostra na reclamação agora (ex.: "Devolução revisada. Solicite a retirada do produto" + a explicação). */
     ml_title: string | null
     ml_description: string | null
@@ -323,7 +338,11 @@ export async function getReturnDetail(organizationId: string, returnRowId: strin
   if (error) throw error
   if (!row) return null
   const [claim, account, actions] = await Promise.all([
-    supabase.from("reputation_claims").select("reason_id, reason_detail, buyer_nickname, status, detail").eq("id", row.claim_row_id).maybeSingle(),
+    supabase
+      .from("reputation_claims")
+      .select("reason_id, reason_detail, buyer_nickname, status, detail, affects_reputation")
+      .eq("id", row.claim_row_id)
+      .maybeSingle(),
     supabase.from("ml_accounts").select("id, nickname, ml_user_id").eq("id", row.ml_account_id).single(),
     supabase
       .from("recovery_actions")
@@ -369,6 +388,7 @@ export async function getReturnDetail(organizationId: string, returnRowId: strin
           reason_detail: reasonDetail,
           buyer_nickname: claim.data.buyer_nickname,
           status: claim.data.status,
+          affects_reputation: claim.data.affects_reputation,
           ml_title: detailText(claim.data.detail, "title"),
           ml_description: detailText(claim.data.detail, "description"),
         }

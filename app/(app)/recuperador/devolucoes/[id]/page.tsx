@@ -1,11 +1,13 @@
-import { ArrowLeftIcon, CheckCircle2Icon, ExternalLinkIcon, HistoryIcon, PackageOpenIcon, WarehouseIcon, XCircleIcon } from "lucide-react"
+import { ArrowLeftIcon, ExternalLinkIcon, HistoryIcon, PackageOpenIcon, WarehouseIcon } from "lucide-react"
 import type { Metadata } from "next"
 import Link from "next/link"
 import { notFound } from "next/navigation"
 
 import { PageHeader } from "@/components/app/page-header"
 import { SyncReturnButton } from "@/components/recuperador/recovery-buttons"
+import { ReturnFollowUpCard } from "@/components/recuperador/return-follow-up"
 import { ReturnReviewFlow } from "@/components/recuperador/return-review-flow"
+import { ReturnSuggestionCard } from "@/components/recuperador/return-suggestion-card"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { buttonVariants } from "@/components/ui/button"
@@ -14,6 +16,7 @@ import { formatMoney } from "@/lib/customers/presentation"
 import { canManageOrganization, requireSection } from "@/lib/dal/app-context"
 import { getReturnDetail } from "@/lib/dal/recovery"
 import { formatDateTime, timeAgo } from "@/lib/format"
+import { returnFollowUp } from "@/lib/recovery/follow-up"
 import { BENEFITED_LABELS, DESTINATION_LABELS, MODE_LABELS, PHASE_BADGE, recoveryHref, sellerStatusLabel } from "@/lib/recovery/presentation"
 import {
   APPEAL_WINDOW_DAYS,
@@ -27,6 +30,7 @@ import {
   ownReviews,
 } from "@/lib/recovery/returns"
 import { FALLBACK_REASONS } from "@/lib/recovery/review"
+import { suggestActionByRules, suggestInputFromRows } from "@/lib/recovery/suggest"
 import { DUE_TEXT, claimHref, dueState, mlSaleUrl } from "@/lib/reputation/presentation"
 import { cn } from "@/lib/utils"
 
@@ -69,6 +73,44 @@ export default async function ReturnPage({ params, searchParams }: PageProps<"/r
   const quantity = row.orders.reduce((total, order) => total + (order.return_quantity ?? 0), 0)
   const mode = row.phase === "needs_review" ? row.mode : null
   const appeal = mode === "appeal"
+  // "Sugerir ação": as regras aparecem na hora; o card pede o refinamento da IA em seguida (Server Action).
+  const suggestion = mode
+    ? suggestActionByRules(
+        suggestInputFromRows(
+          {
+            reviews: row.reviews,
+            orders: row.orders,
+            order_id: row.order_id,
+            status_money: row.status_money,
+            amount: row.amount,
+            currency_id: row.currency_id,
+            deadline_at: row.deadline_at,
+            is_cart: row.is_cart,
+            can_review_ok: row.can_review_ok,
+            can_review_fail: row.can_review_fail,
+          },
+          claim ? { reason_detail: claim.reason_detail, affects_reputation: claim.affects_reputation } : null,
+          mode
+        ),
+        now
+      )
+    : null
+  // Depois do envio: em análise no ML, ressarcido, ML manteve a decisão...
+  const sentMode = actions.find((action) => action.status === "success" && action.action === "return_review_fail")?.details.mode
+  const followUp = returnFollowUp(
+    {
+      phase: row.phase,
+      review_kind: row.review_kind,
+      review_submitted_at: row.review_submitted_at,
+      recovered_at: row.recovered_at,
+      recovered_amount: row.recovered_amount,
+      currency_id: row.currency_id,
+      reviews: row.reviews,
+      order_id: row.order_id,
+      submittedMode: sentMode === "appeal" || sentMode === "arrival" ? sentMode : null,
+    },
+    now
+  )
 
   return (
     <>
@@ -157,15 +199,7 @@ export default async function ReturnPage({ params, searchParams }: PageProps<"/r
         </CardContent>
       </Card>
 
-      {row.recovered_at ? (
-        <Alert className="border-emerald-500/40 bg-emerald-500/5">
-          <CheckCircle2Icon />
-          <AlertTitle>O Mercado Livre ressarciu você</AlertTitle>
-          <AlertDescription>
-            {row.recovered_amount ? formatMoney(row.recovered_amount, row.currency_id) + " · " : ""}A revisão enviada pela maanu deu certo.
-          </AlertDescription>
-        </Alert>
-      ) : null}
+      {followUp ? <ReturnFollowUpCard followUp={followUp} syncedAt={row.synced_at} now={now} /> : null}
 
       {mode && (claim?.ml_title || claim?.ml_description) ? (
         <Alert>
@@ -174,6 +208,8 @@ export default async function ReturnPage({ params, searchParams }: PageProps<"/r
           {claim.ml_description ? <AlertDescription>{claim.ml_description}</AlertDescription> : null}
         </Alert>
       ) : null}
+
+      {mode && suggestion ? <ReturnSuggestionCard returnRowId={row.id} mode={mode} initial={suggestion} /> : null}
 
       {mode ? (
         <ReturnReviewFlow
@@ -186,19 +222,6 @@ export default async function ReturnPage({ params, searchParams }: PageProps<"/r
           cartOrders={Math.max(cartOrders, row.is_cart ? 2 : 1)}
           amount={row.amount ? formatMoney(row.amount, row.currency_id) : null}
         />
-      ) : row.review_submitted_at ? (
-        <Alert>
-          {row.review_kind === "fail" ? <XCircleIcon /> : <CheckCircle2Icon />}
-          <AlertTitle>
-            {row.review_kind === "fail"
-              ? "Você relatou um problema (ou contestou) ao Mercado Livre"
-              : "Você confirmou que a devolução chegou certinho"}
-          </AlertTitle>
-          <AlertDescription>
-            Enviado pela maanu em {formatDateTime(row.review_submitted_at)}.{" "}
-            {row.review_kind === "fail" && !row.recovered_at ? "O ML analisa o caso; avisamos aqui quando decidir." : ""}
-          </AlertDescription>
-        </Alert>
       ) : row.phase === "at_warehouse" ? (
         <Alert>
           <WarehouseIcon />

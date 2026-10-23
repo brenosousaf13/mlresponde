@@ -7,7 +7,7 @@ import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/
 import { formatMoney } from "@/lib/customers/presentation"
 import { RETURN_FILTERS, type ReturnFilter, type ReturnListRow } from "@/lib/dal/recovery"
 import { formatDateTime, formatNumber, timeAgo } from "@/lib/format"
-import { MODE_LABELS, PHASE_BADGE, deadlineLabel, returnHref } from "@/lib/recovery/presentation"
+import { FOLLOW_UP_BADGE, MODE_LABELS, PHASE_BADGE, deadlineLabel, returnHref } from "@/lib/recovery/presentation"
 import { PHASE_LABELS, SHIPMENT_STATUS_LABELS, STATUS_MONEY_LABELS, destinationLabel } from "@/lib/recovery/returns"
 import { DUE_TEXT, dueState } from "@/lib/reputation/presentation"
 import { cn } from "@/lib/utils"
@@ -62,6 +62,11 @@ export function ReturnRowItem({ row, accountId, now }: { row: ReturnListRow; acc
             </Badge>
             {row.review_kind ? (
               <Badge variant="outline">{row.review_kind === "fail" ? "Você relatou problema" : "Você confirmou que chegou certinho"}</Badge>
+            ) : null}
+            {row.follow_up && (row.follow_up.stage === "analyzing" || row.follow_up.stage === "denied" || row.follow_up.stage === "closed") ? (
+              <Badge variant="outline" className={cn("border-transparent", FOLLOW_UP_BADGE[row.follow_up.tone])}>
+                {row.follow_up.badge}
+              </Badge>
             ) : null}
             {row.recovered_at ? (
               <Badge variant="outline" className="border-transparent bg-emerald-500/10 text-emerald-700 dark:text-emerald-300">

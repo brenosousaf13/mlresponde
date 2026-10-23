@@ -12,10 +12,16 @@ import {
   XIcon,
 } from "lucide-react"
 import { useRouter } from "next/navigation"
-import { useEffect, useMemo, useRef, useState, useTransition } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react"
 import { toast } from "sonner"
 
-import { draftReturnMessageAction, loadReturnReasons, submitReturnReviewAction } from "@/app/(app)/recuperador/actions"
+import {
+  draftReturnMessageAction,
+  loadReturnReasons,
+  reviewReturnPhotosAction,
+  submitReturnReviewAction,
+} from "@/app/(app)/recuperador/actions"
+import { PhotoReviewPanel } from "@/components/recuperador/photo-review-panel"
 import { resizePhoto } from "@/components/recuperador/resize-photo"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import {
@@ -36,6 +42,7 @@ import { Label } from "@/components/ui/label"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Spinner } from "@/components/ui/spinner"
 import { Textarea } from "@/components/ui/textarea"
+import { photoFingerprint, photoReviewGate, type PhotoReview, type PhotoReviewState } from "@/lib/recovery/photo-review"
 import {
   PHOTO_GUIDE,
   RETURN_MESSAGE_MAX,
@@ -49,10 +56,24 @@ import {
 
 type Photo = { file: File; url: string }
 
+/** Conferência das fotos pela IA para um conjunto de fotos (key = photoFingerprint). */
+type PhotoCheck = { key: string; state: "running" | "done" | "unavailable"; review: PhotoReview | null; message: string | null }
+
+/** Espera depois da última mudança antes de chamar a IA sozinha (relato e conferência das fotos). */
+const AUTO_DRAFT_DELAY_MS = 900
+const AUTO_PHOTO_DELAY_MS = 700
+
 /**
  * Revisão da devolução, feita para o celular: "chegou certinho" (1 confirmação) ou "chegou com problema" (motivo, o que
  * viu, fotos, relato escrito pela IA e editável, 1 confirmação). No modo "appeal" é a contestação da revisão do armazém
  * do ML (só "com problema"). Só dono/administrador envia; nada sai sozinho.
+ *
+ * IA no fluxo:
+ *  - relato: escrito SOZINHO quando o motivo e o que o dono viu estão escolhidos (e, nos motivos que exigem foto, depois da
+ *    primeira foto); o botão "Escrever de novo com a IA" regenera. O texto é sempre editável e nunca sobrescreve o que o dono
+ *    escreveu;
+ *  - fotos: a IA com visão confere as fotos assim que o dono para de adicionar (PhotoReviewPanel). Se faltar foto, o botão de
+ *    enviar só libera com o "enviar mesmo assim" do dono; se a IA não puder conferir, não trava nada.
  */
 export function ReturnReviewFlow({
   returnRowId,
@@ -88,8 +109,15 @@ export function ReturnReviewFlow({
   const [preparing, setPreparing] = useState(false)
   const [drafting, startDraft] = useTransition()
   const [pending, startSubmit] = useTransition()
+  const [photoCheck, setPhotoCheck] = useState<PhotoCheck | null>(null)
+  const [photoAck, setPhotoAck] = useState(false)
+  const [draftKey, setDraftKey] = useState<string | null>(null)
+  const [sent, setSent] = useState<ReviewDecision | null>(null)
   const fileInput = useRef<HTMLInputElement>(null)
   const photosRef = useRef<Photo[]>([])
+  const latestPhotoKey = useRef("")
+  const autoDrafted = useRef<string | null>(null)
+  const messageEdited = useRef(false)
 
   useEffect(() => {
     photosRef.current = photos
@@ -101,6 +129,16 @@ export function ReturnReviewFlow({
   const checklist = checklistFor(reasonId)
   const guide = PHOTO_GUIDE[reasonId] ?? []
   const needsPhotos = photosRequired(reasonId)
+  const photoKey = reasonId && photos.length ? photoFingerprint(reasonId, photos.map((photo) => ({ name: photo.file.name, size: photo.file.size }))) : ""
+  const photoNow = photoKey && photoCheck?.key === photoKey ? photoCheck : null
+  const photoState: PhotoReviewState = photoNow ? photoNow.state : "idle"
+  const gate = photoReviewGate({
+    photoCount: photos.length,
+    state: photoState,
+    verdict: photoNow?.review?.verdict ?? null,
+    acknowledged: photoAck,
+  })
+  const currentDraftKey = checks.slice().sort().join(",") + "|" + photos.length
   const invalid = useMemo(
     () =>
       reasons
@@ -157,29 +195,90 @@ export function ReturnReviewFlow({
     })
   }
 
-  function draft() {
-    if (!reason) return
-    startDraft(async () => {
-      try {
-        const result = await draftReturnMessageAction({
-          returnRowId,
-          reasonId: reason.id,
-          reasonLabel: reason.label,
-          checks,
-          notes,
-          photos: photos.length,
-        })
-        if (!result.ok) {
-          toast.error(result.message)
-          return
+  // Relato pela IA. auto = chamado sozinho pelo fluxo (erro sem alarde); o botão "Escrever de novo" regenera e avisa o erro.
+  const draft = useCallback(
+    (auto: boolean) => {
+      if (!reason) return
+      const failed = "Não deu para escrever o relato agora. Toque em “Escrever com a IA” para tentar de novo."
+      startDraft(async () => {
+        try {
+          const result = await draftReturnMessageAction({
+            returnRowId,
+            reasonId: reason.id,
+            reasonLabel: reason.label,
+            checks,
+            notes,
+            photos: photos.length,
+          })
+          if (!result.ok) {
+            if (auto) setAiNote(failed)
+            else toast.error(result.message)
+            return
+          }
+          messageEdited.current = false
+          setMessage(result.message)
+          setDraftKey(checks.slice().sort().join(",") + "|" + photos.length)
+          setAiNote(result.fromAi ? null : "A IA não respondeu agora: montamos o relato só com o que você marcou. Revise antes de enviar.")
+        } catch {
+          if (auto) setAiNote(failed)
+          else toast.error("Não foi possível escrever o relato agora.")
         }
-        setMessage(result.message)
-        setAiNote(result.fromAi ? null : "A IA não respondeu agora: montamos o relato só com o que você marcou. Revise antes de enviar.")
-      } catch {
-        toast.error("Não foi possível escrever o relato agora.")
-      }
-    })
-  }
+      })
+    },
+    [reason, returnRowId, checks, notes, photos.length]
+  )
+
+  // Relato automático: quando o motivo e o que o dono viu estão escolhidos (com foto, nos motivos que exigem), uma vez por
+  // motivo e só se o dono ainda não escreveu nada. Depois disso só o botão regenera (sem laço).
+  const draftReady = Boolean(reason) && (checklist.length === 0 || checks.length > 0) && (!needsPhotos || photos.length > 0) && !preparing
+  useEffect(() => {
+    if (!draftReady || !reason || drafting || pending) return
+    if (autoDrafted.current === reason.id || messageEdited.current || message.trim()) return
+    const timer = setTimeout(() => {
+      autoDrafted.current = reason.id
+      draft(true)
+    }, AUTO_DRAFT_DELAY_MS)
+    return () => clearTimeout(timer)
+  }, [draftReady, reason, drafting, pending, message, draft])
+
+  // Conferência das fotos pela IA com visão (Server Action reviewReturnPhotosAction).
+  const checkPhotos = useCallback(async () => {
+    if (!reason || !photos.length) return
+    const key = photoFingerprint(reason.id, photos.map((photo) => ({ name: photo.file.name, size: photo.file.size })))
+    latestPhotoKey.current = key
+    setPhotoAck(false)
+    setPhotoCheck({ key, state: "running", review: null, message: null })
+    const form = new FormData()
+    form.set("returnRowId", returnRowId)
+    form.set("reasonId", reason.id)
+    form.set("reasonLabel", reason.label)
+    for (const id of checks) form.append("checks", id)
+    for (const photo of photos) form.append("photos", photo.file)
+    try {
+      const result = await reviewReturnPhotosAction(form)
+      if (latestPhotoKey.current !== key) return
+      setPhotoCheck(
+        result.ok
+          ? { key, state: "done", review: result.review, message: null }
+          : { key, state: "unavailable", review: null, message: result.message }
+      )
+    } catch {
+      if (latestPhotoKey.current !== key) return
+      setPhotoCheck({
+        key,
+        state: "unavailable",
+        review: null,
+        message: "Não foi possível conferir as fotos agora. Você pode enviar mesmo assim.",
+      })
+    }
+  }, [reason, photos, checks, returnRowId])
+
+  // Confere sozinho quando o dono para de mexer nas fotos; só roda de novo se as fotos ou o motivo mudarem.
+  useEffect(() => {
+    if (!photoKey || preparing || pending || photoCheck?.key === photoKey) return
+    const timer = setTimeout(() => void checkPhotos(), AUTO_PHOTO_DELAY_MS)
+    return () => clearTimeout(timer)
+  }, [photoKey, preparing, pending, photoCheck, checkPhotos])
 
   function submit(decision: ReviewDecision) {
     startSubmit(async () => {
@@ -197,6 +296,7 @@ export function ReturnReviewFlow({
         if (result.ok) {
           toast.success(result.message)
           setConfirm(null)
+          setSent(decision)
           router.refresh()
         } else {
           toast.error(result.message)
@@ -210,6 +310,25 @@ export function ReturnReviewFlow({
   }
 
   if (!canOk && !canFail) return null
+
+  // Entre o envio e a página trocar o fluxo pelo acompanhamento: o estado já fica claro, sem mostrar o formulário de novo.
+  if (sent) {
+    return (
+      <Card className="border-primary/40" data-slot="return-review-sent" data-decision={sent}>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-lg">
+            <CheckCircle2Icon className="size-5 text-emerald-600" />
+            {sent === "ok" ? "Pronto: o Mercado Livre foi avisado" : appeal ? "Contestação enviada ao Mercado Livre" : "Revisão enviada ao Mercado Livre"}
+          </CardTitle>
+          <CardDescription>
+            {sent === "ok"
+              ? "Você confirmou que a devolução chegou certinho. Não há mais nada a fazer."
+              : "O ML analisa o caso e não informa o prazo. Acompanhe aqui: se ressarcir, avisamos no app e por e-mail; se negar, a situação muda nesta tela."}
+          </CardDescription>
+        </CardHeader>
+      </Card>
+    )
+  }
 
   return (
     <Card className="border-primary/40">
@@ -288,6 +407,13 @@ export function ReturnReviewFlow({
                   onValueChange={(value) => {
                     setReasonId(String(value))
                     setChecks([])
+                    setPhotoAck(false)
+                    // Relato que a IA escreveu para o motivo anterior (e o dono não mexeu) sai para a IA escrever o do novo.
+                    if (!messageEdited.current) {
+                      setMessage("")
+                      setAiNote(null)
+                      setDraftKey(null)
+                    }
                   }}
                   className="gap-2"
                 >
@@ -397,6 +523,17 @@ export function ReturnReviewFlow({
                     <p className="text-xs text-muted-foreground">
                       Até {RETURN_PHOTOS_MAX} fotos. A maanu reduz as fotos antes de enviar (fica mais rápido no 4G).
                     </p>
+                    {photos.length > 0 ? (
+                      <PhotoReviewPanel
+                        state={photoState}
+                        review={photoNow?.review ?? null}
+                        message={photoNow?.message ?? null}
+                        acknowledged={photoAck}
+                        onAcknowledge={setPhotoAck}
+                        onRetry={() => void checkPhotos()}
+                        disabled={pending}
+                      />
+                    ) : null}
                   </section>
                 ) : null}
 
@@ -413,30 +550,54 @@ export function ReturnReviewFlow({
                 <section className="flex flex-col gap-3">
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <h3 className="text-sm font-semibold">{appeal ? "Contestação para o Mercado Livre" : "Relato para o Mercado Livre"}</h3>
-                    <Button variant="outline" size="sm" className="bg-card" onClick={draft} disabled={drafting || pending}>
+                    <Button variant="outline" size="sm" className="bg-card" onClick={() => draft(false)} disabled={drafting || pending}>
                       {drafting ? <Spinner data-icon="inline-start" /> : <SparklesIcon data-icon="inline-start" />}
                       {message ? "Escrever de novo com a IA" : "Escrever com a IA"}
                     </Button>
                   </div>
                   <Textarea
                     value={message}
-                    onChange={(event) => setMessage(event.target.value.slice(0, RETURN_MESSAGE_MAX))}
-                    placeholder="Toque em “Escrever com a IA” ou escreva aqui o que você constatou."
+                    onChange={(event) => {
+                      messageEdited.current = true
+                      setMessage(event.target.value.slice(0, RETURN_MESSAGE_MAX))
+                    }}
+                    placeholder={
+                      drafting ? "A IA está escrevendo o relato..." : "A IA escreve o relato quando você marca o que viu. Ou escreva aqui o que você constatou."
+                    }
                     rows={6}
                   />
+                  {message.trim() && draftKey !== null && draftKey !== currentDraftKey && !drafting ? (
+                    <p className="text-xs text-muted-foreground">
+                      Você mudou o que marcou ou as fotos depois de o relato ser escrito. Toque em “Escrever de novo com a IA” para atualizar o texto.
+                    </p>
+                  ) : null}
                   <div className="flex justify-between gap-2 text-xs text-muted-foreground">
-                    <span>{aiNote ?? "A IA usa só o que você marcou e escreveu. Confira e ajuste antes de enviar."}</span>
+                    <span>
+                      {aiNote ??
+                        (needsPhotos && !photos.length && !message.trim()
+                          ? "Este motivo pede foto: adicione a foto e a IA escreve o relato."
+                          : "A IA usa só o que você marcou e escreveu. Confira e ajuste antes de enviar.")}
+                    </span>
                     <span className="shrink-0 tabular-nums">
                       {message.length}/{RETURN_MESSAGE_MAX}
                     </span>
                   </div>
                 </section>
 
-                <Button size="lg" className="w-full sm:w-fit" disabled={!canManage || pending || Boolean(invalid)} onClick={() => setConfirm("fail")}>
+                <Button
+                  size="lg"
+                  className="w-full sm:w-fit"
+                  disabled={!canManage || pending || drafting || Boolean(invalid) || gate.blocked}
+                  onClick={() => setConfirm("fail")}
+                >
                   <SendIcon data-icon="inline-start" />
                   {appeal ? "Enviar a contestação ao Mercado Livre" : "Enviar a revisão ao Mercado Livre"}
                 </Button>
-                {invalid && message ? <p className="text-sm text-muted-foreground">{invalid}</p> : null}
+                {gate.blocked && gate.reason ? (
+                  <p className="text-sm text-muted-foreground">{gate.reason}</p>
+                ) : invalid && message ? (
+                  <p className="text-sm text-muted-foreground">{invalid}</p>
+                ) : null}
               </>
             ) : null}
           </div>
@@ -461,7 +622,12 @@ export function ReturnReviewFlow({
                     " Não dá para desfazer."
                   : "A maanu envia ao Mercado Livre o motivo, o relato" +
                     (photos.length ? " e " + (photos.length === 1 ? "a foto" : "as " + photos.length + " fotos") : "") +
-                    ". A equipe do ML analisa e decide se você é ressarcido. Não dá para desfazer."}
+                    ". A equipe do ML analisa e decide se você é ressarcido. Não dá para desfazer." +
+                    (photoNow?.review && photoNow.review.verdict !== "ok"
+                      ? " A IA avisou que " +
+                        (photoNow.review.verdict === "unusable" ? "as fotos não servem de prova" : "faltam fotos") +
+                        " e você escolheu enviar mesmo assim."
+                      : "")}
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
