@@ -18,6 +18,12 @@ const ICONS: Record<SuggestedAction, typeof GavelIcon> = {
   partial_refund: PercentIcon,
 }
 
+const ACTION_ACCENT: Record<SuggestedAction, string> = {
+  contest: "border-l-red-400/70 ring-red-500/15",
+  do_not_contest: "border-l-primary/50 ring-primary/15",
+  partial_refund: "border-l-amber-400/70 ring-amber-500/15",
+}
+
 /**
  * "Sugerir ação": recomendação da maanu (contestar / não contestar / ressarcimento parcial) ANTES do fluxo de revisão.
  * `initial` vem das regras (calculado no servidor, aparece na hora); a IA refina em seguida pela Server Action
@@ -53,39 +59,39 @@ export function ReturnSuggestionCard({
 
   const Icon = ICONS[suggestion.action]
   return (
-    <Card data-slot="return-suggestion" data-action={suggestion.action} data-source={suggestion.source} aria-busy={loading}>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2 text-base">
-          <SparklesIcon className="size-4" />
+    <Card data-slot="return-suggestion" data-action={suggestion.action} data-source={suggestion.source} aria-busy={loading} className={cn("border-l-3 [--card-spacing:--spacing(5)]", ACTION_ACCENT[suggestion.action])}>
+      <CardHeader className="gap-2">
+        <CardTitle className="flex items-center gap-2 text-base font-semibold tracking-tight">
+          <SparklesIcon className="size-4 shrink-0 text-primary" />
           O que a maanu sugere
         </CardTitle>
-        <CardDescription>Uma recomendação para ajudar você a decidir. Nada vai ao Mercado Livre sem a sua confirmação.</CardDescription>
+        <CardDescription className="text-pretty leading-relaxed">Uma recomendação para ajudar você a decidir. Nada vai ao Mercado Livre sem a sua confirmação.</CardDescription>
       </CardHeader>
-      <CardContent className="flex flex-col gap-3">
+      <CardContent className="flex flex-col gap-4">
         <div className="flex flex-wrap items-center gap-2">
-          <Badge variant="outline" className={cn("h-7 gap-1.5 border-transparent px-2.5 text-sm", SUGGESTION_BADGE[suggestion.action])}>
-            <Icon className="size-4" />
+          <Badge variant="outline" className={cn("h-auto min-h-8 max-w-full gap-2 border-transparent px-3 py-1.5 text-sm font-semibold whitespace-normal", SUGGESTION_BADGE[suggestion.action], suggestion.action === "contest" && "bg-red-500/10 text-red-700 dark:text-red-300")}>
+            <Icon className="size-4 shrink-0" />
             {suggestionLabel(suggestion.action, mode)}
           </Badge>
-          <Badge variant="outline">{CONFIDENCE_LABELS[suggestion.confidence]}</Badge>
+          <Badge variant="outline" className="font-normal text-muted-foreground">{CONFIDENCE_LABELS[suggestion.confidence]}</Badge>
           {loading ? (
-            <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
-              <Spinner /> A IA está conferindo o caso...
+            <span className="flex items-center gap-1.5 text-xs text-muted-foreground sm:ml-auto">
+              <Spinner className="size-3 shrink-0" /> A IA está conferindo o caso...
             </span>
           ) : (
-            <Badge variant="outline" className="text-muted-foreground">
+            <Badge variant="outline" className="border-transparent px-0 font-normal text-muted-foreground sm:ml-auto">
               {suggestion.source === "ai" ? "Sugestão da IA" : "Sugestão por regras"}
             </Badge>
           )}
         </div>
-        <p className="text-sm">{suggestion.reason}</p>
+        <p className="text-sm leading-relaxed text-pretty">{suggestion.reason}</p>
         {suggestion.needsInspection ? (
-          <p className="text-xs text-muted-foreground">Você é quem tem o produto em mãos: confira o pacote antes de decidir.</p>
+          <p className="rounded-lg bg-muted/60 px-3 py-2.5 text-xs leading-relaxed text-muted-foreground">Você é quem tem o produto em mãos: confira o pacote antes de decidir.</p>
         ) : null}
         {suggestion.signals.length ? (
-          <ul className="flex flex-col gap-1 text-xs text-muted-foreground">
+          <ul className="flex flex-col gap-2 border-t border-foreground/10 pt-3 text-xs leading-relaxed text-muted-foreground">
             {suggestion.signals.map((signal) => (
-              <li key={signal}>{signal}</li>
+              <li key={signal} className="flex items-start gap-2 before:mt-1.5 before:size-1 before:shrink-0 before:rounded-full before:bg-primary/60">{signal}</li>
             ))}
           </ul>
         ) : null}

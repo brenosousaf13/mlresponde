@@ -4,7 +4,7 @@
 > inteiro antes de trabalhar e atualizá-lo ao terminar. Se algo aqui divergir do código, o código vence —
 > e este arquivo deve ser corrigido na mesma sessão.
 
-Última atualização: **2026-10-23** (Sessão 36 — **IA do Recuperador (4 itens do MVP diferencial) feita na `v2`, SEM push e SEM deploy**: "Sugerir ação" (contestar / não contestar / ressarcimento parcial, regras + IA), "Ver as fotos" (IA com visão confere as fotos antes do envio), relato escrito sozinho e acompanhamento depois do envio; migração `20261023120000_recuperador_ia.sql` escrita e **NÃO aplicada** (§6.1m); Sessão 35c — **nova homepage PUBLICADA** em maanu.com.br (merge fast-forward na `v2`, `2998a80`, aprovada pelo Breno; substitui a página de vendas anterior); Sessão 35 — nova homepage na branch `codex/homepage-recuperar`: mistura da estrutura do Outlign com o movimento do Escutaí na identidade da maanu, com o **Recuperador em destaque** e capturas REAIS do app com dados fictícios (`/home/*.webp`); letras da maanu animadas; aprovada e publicada na 35c; Sessão 34 — **prévia local da homepage descartada a pedido do Breno** (branch
+Última atualização: **2026-10-23** (Sessão 36b — **polish visual dos cards de IA do Recuperador**, só apresentação em 4 componentes, commit local na `v2`, **SEM push/deploy**; Sessão 36 — **IA do Recuperador (4 itens do MVP diferencial) feita na `v2`, SEM push e SEM deploy**: "Sugerir ação" (contestar / não contestar / ressarcimento parcial, regras + IA), "Ver as fotos" (IA com visão confere as fotos antes do envio), relato escrito sozinho e acompanhamento depois do envio; migração `20261023120000_recuperador_ia.sql` escrita e **NÃO aplicada** (§6.1m); Sessão 35c — **nova homepage PUBLICADA** em maanu.com.br (merge fast-forward na `v2`, `2998a80`, aprovada pelo Breno; substitui a página de vendas anterior); Sessão 35 — nova homepage na branch `codex/homepage-recuperar`: mistura da estrutura do Outlign com o movimento do Escutaí na identidade da maanu, com o **Recuperador em destaque** e capturas REAIS do app com dados fictícios (`/home/*.webp`); letras da maanu animadas; aprovada e publicada na 35c; Sessão 34 — **prévia local da homepage descartada a pedido do Breno** (branch
 `codex/homepage-recuperar`, sem publicação; o branch voltou ao baseline da Sessão 33); Sessão 33 — **primeira assinatura paga**
 (Girassol Moda Jeans, Starter, 21/10 13:04,
 ativada pelo webhook); o aviso "O sistema de pagamento recusou o pedido" que a cliente viu das 07:22 às 07:37 era a
@@ -235,6 +235,8 @@ novas funcionalidades, segurança multi-tenant de verdade — **desenvolvido em 
   **estimado** de 60 dias). Raio-X por situação (contestar agora · em análise · ficou para trás · ressarcido) e 3 números sem
   contagem dupla (para recuperar agora · ficou para trás · recuperado pela maanu). A 1ª contestação real ainda não foi enviada
   (§13 item 0n). Detalhes em §7.0c6.
+  **Sessão 36b (2026-10-23):** cards de sugestão, conferência de fotos, acompanhamento e relato automático com polish visual
+  local na `v2`, conforme `CODEX-IA-POLISH.txt`; comportamento da Sessão 36 preservado. Ainda **sem push/deploy**.
 - **Marca:** **maanu** (decisão do Breno, 2026-10-11). Guia de uso, paleta e arquivos em `docs/brand/README.md`; nome,
   assinatura e slogan em `lib/config/site.ts`; logo só pelos componentes de `components/brand/logo.tsx`.
 - **Criativos sociais:** em 2026-10-15 foram criadas quatro peças 1080×1350 para um carrossel de apresentação da maanu;
@@ -1615,6 +1617,7 @@ webhook do ML validado, fila/reprocessamento de jobs, observabilidade, controle 
 
 | Data | Decisão | Motivo / contexto |
 |---|---|---|
+| 2026-10-23 | **Polish visual do Recuperador (Sessão 36b)** restrito a 4 componentes: acentos por ação, checklist de fotos com avisos distintos, timeline com etapa atual e aviso `stale`, relato no padrão visual do composer do app | Pedido `CODEX-IA-POLISH.txt`: preservar props de contrato, textos, actions, efeitos, gates e lógica; só commit local na `v2`, sem push. `PHOTO_VERDICT_BOX`, `FOLLOW_UP_BOX` e atributos `data-*` mantidos. |
 | 2026-10-23 | **IA do Recuperador (Sessão 36)**: sugerir ação (regras + IA, plano B por regras), conferir fotos com visão ANTES do envio (bloqueia até conferir; "enviar mesmo assim" é do dono), relato automático e acompanhamento pós-envio; features `recovery_suggest_action` e `recovery_photo_review`, fora da cota | Brief do diferencial (`maanu-recuperar-ia-diferencial.md`): humano no loop, nada sai sozinho. Sem WhatsApp. O motor de sincronização não foi tocado. Sem alerta novo (exigiria CHECK de `reputation_alerts` antes do deploy). |
 | 2026-10-21 | Nova homepage (Sessão 35): estrutura do Outlign + animações do Escutaí + cores/logo da maanu; **Recuperador em destaque** (seção própria `#recuperar`, 2ª depois do topo) e telas REAIS com dados fictícios no lugar de desenhos | Pedido do Breno: o Recuperador será o maior diferencial. Prévia local, não publicada, para aprovação. |
 | 2026-10-21 | A prévia da nova homepage feita na branch `codex/homepage-recuperar` foi descartada; o branch voltou ao baseline da Sessão 33 | Pedido do Breno após revisar a proposta; não publicar nem manter os arquivos da prévia. |
@@ -1789,6 +1792,22 @@ webhook do ML validado, fila/reprocessamento de jobs, observabilidade, controle 
 ---
 
 ## 12. Diário de sessões (mais recente no topo)
+
+### 2026-10-23 — Sessão 36b · Polish visual da IA do Recuperador (IA: Codex)
+- Executado `CODEX-IA-POLISH.txt` na `v2`. Mudanças só em `return-suggestion-card.tsx`, `photo-review-panel.tsx`,
+  `return-follow-up.tsx` e áreas autorizadas de `return-review-flow.tsx`, além deste registro obrigatório.
+- Sugestão: acento lateral e ring suaves por ação (contestar vermelho, não contestar primary discreto, parcial âmbar),
+  hierarquia do título/selos, spinner menor, fatos em lista com bullets. Fotos: idle/running em caixas legíveis, checklist com
+  contraste e faltas destacadas, unusable vermelho mais forte, confirmação de override secundária e visível.
+- Acompanhamento: etapas conectadas, passo atual com primary e próximos passos em âmbar quando o `stale` já existente é true.
+  Relato: seção emoldurada, placeholder de carregamento destacado e botão ghost no padrão visual de “Gerar outra” do app,
+  mantendo o texto original; estado local de envio e loading dos motivos também polidos.
+- Mantidos contratos, textos, effects, actions, gatilhos automáticos, gate de fotos, confirmação humana e atributos `data-*`.
+  Nenhuma mudança em lib, banco, migrações, APIs, testes ou selo da lista (já legível).
+- Verificado: `npm run typecheck`, `npm test` (640 passaram, 51 pulados), `npm run lint`, `npm run build` e os 4 arquivos de
+  testes exigidos (71 testes). Renderização estática dos cards com dados fictícios conferida em Edge, em largura de computador
+  e celular; prévias temporárias fora do repositório, sem executar efeitos/actions. Sem live AI e sem envio ao ML.
+- **Commit local, SEM push e SEM deploy.** Migração da Sessão 36 continua **não aplicada**; pendências em §13 item 0r.
 
 ### 2026-10-23 — Sessão 36 · IA do Recuperador: sugerir ação, ver as fotos, relato automático e acompanhamento (IA: Codex, via app Codex)
 - Pedido do Breno (brief `maanu-recuperar-ia-mvp-brief.md` + `maanu-recuperar-fluxo-ia.md` + `maanu-recuperar-ia-diferencial.md`): os 4
@@ -2896,8 +2915,8 @@ webhook do ML validado, fila/reprocessamento de jobs, observabilidade, controle 
 0r. **IA do Recuperador (Sessão 36) — feita na `v2`, SEM push/deploy.** **Breno/próxima IA:** (1) aprovar e **aplicar a migração
    `20261023120000_recuperador_ia.sql`** (§6.1m) antes de publicar; (2) rodar `tests/integration/recovery-ai-live.test.ts` com uma
    `OPENAI_API_KEY` (custa centavos) e **testar no celular** uma devolução real: card de sugestão, fotos (SRF2/SRF4) com a conferência
-   e o "enviar mesmo assim", relato automático e o acompanhamento depois do 1º envio; (3) Picasso: polir a UI usando o contrato do
-   resumo (`Projetos\maanu-recuperar-ia-mvp-codex-summary.txt`); (4) decidir se vale um **alerta quando o ML nega** (exige estender o
+   e o "enviar mesmo assim", relato automático e o acompanhamento depois do 1º envio; (3) ✅ polish visual feito na Sessão 36b
+   conforme `CODEX-IA-POLISH.txt`, só local, preservando o contrato; conferir no celular real; (4) decidir se vale um **alerta quando o ML nega** (exige estender o
    CHECK de `reputation_alerts` e aplicar antes do deploy) e guardar o **frete da devolução** (`/claims/{id}/charges/return-cost`) para
    a sugestão; (5) citar no aviso de privacidade que as fotos da conferência vão ao provedor da IA (a etiqueta pode ter dados do comprador);
    (6) calibrar o score/tom com 5–10 devoluções reais (Menina Linda); (7) ideias: registrar o desfecho (ganhou/perdeu) para a sugestão

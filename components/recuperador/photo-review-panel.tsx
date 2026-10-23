@@ -47,21 +47,21 @@ export function PhotoReviewPanel({
 }) {
   if (state === "idle") {
     return (
-      <p data-slot="photo-review" data-state="idle" className="flex items-center gap-2 text-xs text-muted-foreground">
-        <ScanEyeIcon className="size-4" /> A IA vai conferir as fotos assim que você terminar de adicionar.
+      <p data-slot="photo-review" data-state="idle" className="flex items-start gap-3 rounded-xl border border-dashed bg-muted/40 p-4 text-xs leading-relaxed text-muted-foreground">
+        <ScanEyeIcon className="size-4 shrink-0 text-primary" /> A IA vai conferir as fotos assim que você terminar de adicionar.
       </p>
     )
   }
   if (state === "running") {
     return (
-      <p data-slot="photo-review" data-state="running" className="flex items-center gap-2 text-sm text-muted-foreground">
-        <Spinner /> A IA está conferindo as fotos...
+      <p data-slot="photo-review" data-state="running" className="flex items-center gap-3 rounded-xl border border-primary/20 bg-primary/5 p-4 text-sm leading-relaxed text-muted-foreground">
+        <Spinner className="size-4 shrink-0 text-primary" /> A IA está conferindo as fotos...
       </p>
     )
   }
   if (state === "unavailable" || !review) {
     return (
-      <div data-slot="photo-review" data-state="unavailable" className="flex flex-wrap items-center justify-between gap-2 rounded-lg border px-3 py-2.5 text-sm">
+      <div data-slot="photo-review" data-state="unavailable" className="flex flex-wrap items-center justify-between gap-3 rounded-xl border bg-muted/40 p-4 text-sm leading-relaxed">
         <span className="text-muted-foreground">{message ?? "A IA não conseguiu conferir as fotos agora. Você pode enviar mesmo assim."}</span>
         <Button variant="outline" size="sm" className="bg-card" onClick={onRetry} disabled={disabled}>
           <RefreshCwIcon data-icon="inline-start" />
@@ -77,29 +77,29 @@ export function PhotoReviewPanel({
       data-slot="photo-review"
       data-state="done"
       data-verdict={review.verdict}
-      className={cn("flex flex-col gap-3 rounded-lg border px-3 py-3 text-sm", PHOTO_VERDICT_BOX[review.verdict])}
+      className={cn("flex flex-col gap-4 rounded-xl border p-4 text-sm leading-relaxed", PHOTO_VERDICT_BOX[review.verdict], review.verdict === "unusable" && "border-red-500/50 ring-1 ring-red-500/15")}
     >
-      <div className="flex items-start gap-2">
-        {review.verdict === "ok" ? <CheckIcon className="mt-0.5 size-4 text-emerald-600" /> : <TriangleAlertIcon className="mt-0.5 size-4 text-amber-600" />}
-        <div className="flex flex-col gap-0.5">
-          <p className="font-medium">{VERDICT_TITLE[review.verdict]}</p>
+      <div className="flex items-start gap-3">
+        {review.verdict === "ok" ? <CheckIcon className="mt-0.5 size-5 shrink-0 text-emerald-700 dark:text-emerald-300" /> : <TriangleAlertIcon className={cn("mt-0.5 size-5 shrink-0", review.verdict === "unusable" ? "text-red-700 dark:text-red-300" : "text-amber-700 dark:text-amber-300")} />}
+        <div className="flex min-w-0 flex-col gap-1">
+          <p className="font-semibold text-pretty">{VERDICT_TITLE[review.verdict]}</p>
           <p className="text-muted-foreground">{review.summary}</p>
         </div>
       </div>
 
       {review.guide.length ? (
-        <ul className="flex flex-col gap-1">
+        <ul className="flex flex-col gap-1 rounded-lg border border-foreground/10 bg-card/80 p-2.5">
           {review.guide.map((entry) => (
-            <li key={entry.item} className="flex items-start gap-2">
-              {entry.covered ? <CheckIcon className="mt-0.5 size-4 shrink-0 text-emerald-600" /> : <XIcon className="mt-0.5 size-4 shrink-0 text-red-600" />}
-              <span className={entry.covered ? undefined : "font-medium"}>{entry.item}</span>
+            <li key={entry.item} className={cn("flex items-start gap-2.5 rounded-md px-2 py-1.5", !entry.covered && "bg-red-500/5")}>
+              {entry.covered ? <CheckIcon className="mt-0.5 size-4 shrink-0 text-emerald-700 dark:text-emerald-300" /> : <XIcon className="mt-0.5 size-4 shrink-0 text-red-700 dark:text-red-300" />}
+              <span className={entry.covered ? "text-foreground" : "font-medium text-red-700 dark:text-red-300"}>{entry.item}</span>
             </li>
           ))}
         </ul>
       ) : null}
 
       {extras.length ? (
-        <ul className="flex list-inside list-disc flex-col gap-1">
+        <ul className="flex list-outside list-disc flex-col gap-1.5 rounded-lg bg-card/80 py-3 pr-3 pl-7 font-medium marker:text-red-600">
           {extras.map((item) => (
             <li key={item}>{item}</li>
           ))}
@@ -109,7 +109,7 @@ export function PhotoReviewPanel({
       <p className="text-muted-foreground">{SUPPORT_TEXT[review.supportsReason]}</p>
 
       {review.photos.length ? (
-        <ul className="flex flex-col gap-1 text-xs text-muted-foreground">
+        <ul className="flex flex-col gap-2 border-t border-foreground/10 pt-3 text-xs leading-relaxed text-muted-foreground">
           {review.photos.map((photo) => (
             <li key={photo.index}>
               <span className="font-medium text-foreground">Foto {photo.index}:</span> {photo.shows || "sem descrição"}
@@ -119,16 +119,16 @@ export function PhotoReviewPanel({
         </ul>
       ) : null}
 
-      <div className="flex flex-wrap items-center justify-between gap-2">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-t border-foreground/10 pt-3">
         {review.verdict !== "ok" ? (
-          <Label className="flex items-center gap-2 font-normal">
-            <Checkbox checked={acknowledged} onCheckedChange={(checked) => onAcknowledge(Boolean(checked))} disabled={disabled} />
+          <Label className="flex min-h-10 items-start gap-2.5 rounded-lg bg-muted/60 px-3 py-2.5 text-xs leading-relaxed font-normal text-muted-foreground">
+            <Checkbox className="mt-0.5 shrink-0" checked={acknowledged} onCheckedChange={(checked) => onAcknowledge(Boolean(checked))} disabled={disabled} />
             Entendi o aviso e quero enviar mesmo assim
           </Label>
         ) : (
           <span />
         )}
-        <Button variant="outline" size="sm" className="bg-card" onClick={onRetry} disabled={disabled}>
+        <Button variant="outline" size="sm" className="shrink-0 bg-card" onClick={onRetry} disabled={disabled}>
           <RefreshCwIcon data-icon="inline-start" />
           Conferir de novo
         </Button>

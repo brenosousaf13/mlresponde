@@ -314,13 +314,13 @@ export function ReturnReviewFlow({
   // Entre o envio e a página trocar o fluxo pelo acompanhamento: o estado já fica claro, sem mostrar o formulário de novo.
   if (sent) {
     return (
-      <Card className="border-primary/40" data-slot="return-review-sent" data-decision={sent}>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-lg">
-            <CheckCircle2Icon className="size-5 text-emerald-600" />
+      <Card className="border border-primary/25 bg-primary/5 ring-primary/10 [--card-spacing:--spacing(5)]" data-slot="return-review-sent" data-decision={sent}>
+        <CardHeader className="gap-3">
+          <CardTitle className="flex items-start gap-3 text-lg font-semibold tracking-tight text-pretty">
+            <CheckCircle2Icon className="mt-0.5 size-5 shrink-0 text-primary" />
             {sent === "ok" ? "Pronto: o Mercado Livre foi avisado" : appeal ? "Contestação enviada ao Mercado Livre" : "Revisão enviada ao Mercado Livre"}
           </CardTitle>
-          <CardDescription>
+          <CardDescription className="leading-relaxed text-pretty">
             {sent === "ok"
               ? "Você confirmou que a devolução chegou certinho. Não há mais nada a fazer."
               : "O ML analisa o caso e não informa o prazo. Acompanhe aqui: se ressarcir, avisamos no app e por e-mail; se negar, a situação muda nesta tela."}
@@ -398,8 +398,8 @@ export function ReturnReviewFlow({
               {reasonsError ? (
                 <p className="text-sm text-destructive">{reasonsError}</p>
               ) : !reasons ? (
-                <p className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <Spinner /> Buscando os motivos que o Mercado Livre aceita...
+                <p className="flex items-center gap-3 rounded-lg border bg-muted/40 p-4 text-sm leading-relaxed text-muted-foreground">
+                  <Spinner className="shrink-0 text-primary" /> Buscando os motivos que o Mercado Livre aceita...
                 </p>
               ) : (
                 <RadioGroup
@@ -547,10 +547,10 @@ export function ReturnReviewFlow({
                   />
                 </section>
 
-                <section className="flex flex-col gap-3">
+                <section aria-busy={drafting} className="group/draft flex flex-col gap-4 rounded-xl border bg-muted/30 p-4 aria-busy:border-primary/30 aria-busy:bg-primary/5 sm:p-5">
                   <div className="flex flex-wrap items-center justify-between gap-2">
-                    <h3 className="text-sm font-semibold">{appeal ? "Contestação para o Mercado Livre" : "Relato para o Mercado Livre"}</h3>
-                    <Button variant="outline" size="sm" className="bg-card" onClick={() => draft(false)} disabled={drafting || pending}>
+                    <h3 className="text-sm font-semibold tracking-tight">{appeal ? "Contestação para o Mercado Livre" : "Relato para o Mercado Livre"}</h3>
+                    <Button variant="ghost" size="sm" className="max-w-full gap-2 text-xs text-primary disabled:opacity-70" onClick={() => draft(false)} disabled={drafting || pending}>
                       {drafting ? <Spinner data-icon="inline-start" /> : <SparklesIcon data-icon="inline-start" />}
                       {message ? "Escrever de novo com a IA" : "Escrever com a IA"}
                     </Button>
@@ -565,13 +565,14 @@ export function ReturnReviewFlow({
                       drafting ? "A IA está escrevendo o relato..." : "A IA escreve o relato quando você marca o que viu. Ou escreva aqui o que você constatou."
                     }
                     rows={6}
+                    className="min-h-40 bg-card text-sm leading-relaxed group-aria-busy/draft:border-primary/25 group-aria-busy/draft:placeholder:text-primary"
                   />
                   {message.trim() && draftKey !== null && draftKey !== currentDraftKey && !drafting ? (
                     <p className="text-xs text-muted-foreground">
                       Você mudou o que marcou ou as fotos depois de o relato ser escrito. Toque em “Escrever de novo com a IA” para atualizar o texto.
                     </p>
                   ) : null}
-                  <div className="flex justify-between gap-2 text-xs text-muted-foreground">
+                  <div className="flex items-start justify-between gap-3 text-xs leading-relaxed text-muted-foreground">
                     <span>
                       {aiNote ??
                         (needsPhotos && !photos.length && !message.trim()
