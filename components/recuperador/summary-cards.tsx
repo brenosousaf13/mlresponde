@@ -9,11 +9,8 @@ import type { RecoveryOverview } from "@/lib/dal/recovery"
 import { formatDateTime, formatNumber, pluralize, timeAgo } from "@/lib/format"
 
 /**
- * Os 3 cards do Recuperador, com buckets honestos:
- *  1. "Para revisar / contestar agora": soma das vendas contestáveis (actionableAmount), com breakdown retido vs reembolsado.
- *     NÃO apresenta actionableAmount como "dinheiro retido" — a maioria já foi devolvida ao comprador.
- *  2. "Ficou para trás": achados do Raio-X expirados (perdidos).
- *  3. "Recuperado pela maanu": só o que o ML confirmou.
+ * Ações pendentes separadas do estado do dinheiro, seguidas pelos resultados.
+ * actionableAmount é o valor das vendas envolvidas, não dinheiro retido ou a recuperar.
  */
 export function SummaryCards({
   overview,
@@ -34,33 +31,27 @@ export function SummaryCards({
       : null,
   ].filter(Boolean)
 
-  // Legenda honesta: deixa claro o que é retido vs o que já foi reembolsado ao comprador
-  const retainedHint =
-    waiting.retainedCount > 0
-      ? pluralize(waiting.retainedCount, "ainda com dinheiro retido no MP", "ainda com dinheiro retido no MP") +
-        " (" + formatMoney(waiting.retainedAmount) + ")"
-      : null
-  const refundedHint =
-    waiting.refundedCount > 0
-      ? pluralize(waiting.refundedCount, "já reembolsado ao comprador — contestação sobre produto", "já reembolsados ao comprador — contestação sobre produto") +
-        " (" + formatMoney(waiting.refundedAmount) + ")"
-      : null
-
   return (
-    <div className="grid gap-4 md:grid-cols-3">
-      <Card className={waiting.count ? "border-amber-500/40" : undefined}>
-        <CardHeader>
-          <CardDescription className="flex items-center gap-2">
-            <ClockIcon className="size-4" />
-            Para revisar / contestar agora
-          </CardDescription>
-          <CardTitle className="text-3xl tabular-nums">
-            {waiting.count > 0 ? formatMoney(waiting.actionableAmount) : formatNumber(waiting.count)}
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="flex-1 space-y-1.5 text-sm text-muted-foreground">
-          {waiting.count ? (
-            <>
+    <div className="space-y-4">
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+        <Card className={waiting.count > 0 ? "min-w-0 border-red-500/30 md:col-span-2 xl:col-span-1" : "min-w-0 md:col-span-2 xl:col-span-1"}>
+          <CardHeader>
+            <CardDescription className="flex items-center gap-2">
+              <ClockIcon className="size-4" />
+              Para revisar / contestar agora
+            </CardDescription>
+            <CardTitle className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+              <span className="text-4xl tabular-nums">{formatNumber(waiting.count)}</span>
+              <span className="text-sm font-medium text-muted-foreground">{waiting.count === 1 ? "caso" : "casos"}</span>
+            </CardTitle>
+            {waiting.actionableAmount > 0 ? (
+              <p className="text-sm text-muted-foreground">
+                <span className="font-medium text-foreground tabular-nums">{formatMoney(waiting.actionableAmount)}</span> em vendas envolvidas
+              </p>
+            ) : null}
+          </CardHeader>
+          <CardContent className="flex-1 space-y-1.5 text-sm text-muted-foreground">
+            {waiting.count ? (
               <p>
                 {parts.join(" e ") + "."}
                 {waiting.withoutAmount
@@ -68,75 +59,114 @@ export function SummaryCards({
                   : ""}
                 {waiting.nextDeadline ? " O próximo prazo vence " + timeAgo(waiting.nextDeadline, now) + "." : ""}
               </p>
-              {/* breakdown honesto por status_money */}
-              {retainedHint && (
-                <p className="text-xs">
-                  <span className="font-medium text-amber-700 dark:text-amber-400">? Retido no MP:</span>{" "}
-                  {retainedHint}
-                </p>
-              )}
-              {refundedHint && (
-                <p className="text-xs text-muted-foreground">
-                  <span className="font-medium">? Já saiu:</span> {refundedHint}
-                </p>
-              )}
-            </>
-          ) : (
-            "Nenhuma devolução esperando a sua revisão ou contestação agora."
-          )}
-        </CardContent>
-        <CardFooter>
-          <Link href={hrefReturns} className="inline-flex items-center gap-1 text-sm font-medium text-primary hover:underline">
-            {waiting.count ? "Revisar agora" : "Ver devoluções"} <ArrowRightIcon className="size-3.5" />
-          </Link>
-        </CardFooter>
-      </Card>
+            ) : (
+              "Nenhuma devolução esperando a sua revisão ou contestação agora."
+            )}
+          </CardContent>
+          <CardFooter>
+            <Link href={hrefReturns} className="inline-flex items-center gap-1 text-sm font-medium text-primary hover:underline">
+              {waiting.count ? "Revisar agora" : "Ver devoluções"} <ArrowRightIcon className="size-3.5" />
+            </Link>
+          </CardFooter>
+        </Card>
 
-      <Card className={overview.lost.count ? "border-amber-500/40" : undefined}>
-        <CardHeader>
-          <CardDescription className="flex items-center gap-2">
-            <AlertTriangleIcon className="size-4" />
-            Ficou para trás (90 dias)
-          </CardDescription>
-          <CardTitle className="text-3xl tabular-nums">{formatMoney(overview.lost.amount)}</CardTitle>
-        </CardHeader>
-        <CardContent className="flex-1 text-sm text-muted-foreground">
-          {overview.lost.count
-            ? pluralize(overview.lost.count, "venda voltou", "vendas voltaram") +
-              " sem condição de venda, o dinheiro ficou com o comprador e o Mercado Livre não aceita mais contestação. Daqui para frente a maanu avisa antes do prazo."
-            : "Nada ficou para trás nos últimos 90 dias (até onde o Raio-X já leu)."}
-          {overview.appealed.count
-            ? " " + pluralize(overview.appealed.count, "contestação em análise", "contestações em análise") + " no ML (" + formatMoney(overview.appealed.amount) + ")."
-            : ""}
-        </CardContent>
-        <CardFooter>
-          <Link href={hrefXray} className="inline-flex items-center gap-1 text-sm font-medium text-primary hover:underline">
-            Abrir o Raio-X <ArrowRightIcon className="size-3.5" />
-          </Link>
-        </CardFooter>
-      </Card>
+        <Card className="min-w-0 border-amber-500/25">
+          <CardHeader>
+            <CardDescription className="flex items-center gap-2">
+              <CircleDollarSignIcon className="size-4 shrink-0 text-amber-700 dark:text-amber-400" />
+              Retido no MP
+            </CardDescription>
+            <CardTitle className="text-3xl tabular-nums">{formatMoney(waiting.retainedAmount)}</CardTitle>
+          </CardHeader>
+          <CardContent className="flex-1 space-y-2 text-sm text-muted-foreground">
+            <p>
+              {pluralize(waiting.retainedCount, "caso com dinheiro ainda retido", "casos com dinheiro ainda retido")} no Mercado Pago entre os casos para revisar / contestar agora.
+            </p>
+            {overview.money.retainedTotal > waiting.retainedAmount ? (
+              <p className="text-xs">
+                Retido em todas as devoluções: <span className="font-medium tabular-nums">{formatMoney(overview.money.retainedTotal)}</span>, incluindo as que ainda estão em andamento.
+              </p>
+            ) : null}
+          </CardContent>
+        </Card>
 
-      <Card className="border-emerald-500/40 bg-emerald-500/5">
-        <CardHeader>
-          <CardDescription className="flex items-center gap-2 text-emerald-800 dark:text-emerald-300">
-            <HandCoinsIcon className="size-4" />
-            Recuperado pela maanu
-          </CardDescription>
-          <CardTitle className="text-3xl text-emerald-800 tabular-nums dark:text-emerald-300">
-            {formatMoney(overview.recovered.amount)}
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="flex-1 text-sm text-muted-foreground">
-          {overview.recovered.count
-            ? pluralize(overview.recovered.count, "revisão enviada", "revisões enviadas") +
-              " pela maanu em que o Mercado Livre deu razão a você."
-            : "Só conta o que o Mercado Livre confirmou: revisões e contestações enviadas pela maanu que terminaram a seu favor."}
-        </CardContent>
-        <CardFooter className="text-xs text-muted-foreground">
-          <BadgeCheckIcon className="mr-1 size-3.5" />
-          Confirmado pelo Mercado Livre
-        </CardFooter>
-      </Card>
+        <Card className="min-w-0 bg-muted/40">
+          <CardHeader>
+            <CardDescription className="flex items-center gap-2">
+              <CircleDollarSignIcon className="size-4 shrink-0" />
+              Já saiu
+            </CardDescription>
+            <CardTitle className="text-3xl text-muted-foreground tabular-nums">{formatMoney(waiting.refundedAmount)}</CardTitle>
+          </CardHeader>
+          <CardContent className="flex-1 space-y-2 text-sm text-muted-foreground">
+            <p>{pluralize(waiting.refundedCount, "caso já reembolsado ao comprador", "casos já reembolsados ao comprador")} entre os casos para revisar / contestar agora.</p>
+            <p className="text-xs">Não entra no total a recuperar. A contestação é sobre o produto.</p>
+          </CardContent>
+        </Card>
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-2">
+        <Card className={overview.lost.count ? "border-amber-500/40" : undefined}>
+          <CardHeader>
+            <CardDescription className="flex items-center gap-2">
+              <AlertTriangleIcon className="size-4" />
+              Ficou para trás (90 dias)
+            </CardDescription>
+            <CardTitle className="text-3xl tabular-nums">{formatMoney(overview.lost.amount)}</CardTitle>
+          </CardHeader>
+          <CardContent className="flex-1 text-sm text-muted-foreground">
+            {overview.lost.count
+              ? pluralize(overview.lost.count, "venda voltou", "vendas voltaram") +
+                " sem condição de venda, o dinheiro ficou com o comprador e o Mercado Livre não aceita mais contestação. Daqui para frente a maanu avisa antes do prazo."
+              : "Nada ficou para trás nos últimos 90 dias (até onde o Raio-X já leu)."}
+            {overview.appealed.count
+              ? " " + pluralize(overview.appealed.count, "contestação em análise", "contestações em análise") + " no ML (" + formatMoney(overview.appealed.amount) + ")."
+              : ""}
+          </CardContent>
+          <CardFooter>
+            <Link href={hrefXray} className="inline-flex items-center gap-1 text-sm font-medium text-primary hover:underline">
+              Abrir o Raio-X <ArrowRightIcon className="size-3.5" />
+            </Link>
+          </CardFooter>
+        </Card>
+
+        <Card className="border-emerald-500/40 bg-emerald-500/5">
+          <CardHeader>
+            <CardDescription className="flex items-center gap-2 text-emerald-800 dark:text-emerald-300">
+              <HandCoinsIcon className="size-4" />
+              Recuperado pela maanu
+            </CardDescription>
+            <CardTitle className="text-3xl text-emerald-800 tabular-nums dark:text-emerald-300">
+              {formatMoney(overview.recovered.amount)}
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="flex-1 text-sm text-muted-foreground">
+            {overview.recovered.count
+              ? pluralize(overview.recovered.count, "revisão enviada", "revisões enviadas") +
+                " pela maanu em que o Mercado Livre deu razão a você."
+              : "Só conta o que o Mercado Livre confirmou: revisões e contestações enviadas pela maanu que terminaram a seu favor."}
+          </CardContent>
+          <CardFooter className="text-xs text-muted-foreground">
+            <BadgeCheckIcon className="mr-1 size-3.5" />
+            Confirmado pelo Mercado Livre
+          </CardFooter>
+        </Card>
+      </div>
+
+      {overview.money.freightAtRisk.dataAvailable ? (
+        <Card>
+          <CardHeader>
+            <CardDescription className="flex items-center gap-2">
+              <PackageOpenIcon className="size-4" />
+              Frete em risco
+            </CardDescription>
+            <CardTitle className="text-3xl tabular-nums">{formatMoney(overview.money.freightAtRisk.amount)}</CardTitle>
+          </CardHeader>
+          <CardContent className="text-sm text-muted-foreground">
+            Frete reverso de {pluralize(overview.money.freightAtRisk.count, "devolução", "devoluções")}.
+          </CardContent>
+        </Card>
+      ) : null}
     </div>
   )
 }
@@ -170,7 +200,7 @@ export function WaitingCard({ overview, accountId, loading, now }: { overview: R
           <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs">
             {hasRetained && (
               <span className="flex items-center gap-1 text-amber-700 dark:text-amber-400">
-                <CircleDollarSignIcon className="size-3.5" />
+                <CircleDollarSignIcon className="size-3.5 shrink-0" />
                 <span>
                   <strong>Retido no MP:</strong>{" "}
                   {formatMoney(waiting.retainedAmount)}{" "}
@@ -180,7 +210,7 @@ export function WaitingCard({ overview, accountId, loading, now }: { overview: R
             )}
             {hasRefunded && (
               <span className="flex items-center gap-1 text-muted-foreground">
-                <AlertTriangleIcon className="size-3.5" />
+                <CircleDollarSignIcon className="size-3.5 shrink-0" />
                 <span>
                   <strong>Já saiu (contestação sobre produto):</strong>{" "}
                   {formatMoney(waiting.refundedAmount)}{" "}
