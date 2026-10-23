@@ -2,8 +2,8 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "crons": [
     { "path": "/api/cron/questions", "schedule": "* * * * *" },
-    { "path": "/api/cron/pos-venda", "schedule": "* * * * *" },
-    { "path": "/api/cron/clientes", "schedule": "* * * * *" },
+    { "path": "/api/cron/pos-venda", "schedule": "*/5 * * * *" },
+    { "path": "/api/cron/clientes", "schedule": "*/5 * * * *" },
     { "path": "/api/cron/reputacao", "schedule": "*/2 * * * *" },
     { "path": "/api/cron/recuperador", "schedule": "* * * * *" }
   ]
