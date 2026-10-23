@@ -36,6 +36,8 @@ export const AI_FEATURES: Record<AiFeatureKey, { label: string; short: string }>
   listing_improvement: { label: "Melhorias de anúncio", short: "Melhorias" },
   reputation_claim_analysis: { label: "Análise de reclamações (Escudo de Reputação)", short: "Reclamações" },
   recovery_return_message: { label: "Relato de devolução (Recuperador)", short: "Devoluções" },
+  recovery_suggest_action: { label: "Sugestão de ação na devolução (Recuperador)", short: "Sugestão" },
+  recovery_photo_review: { label: "Conferência das fotos da devolução (Recuperador)", short: "Fotos" },
 }
 
 export const AI_KEY_STATUS: Record<"active" | "standby" | "disabled", { label: string; tone: Tone; hint: string }> = {

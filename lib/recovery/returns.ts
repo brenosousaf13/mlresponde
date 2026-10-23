@@ -468,6 +468,17 @@ const BUYER_REGRET = /boas condi|n[ãa]o (a |o |os |as )?quero mais|arrepend|des
 const BUYER_PROBLEM = /defeito|quebrad|danificad|avariad|n[ãa]o funciona|diferente do anunciado|diferente do que comprei|falta|incomplet|falsificad|usado/i
 const STRONG_WAREHOUSE = new Set(["damaged", "misused", "different_product", "incomplete", "open_box", "blocked", "discard"])
 
+/** O que o comprador declarou: arrependimento/produto bom (regret), defeito ou diferença (problem) ou texto que não diz (unknown). */
+export type BuyerReasonKind = "regret" | "problem" | "unknown"
+
+export function buyerReasonKind(reason: string | null | undefined): BuyerReasonKind {
+  const text = reason ?? ""
+  // Mesma precedência de appealStrength: arrependimento vence quando o texto tem os dois sinais.
+  if (BUYER_REGRET.test(text)) return "regret"
+  if (BUYER_PROBLEM.test(text)) return "problem"
+  return "unknown"
+}
+
 /**
  * Força da contestação, para o vendedor priorizar (a decisão é sempre do ML):
  *  - high: o comprador disse que o produto chegou bem / se arrependeu e o armazém achou dano, uso, troca ou falta;

@@ -13,6 +13,8 @@ export type AiFeatureKey =
   | "listing_improvement"
   | "reputation_claim_analysis"
   | "recovery_return_message"
+  | "recovery_suggest_action"
+  | "recovery_photo_review"
 
 export type AdminOrgRow = {
   organization_id: string

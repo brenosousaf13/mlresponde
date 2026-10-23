@@ -26,6 +26,8 @@ export type AiFeature =
   | "listing_improvement"
   | "reputation_claim_analysis"
   | "recovery_return_message"
+  | "recovery_suggest_action"
+  | "recovery_photo_review"
 
 /** Quem gastou: toda chamada à OpenAI informa a organização/conta para o painel do administrador. */
 export type AiUsageContext = {
