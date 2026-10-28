@@ -116,7 +116,7 @@ export function AppSidebar({
                     <span>{item.title}</span>
                   </SidebarMenuButton>
                   {item.badge ? (
-                    <SidebarMenuBadge className="bg-primary font-semibold text-primary-foreground peer-hover/menu-button:text-primary-foreground peer-data-active/menu-button:text-primary-foreground">
+                    <SidebarMenuBadge className="rounded-full bg-brand-teal px-1.5 font-semibold text-brand-graphite shadow-sm peer-hover/menu-button:bg-brand-teal peer-hover/menu-button:text-brand-graphite peer-data-active/menu-button:bg-brand-teal peer-data-active/menu-button:text-brand-graphite">
                       {item.badge > 99 ? "99+" : item.badge}
                     </SidebarMenuBadge>
                   ) : null}

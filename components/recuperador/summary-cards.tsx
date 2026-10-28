@@ -1,249 +1,188 @@
-import { AlertTriangleIcon, ArrowRightIcon, BadgeCheckIcon, CircleDollarSignIcon, ClockIcon, HandCoinsIcon, PackageOpenIcon } from "lucide-react"
+import { ArrowUpRightIcon, BadgeCheckIcon, CircleDollarSignIcon, HandCoinsIcon, HistoryIcon, PackageCheckIcon } from "lucide-react"
 import Link from "next/link"
 
 import { ReturnRowItem } from "@/components/recuperador/returns-list"
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
-import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty"
-import { formatMoney } from "@/lib/customers/presentation"
 import type { RecoveryOverview } from "@/lib/dal/recovery"
-import { formatDateTime, formatNumber, pluralize, timeAgo } from "@/lib/format"
+import type { RecoveryScreenData } from "@/lib/recovery/contract"
+import { formatMoney } from "@/lib/customers/presentation"
+import { formatNumber, pluralize } from "@/lib/format"
 
-/**
- * Ações pendentes separadas do estado do dinheiro, seguidas pelos resultados.
- * actionableAmount é o valor das vendas envolvidas, não dinheiro retido ou a recuperar.
- */
-export function SummaryCards({
-  overview,
-  hrefReturns,
-  hrefXray,
-  now,
-}: {
-  overview: RecoveryOverview
-  hrefReturns: string
-  hrefXray: string
-  now: Date
-}) {
-  const waiting = overview.waiting
-  const parts = [
-    waiting.arrivals ? pluralize(waiting.arrivals, "devolução chegou e espera", "devoluções chegaram e esperam") + " a sua revisão" : null,
-    waiting.appeals
-      ? pluralize(waiting.appeals, "revisão do armazém do ML dá", "revisões do armazém do ML dão") + " para contestar"
-      : null,
-  ].filter(Boolean)
+function deadlineLabel(value: string | null, estimated: boolean) {
+  if (!value) return "Sem prazo informado"
+  const date = new Intl.DateTimeFormat("pt-BR", {
+    day: "2-digit",
+    month: "2-digit",
+    timeZone: "America/Sao_Paulo",
+  }).format(new Date(value))
+  return `próximo prazo ${date}${estimated ? " · estimado" : ""}`
+}
+
+/** Os dois únicos cards de resumo da visão simplificada do Recuperador. */
+type SummaryCardsProps =
+  | { data: RecoveryScreenData; hrefReturns: string }
+  | { overview: RecoveryOverview; hrefReturns: string; hrefXray?: string; now?: Date }
+
+export function SummaryCards(props: SummaryCardsProps) {
+  const recover = "data" in props ? props.data.groups.recover : props.overview.groups.recover
+  const recovered = "data" in props ? props.data.recovered : props.overview.recovered
 
   return (
-    <div className="space-y-4">
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-        <Card className={waiting.count > 0 ? "min-w-0 border-red-500/30 md:col-span-2 xl:col-span-1" : "min-w-0 md:col-span-2 xl:col-span-1"}>
-          <CardHeader>
-            <CardDescription className="flex items-center gap-2">
-              <ClockIcon className="size-4" />
-              Para revisar / contestar agora
-            </CardDescription>
-            <CardTitle className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
-              <span className="text-4xl tabular-nums">{formatNumber(waiting.count)}</span>
-              <span className="text-sm font-medium text-muted-foreground">{waiting.count === 1 ? "caso" : "casos"}</span>
-            </CardTitle>
-            {waiting.actionableAmount > 0 ? (
-              <p className="text-sm text-muted-foreground">
-                <span className="font-medium text-foreground tabular-nums">{formatMoney(waiting.actionableAmount)}</span> em vendas envolvidas
-              </p>
-            ) : null}
-          </CardHeader>
-          <CardContent className="flex-1 space-y-1.5 text-sm text-muted-foreground">
-            {waiting.count ? (
-              <p>
-                {parts.join(" e ") + "."}
-                {waiting.withoutAmount
-                  ? " " + pluralize(waiting.withoutAmount, "venda ainda sem valor lido", "vendas ainda sem valor lido") + "."
-                  : ""}
-                {waiting.nextDeadline ? " O próximo prazo vence " + timeAgo(waiting.nextDeadline, now) + "." : ""}
-              </p>
-            ) : (
-              "Nenhuma devolução esperando a sua revisão ou contestação agora."
-            )}
-          </CardContent>
-          <CardFooter>
-            <Link href={hrefReturns} className="inline-flex items-center gap-1 text-sm font-medium text-primary hover:underline">
-              {waiting.count ? "Revisar agora" : "Ver devoluções"} <ArrowRightIcon className="size-3.5" />
-            </Link>
-          </CardFooter>
-        </Card>
+    <div className="grid gap-4 lg:grid-cols-[minmax(0,1.35fr)_minmax(280px,0.65fr)]">
+      <Card className="overflow-hidden border-brand-teal/35 bg-[linear-gradient(135deg,color-mix(in_oklch,var(--brand-sage),white_45%),var(--card)_66%)] shadow-sm">
+        <CardHeader className="gap-3 pb-3">
+          <CardDescription className="flex items-center gap-2 font-medium text-brand-teal-ink">
+            <HandCoinsIcon className="size-4" />
+            Dá pra recuperar dinheiro
+          </CardDescription>
+          <CardTitle className="flex flex-wrap items-end gap-x-3 gap-y-1 text-4xl font-semibold tracking-tight tabular-nums sm:text-5xl">
+            {formatMoney(recover.amount)}
+            <span className="pb-1 text-sm font-medium tracking-normal text-muted-foreground">
+              {pluralize(recover.count, "devolução", "devoluções")}
+            </span>
+          </CardTitle>
+          <p className="text-sm text-muted-foreground">
+            {recover.count ? deadlineLabel(recover.nextDeadlineAt, recover.nextDeadlineEstimated) : "Nada pra contestar agora"}
+          </p>
+        </CardHeader>
+        <CardFooter className="border-t border-brand-teal/15 bg-white/40 pt-4 dark:bg-black/5">
+          <Link
+            href={props.hrefReturns}
+            className="inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground shadow-sm transition hover:bg-primary/85 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50 sm:w-auto"
+          >
+            Revisar agora
+            <ArrowUpRightIcon className="size-4" />
+          </Link>
+        </CardFooter>
+      </Card>
 
-        <Card className="min-w-0 border-amber-500/25">
-          <CardHeader>
-            <CardDescription className="flex items-center gap-2">
-              <CircleDollarSignIcon className="size-4 shrink-0 text-amber-700 dark:text-amber-400" />
-              Retido no MP
-            </CardDescription>
-            <CardTitle className="text-3xl tabular-nums">{formatMoney(waiting.retainedAmount)}</CardTitle>
-          </CardHeader>
-          <CardContent className="flex-1 space-y-2 text-sm text-muted-foreground">
-            <p>
-              {pluralize(waiting.retainedCount, "caso com dinheiro ainda retido", "casos com dinheiro ainda retido")} no Mercado Pago entre os casos para revisar / contestar agora.
-            </p>
-            {overview.money.retainedTotal > waiting.retainedAmount ? (
-              <p className="text-xs">
-                Retido em todas as devoluções: <span className="font-medium tabular-nums">{formatMoney(overview.money.retainedTotal)}</span>, incluindo as que ainda estão em andamento.
-              </p>
-            ) : null}
-          </CardContent>
-        </Card>
-
-        <Card className="min-w-0 bg-muted/40">
-          <CardHeader>
-            <CardDescription className="flex items-center gap-2">
-              <CircleDollarSignIcon className="size-4 shrink-0" />
-              Já saiu
-            </CardDescription>
-            <CardTitle className="text-3xl text-muted-foreground tabular-nums">{formatMoney(waiting.refundedAmount)}</CardTitle>
-          </CardHeader>
-          <CardContent className="flex-1 space-y-2 text-sm text-muted-foreground">
-            <p>{pluralize(waiting.refundedCount, "caso já reembolsado ao comprador", "casos já reembolsados ao comprador")} entre os casos para revisar / contestar agora.</p>
-            <p className="text-xs">Não entra no total a recuperar. A contestação é sobre o produto.</p>
-          </CardContent>
-        </Card>
-      </div>
-
-      <div className="grid gap-4 md:grid-cols-2">
-        <Card className={overview.lost.count ? "border-amber-500/40" : undefined}>
-          <CardHeader>
-            <CardDescription className="flex items-center gap-2">
-              <AlertTriangleIcon className="size-4" />
-              Ficou para trás (90 dias)
-            </CardDescription>
-            <CardTitle className="text-3xl tabular-nums">{formatMoney(overview.lost.amount)}</CardTitle>
-          </CardHeader>
-          <CardContent className="flex-1 text-sm text-muted-foreground">
-            {overview.lost.count
-              ? pluralize(overview.lost.count, "venda voltou", "vendas voltaram") +
-                " sem condição de venda, o dinheiro ficou com o comprador e o Mercado Livre não aceita mais contestação. Daqui para frente a maanu avisa antes do prazo."
-              : "Nada ficou para trás nos últimos 90 dias (até onde o Raio-X já leu)."}
-            {overview.appealed.count
-              ? " " + pluralize(overview.appealed.count, "contestação em análise", "contestações em análise") + " no ML (" + formatMoney(overview.appealed.amount) + ")."
-              : ""}
-          </CardContent>
-          <CardFooter>
-            <Link href={hrefXray} className="inline-flex items-center gap-1 text-sm font-medium text-primary hover:underline">
-              Abrir o Raio-X <ArrowRightIcon className="size-3.5" />
-            </Link>
-          </CardFooter>
-        </Card>
-
-        <Card className="border-emerald-500/40 bg-emerald-500/5">
-          <CardHeader>
-            <CardDescription className="flex items-center gap-2 text-emerald-800 dark:text-emerald-300">
-              <HandCoinsIcon className="size-4" />
-              Recuperado pela maanu
-            </CardDescription>
-            <CardTitle className="text-3xl text-emerald-800 tabular-nums dark:text-emerald-300">
-              {formatMoney(overview.recovered.amount)}
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="flex-1 text-sm text-muted-foreground">
-            {overview.recovered.count
-              ? pluralize(overview.recovered.count, "revisão enviada", "revisões enviadas") +
-                " pela maanu em que o Mercado Livre deu razão a você."
-              : "Só conta o que o Mercado Livre confirmou: revisões e contestações enviadas pela maanu que terminaram a seu favor."}
-          </CardContent>
-          <CardFooter className="text-xs text-muted-foreground">
-            <BadgeCheckIcon className="mr-1 size-3.5" />
+      <Card className="border-brand-mint/60 bg-brand-mint/15 shadow-none">
+        <CardHeader className="gap-3 pb-3">
+          <CardDescription className="flex items-center gap-2 font-medium text-brand-teal-ink">
+            <BadgeCheckIcon className="size-4" />
+            Recuperado pela maanu
+          </CardDescription>
+          <CardTitle className="text-3xl font-semibold tracking-tight tabular-nums sm:text-4xl">{formatMoney(recovered.amount)}</CardTitle>
+          <p className="text-sm text-muted-foreground">
+            {recovered.count
+              ? pluralize(recovered.count, "devolução confirmada", "devoluções confirmadas")
+              : "O total aparece aqui quando o Mercado Livre confirmar a seu favor."}
+          </p>
+        </CardHeader>
+        <CardContent className="mt-auto pt-0 text-xs text-muted-foreground">
+          <span className="inline-flex items-center gap-1.5">
+            <span className="size-1.5 rounded-full bg-brand-teal" aria-hidden="true" />
             Confirmado pelo Mercado Livre
-          </CardFooter>
-        </Card>
-      </div>
-
-      {overview.money.freightAtRisk.dataAvailable ? (
-        <Card>
-          <CardHeader>
-            <CardDescription className="flex items-center gap-2">
-              <PackageOpenIcon className="size-4" />
-              Frete em risco
-            </CardDescription>
-            <CardTitle className="text-3xl tabular-nums">{formatMoney(overview.money.freightAtRisk.amount)}</CardTitle>
-          </CardHeader>
-          <CardContent className="text-sm text-muted-foreground">
-            Frete reverso de {pluralize(overview.money.freightAtRisk.count, "devolução", "devoluções")}.
-          </CardContent>
-        </Card>
-      ) : null}
+          </span>
+        </CardContent>
+      </Card>
     </div>
   )
 }
 
-/**
- * Card "Revise agora" com lista de devoluções.
- *
- * O título e a descrição deixam claro que "revisar / contestar" não é sinônimo de "dinheiro retido".
- * O breakdown retido vs já saído aparece no cabeçalho quando há itens.
- */
+/** Compatibilidade visual da tela de impressão legada; a visão do app usa a fila nova. */
 export function WaitingCard({ overview, accountId, loading, now }: { overview: RecoveryOverview; accountId: string; loading: boolean; now: Date }) {
-  const waiting = overview.waiting
-  const hasRetained = waiting.retainedCount > 0
-  const hasRefunded = waiting.refundedCount > 0
-
   return (
     <Card className="gap-0">
-      <CardHeader className="pb-4">
-        <CardTitle className="flex items-center gap-2">
-          <PackageOpenIcon className="size-4" />
-          Revise / conteste agora
-        </CardTitle>
-        <CardDescription>
-          {waiting.nextDeadline
-            ? "O próximo prazo vence em " + formatDateTime(waiting.nextDeadline) + "."
-            : "Devoluções que chegaram até você e revisões do armazém do ML que dá para contestar."}
-        </CardDescription>
-
-        {/* Breakdown retido vs reembolsado — só aparece quando há itens */}
-        {waiting.count > 0 && (hasRetained || hasRefunded) && (
-          <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs">
-            {hasRetained && (
-              <span className="flex items-center gap-1 text-amber-700 dark:text-amber-400">
-                <CircleDollarSignIcon className="size-3.5 shrink-0" />
-                <span>
-                  <strong>Retido no MP:</strong>{" "}
-                  {formatMoney(waiting.retainedAmount)}{" "}
-                  ({pluralize(waiting.retainedCount, "item", "itens")})
-                </span>
-              </span>
-            )}
-            {hasRefunded && (
-              <span className="flex items-center gap-1 text-muted-foreground">
-                <CircleDollarSignIcon className="size-3.5 shrink-0" />
-                <span>
-                  <strong>Já saiu (contestação sobre produto):</strong>{" "}
-                  {formatMoney(waiting.refundedAmount)}{" "}
-                  ({pluralize(waiting.refundedCount, "item", "itens")})
-                </span>
-              </span>
-            )}
-          </div>
-        )}
+      <CardHeader>
+        <CardTitle>Revise agora</CardTitle>
+        <CardDescription>{overview.waiting.nextDeadline ? `Próximo prazo: ${overview.waiting.nextDeadline}` : "Devoluções que precisam da sua revisão."}</CardDescription>
       </CardHeader>
       <CardContent className="px-0">
         {overview.waiting.rows.length ? (
           <ul className="divide-y border-t">
-            {overview.waiting.rows.slice(0, 8).map((row) => (
-              <ReturnRowItem key={row.id} row={row} accountId={accountId} now={now} />
-            ))}
+            {overview.waiting.rows.slice(0, 8).map((row) => <ReturnRowItem key={row.id} row={row} accountId={accountId} now={now} />)}
           </ul>
         ) : (
-          <Empty className="mx-4 border border-dashed py-10">
-            <EmptyHeader>
-              <EmptyMedia variant="icon">
-                <BadgeCheckIcon />
-              </EmptyMedia>
-              <EmptyTitle>{loading ? "Lendo as devoluções" : "Tudo em dia"}</EmptyTitle>
-              <EmptyDescription>
-                {loading
-                  ? "A maanu está lendo as devoluções desta conta no Mercado Livre."
-                  : "Quando uma devolução chegar ou o armazém do ML devolver o dinheiro ao comprador, avisamos no app e por e-mail."}
-              </EmptyDescription>
-            </EmptyHeader>
-          </Empty>
+          <p className="px-6 py-10 text-center text-sm text-muted-foreground">{loading ? "Lendo as devoluções" : "Tudo em dia"}</p>
         )}
       </CardContent>
     </Card>
+  )
+}
+
+const STEPS = [
+  ["A maanu avisa", "Quando uma devolução libera uma ação, ela aparece com o prazo."],
+  ["Você confere", "Abra o caso, confira o produto e escolha o que faz sentido."],
+  ["Você envia", "Nada é enviado ao Mercado Livre sem o seu clique."],
+] as const
+
+/** Informações secundárias no fim da tela, sempre recolhidas. */
+export function RecoveryDetails({ overview, hrefXray, hasFirstSubmission }: { overview: RecoveryOverview; hrefXray: string; hasFirstSubmission: boolean }) {
+  return (
+    <div className="space-y-3">
+      <Link href={hrefXray} className="inline-flex items-center gap-1.5 text-sm font-medium text-primary hover:underline">
+        <HistoryIcon className="size-4" />
+        Ficou para trás? Veja no Raio-X
+        <ArrowUpRightIcon className="size-3.5" />
+      </Link>
+
+      <div className="rounded-xl bg-card px-4 ring-1 ring-foreground/10 sm:px-5">
+        <Accordion>
+          <AccordionItem value="retido">
+            <AccordionTrigger className="py-4 hover:no-underline">
+              <span className="flex items-center gap-3">
+                <CircleDollarSignIcon className="size-4 text-amber-600" />
+                <span>
+                  <span className="block font-medium">Retido no Mercado Pago</span>
+                  <span className="block text-xs font-normal text-muted-foreground">{formatMoney(overview.money.retainedTotal)} em devoluções em andamento</span>
+                </span>
+              </span>
+            </AccordionTrigger>
+            <AccordionContent className="pb-4 pl-7 text-sm text-muted-foreground">
+              Esse valor ainda está no Mercado Pago e pode mudar conforme cada devolução avança.
+            </AccordionContent>
+          </AccordionItem>
+
+          <AccordionItem value="saiu">
+            <AccordionTrigger className="py-4 hover:no-underline">
+              <span className="flex items-center gap-3">
+                <PackageCheckIcon className="size-4 text-muted-foreground" />
+                <span>
+                  <span className="block font-medium">Já saiu</span>
+                  <span className="block text-xs font-normal text-muted-foreground">{formatMoney(overview.waiting.refundedAmount)} já foi para o comprador</span>
+                </span>
+              </span>
+            </AccordionTrigger>
+            <AccordionContent className="pb-4 pl-7 text-sm text-muted-foreground">
+              Mesmo quando o dinheiro já saiu, ainda pode existir uma contestação sobre o produto. Confira os casos na fila.
+            </AccordionContent>
+          </AccordionItem>
+
+          {!hasFirstSubmission ? (
+            <AccordionItem value="como-funciona">
+              <AccordionTrigger className="py-4 hover:no-underline">
+                <span className="flex items-center gap-3">
+                  <BadgeCheckIcon className="size-4 text-brand-teal-ink" />
+                  <span>
+                    <span className="block font-medium">Como funciona</span>
+                    <span className="block text-xs font-normal text-muted-foreground">Você decide cada envio</span>
+                  </span>
+                </span>
+              </AccordionTrigger>
+              <AccordionContent className="pb-4 pl-7">
+                <ol className="grid gap-3 text-sm text-muted-foreground sm:grid-cols-3">
+                  {STEPS.map(([title, body], index) => (
+                    <li key={title} className="flex gap-2.5">
+                      <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary">{index + 1}</span>
+                      <span>
+                        <strong className="font-medium text-foreground">{title}.</strong> {body}
+                      </span>
+                    </li>
+                  ))}
+                </ol>
+              </AccordionContent>
+            </AccordionItem>
+          ) : null}
+        </Accordion>
+      </div>
+
+      {overview.lost.count ? (
+        <p className="text-xs text-muted-foreground">
+          {formatNumber(overview.lost.count)} {overview.lost.count === 1 ? "devolução ficou" : "devoluções ficaram"} para trás nos últimos 90 dias.
+        </p>
+      ) : null}
+    </div>
   )
 }

@@ -174,12 +174,13 @@ export function ReturnsList({
             <ConfirmReceiptBatch
               rows={rows.map(({ id, claim_id, item_title, amount, currency_id, deadline_at, quick_confirm_available }) => ({
                 id,
-                claim_id,
-                item_title,
+                claimId: claim_id,
+                title: item_title,
                 amount,
-                currency_id,
-                deadline_at,
-                quick_confirm_available,
+                currencyId: currency_id,
+                deadlineAt: deadline_at,
+                quickConfirmAvailable: quick_confirm_available,
+                href: returnHref(id, accountId),
               }))}
               accountId={accountId}
             />

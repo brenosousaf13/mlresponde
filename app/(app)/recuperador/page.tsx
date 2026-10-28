@@ -3,18 +3,19 @@ import type { Metadata } from "next"
 
 import { AccountSelect } from "@/components/app/account-select"
 import { PageHeader } from "@/components/app/page-header"
+import { RecoveryQueue } from "@/components/recuperador/recovery-queue"
 import { RefreshRecoveryButton } from "@/components/recuperador/recovery-buttons"
 import { RecoveryTabs } from "@/components/recuperador/recovery-tabs"
 import { ReviewBanner } from "@/components/recuperador/review-banner"
 import { ReturnsList } from "@/components/recuperador/returns-list"
-import { SummaryCards, WaitingCard } from "@/components/recuperador/summary-cards"
+import { RecoveryDetails, SummaryCards } from "@/components/recuperador/summary-cards"
 import { Findings, XrayProgress } from "@/components/recuperador/xray"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { requireSection } from "@/lib/dal/app-context"
 import {
   getFindings,
   getRecoveryOverview,
+  getRecoveryScreenData,
   getReturnsTab,
   parseRecoveryTab,
   parseReturnFilter,
@@ -27,23 +28,7 @@ import { classifySyncHealth } from "@/lib/recovery/sync-health"
 import { createClient } from "@/lib/supabase/server"
 
 export const metadata: Metadata = { title: "Recuperador" }
-// "Atualizar agora" (Server Action desta página) lê as devoluções no Mercado Livre.
 export const maxDuration = 60
-
-const STEPS = [
-  {
-    title: "Avisamos quando dá para recuperar",
-    body: "Quando a devolução chega até você e quando o armazém do ML devolve o dinheiro ao comprador, com o prazo para agir.",
-  },
-  {
-    title: "Você resolve pelo celular",
-    body: "Chegou certinho? 1 toque. Chegou com problema ou quer contestar o armazém? Escolha o motivo, tire as fotos e a IA escreve o relato.",
-  },
-  {
-    title: "O Raio-X procura dinheiro perdido",
-    body: "Lê as devoluções dos últimos 90 dias e mostra onde o produto voltou sem condição de venda e o dinheiro foi para o comprador.",
-  },
-]
 
 export default async function RecoveryPage({ searchParams }: PageProps<"/recuperador">) {
   const context = await requireSection("recuperador")
@@ -70,20 +55,22 @@ export default async function RecoveryPage({ searchParams }: PageProps<"/recuper
 
   const now = new Date()
   const tab = parseRecoveryTab(params.aba)
-  const overview = await getRecoveryOverview(account.id)
+  const accountParam = accounts.length > 1 ? account.id : null
+  const [overview, screenData] = await Promise.all([
+    getRecoveryOverview(account.id),
+    getRecoveryScreenData(account.id, { accountParam: accountParam ?? undefined }),
+  ])
   const filter = params.filtro
     ? parseReturnFilter(params.filtro)
-    : overview.groups.recover.count > 0
+    : screenData.groups.recover.count > 0
       ? "recuperar"
-      : overview.groups.confirmReceipt.count > 0
+      : screenData.groups.confirmReceipt.count > 0
         ? "confirmar"
         : "revisar"
   const [rows, findings] = await Promise.all([
     tab === "devolucoes" ? getReturnsTab(account.id, filter) : null,
     tab === "raio-x" ? getFindings(account.id) : null,
   ])
-  const accountParam = accounts.length > 1 ? account.id : null
-  // Por que a leitura parou (token, teste vencido ou rodada parada), em linguagem simples.
   const health = classifySyncHealth({
     now,
     accountActive: account.active,
@@ -117,8 +104,8 @@ export default async function RecoveryPage({ searchParams }: PageProps<"/recuper
       </div>
 
       <ReviewBanner
-        groups={overview.groups}
-        href={href("devolucoes", overview.groups.recover.count > 0 ? "recuperar" : "confirmar")}
+        groups={screenData.groups}
+        href={href("devolucoes", screenData.groups.recover.count > 0 ? "recuperar" : "confirmar")}
       />
 
       <RecoveryTabs active={tab} waiting={overview.counts.revisar} hrefFor={(key) => href(key)} />
@@ -147,33 +134,9 @@ export default async function RecoveryPage({ searchParams }: PageProps<"/recuper
 
       {tab === "visao" ? (
         <>
-          <SummaryCards overview={overview} hrefReturns={href("devolucoes", overview.groups.recover.count > 0 ? "recuperar" : "confirmar")} hrefXray={href("raio-x")} now={now} />
-          <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
-            <div className="min-w-0 xl:col-span-2">
-              <WaitingCard overview={overview} accountId={account.id} loading={loading && !overview.waiting.count} now={now} />
-            </div>
-            <Card>
-              <CardHeader>
-                <CardTitle>Como funciona</CardTitle>
-                <CardDescription>Nada é enviado ao Mercado Livre sem o seu clique.</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <ol className="flex flex-col gap-4">
-                  {STEPS.map((step, index) => (
-                    <li key={step.title} className="flex gap-3">
-                      <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary">
-                        {index + 1}
-                      </span>
-                      <div className="flex flex-col gap-0.5">
-                        <p className="text-sm font-medium">{step.title}</p>
-                        <p className="text-sm text-muted-foreground">{step.body}</p>
-                      </div>
-                    </li>
-                  ))}
-                </ol>
-              </CardContent>
-            </Card>
-          </div>
+          <SummaryCards data={screenData} hrefReturns={screenData.returnsHref} />
+          <RecoveryQueue data={screenData} accountId={account.id} now={now.getTime()} />
+          <RecoveryDetails overview={overview} hrefXray={screenData.xrayHref} hasFirstSubmission={screenData.hasFirstSubmission} />
         </>
       ) : null}
 
