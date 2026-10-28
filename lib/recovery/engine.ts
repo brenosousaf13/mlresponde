@@ -1,5 +1,7 @@
 import "server-only"
 
+import { fetchAllPages } from "@/lib/supabase/paginate"
+
 import { PlatformAiPausedError } from "@/lib/ai/usage"
 import { MlAccountUnavailableError } from "@/lib/mercadolivre/accounts"
 import { MlApiError } from "@/lib/mercadolivre/api"
@@ -407,15 +409,16 @@ async function syncReturn(
 // ---------------------------------------------------------------------------------------------- rodada por conta
 
 async function refreshReturnAlerts(account: ReputationAccount, now: Date) {
-  const { data, error } = await createServiceClient()
+  const admin = createServiceClient()
+  const data = await fetchAllPages((from, to) => admin
     .from("recovery_returns")
     .select(
       "id, claim_id, phase, deadline_at, item_title, amount, recovered_at, recovered_amount, can_review_ok, can_review_fail, destination, shipment_status, return_status, reviews, order_id"
     )
     .eq("ml_account_id", account.id)
     .or("phase.eq.needs_review,recovered_at.gte." + iso(now.getTime() - 3 * DAY))
-    .limit(300)
-  if (error) throw error
+    .order("id")
+    .range(from, to))
   const drafts = returnAlerts(
     data
       .map((row) => ({
@@ -519,17 +522,16 @@ export async function syncRecoveryAccount(account: ReputationAccount, budget: Ca
       next = INTERVALS.waiting
     } else {
       const since = iso(now.getTime() - SCAN_WINDOW_DAYS * DAY)
-      const { data: claims, error: claimsError } = await admin
+      const claims = await fetchAllPages((from, to) => admin
         .from("reputation_claims")
         .select(CLAIM_COLUMNS)
         .eq("ml_account_id", account.id)
         .eq("type", "returns")
         .or("status.eq.opened,ml_created_at.gte." + since)
         .order("ml_created_at", { ascending: false })
-        .limit(2000)
-      if (claimsError) throw claimsError
-      const { data: known, error: knownError } = await admin.from("recovery_returns").select("*").eq("ml_account_id", account.id).limit(5000)
-      if (knownError) throw knownError
+        .order("id")
+        .range(from, to))
+      const known = await fetchAllPages((from, to) => admin.from("recovery_returns").select("*").eq("ml_account_id", account.id).order("id").range(from, to))
       const byClaim = new Map(known.map((row) => [Number(row.claim_id), row]))
       const siblings = siblingIndex(known)
       const knownState = new Map<number, KnownReturn>(
@@ -663,26 +665,26 @@ const healthReported = new Map<string, number>()
  */
 export async function monitorRecoveryHealth(now: Date) {
   const admin = createServiceClient()
-  const { data: accounts, error } = await admin
+  const accounts = await fetchAllPages((from, to) => admin
     .from("ml_accounts")
     .select("id, organization_id, status, token_status")
     .eq("status", "active")
     .eq("token_status", "valid")
-    .limit(2000)
-  if (error) throw error
+    .order("id")
+    .range(from, to))
   if (!accounts.length) return
   const orgIds = [...new Set(accounts.map((account) => account.organization_id))]
   const [orgs, syncs] = await Promise.all([
-    admin.from("organizations").select("id, billing_exempt, subscription_status, current_period_end, trial_ends_at").in("id", orgIds),
-    admin
+    fetchAllPages((from, to) => admin.from("organizations").select("id, billing_exempt, subscription_status, current_period_end, trial_ends_at").in("id", orgIds).order("id").range(from, to)),
+    fetchAllPages((from, to) => admin
       .from("recovery_sync")
       .select("ml_account_id, last_returns_at, last_error, last_error_at")
-      .in("ml_account_id", accounts.map((account) => account.id)),
+      .in("ml_account_id", accounts.map((account) => account.id))
+      .order("ml_account_id")
+      .range(from, to)),
   ])
-  if (orgs.error) throw orgs.error
-  if (syncs.error) throw syncs.error
-  const orgById = new Map(orgs.data.map((org) => [org.id, org]))
-  const syncById = new Map(syncs.data.map((sync) => [sync.ml_account_id, sync]))
+  const orgById = new Map(orgs.map((org) => [org.id, org]))
+  const syncById = new Map(syncs.map((sync) => [sync.ml_account_id, sync]))
   for (const account of accounts) {
     const org = orgById.get(account.organization_id)
     const sync = syncById.get(account.id) ?? null

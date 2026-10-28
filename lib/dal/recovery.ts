@@ -12,6 +12,7 @@ import {
   type ReviewMode,
 } from "@/lib/recovery/returns"
 import { createClient } from "@/lib/supabase/server"
+import { fetchAllPages } from "@/lib/supabase/paginate"
 import {
   buildRecoveryScreenData,
   classifyQueueItem,
@@ -27,7 +28,7 @@ import {
 } from "@/lib/recovery/contract"
 import { suggestActionByRules, suggestInputFromRows } from "@/lib/recovery/suggest"
 import { recoveryBadgeCount } from "@/lib/recovery/banner"
-import { computeLeftBehind, type LeftBehindSummary } from "@/lib/recovery/left-behind"
+import { computeLeftBehind, LEFT_BEHIND_WINDOW_DAYS, type LeftBehindSummary } from "@/lib/recovery/left-behind"
 
 export { buildRecoveryScreenData, sortReviewQueue }
 export { classifyQueueItem }
@@ -169,7 +170,7 @@ function toListRow(row: Record<string, unknown>, classification?: ReviewQueueCla
 
 type ClaimSuggestionRow = { claim_id: number; reason_detail: string | null; affects_reputation: string | null }
 
-/** Classifica as linhas acionáveis em uma única consulta aos motivos das reclamações. */
+/** Classifica as linhas acionáveis lendo os motivos em lotes, sem consultas por item. */
 async function classifyListRows(
   rows: readonly ReturnListRow[],
   scope: { mlAccountId?: string; organizationId?: string }
@@ -177,12 +178,18 @@ async function classifyListRows(
   const candidates = rows.filter((row) => row.mode !== null)
   if (!candidates.length) return [...rows]
   const supabase = await createClient()
-  let query = supabase.from("reputation_claims").select("claim_id, reason_detail, affects_reputation").in("claim_id", candidates.map((row) => row.claim_id))
-  if (scope.mlAccountId) query = query.eq("ml_account_id", scope.mlAccountId)
-  if (scope.organizationId) query = query.eq("organization_id", scope.organizationId)
-  const { data, error } = await query
-  if (error) throw error
-  const claims = new Map((data ?? []).map((claim) => [Number(claim.claim_id), claim as ClaimSuggestionRow]))
+  const claims = new Map<number, ClaimSuggestionRow>()
+  // Lotes pequenos evitam URLs enormes no filtro IN quando a lista tem milhares de devoluções.
+  for (let index = 0; index < candidates.length; index += 300) {
+    const ids = candidates.slice(index, index + 300).map((row) => row.claim_id)
+    const data = await fetchAllPages((from, to) => {
+      let query = supabase.from("reputation_claims").select("claim_id, reason_detail, affects_reputation").in("claim_id", ids)
+      if (scope.mlAccountId) query = query.eq("ml_account_id", scope.mlAccountId)
+      if (scope.organizationId) query = query.eq("organization_id", scope.organizationId)
+      return query.order("id").range(from, to)
+    })
+    for (const claim of data) claims.set(Number(claim.claim_id), claim as ClaimSuggestionRow)
+  }
   return rows.map((row) => {
     if (!row.mode) return row
     const input = suggestInputFromRows(
@@ -364,6 +371,8 @@ function sum(rows: readonly { amount?: unknown; recovered_amount?: unknown }[], 
 
 export async function getRecoveryOverview(accountId: string): Promise<RecoveryOverview> {
   const supabase = await createClient()
+  const readAt = new Date()
+  const since = new Date(readAt.getTime() - LEFT_BEHIND_WINDOW_DAYS * 24 * 60 * 60 * 1000).toISOString()
   const [sync, scan, escudo, waiting, findings, recovered, retainedGlobal, andamento, encerradas, leftRows, actions] = await Promise.all([
     supabase.from("recovery_sync").select("last_returns_at, last_error, last_error_at").eq("ml_account_id", accountId).maybeSingle(),
     supabase
@@ -380,15 +389,16 @@ export async function getRecoveryOverview(accountId: string): Promise<RecoveryOv
       .or("deadline_at.is.null,deadline_at.gt." + new Date().toISOString())
       .order("deadline_at", { ascending: true, nullsFirst: false })
       .limit(300),
-    supabase.from("recovery_findings").select("return_row_id, kind, status, amount, evidence, detected_at").eq("ml_account_id", accountId).limit(5000),
-    supabase.from("recovery_returns").select("recovered_amount").eq("ml_account_id", accountId).not("recovered_at", "is", null).limit(5000),
+    fetchAllPages((from, to) => supabase.from("recovery_findings").select("return_row_id, kind, status, amount, evidence, detected_at").eq("ml_account_id", accountId).order("id").range(from, to)),
+    fetchAllPages((from, to) => supabase.from("recovery_returns").select("recovered_amount").eq("ml_account_id", accountId).not("recovered_at", "is", null).order("id").range(from, to)),
     // Total retido no MP (todas as fases) — usado no card money
-    supabase
+    fetchAllPages((from, to) => supabase
       .from("recovery_returns")
       .select("amount")
       .eq("ml_account_id", accountId)
       .eq("status_money", "retained")
-      .limit(5000),
+      .order("id")
+      .range(from, to)),
     supabase
       .from("recovery_returns")
       .select("id", { count: "exact", head: true })
@@ -399,25 +409,28 @@ export async function getRecoveryOverview(accountId: string): Promise<RecoveryOv
       .select("id", { count: "exact", head: true })
       .eq("ml_account_id", accountId)
       .eq("phase", "closed"),
-    supabase
+    fetchAllPages((from, to) => supabase
       .from("recovery_returns")
       .select("id, claim_id, claim_created_at, sale_at, amount, currency_id, status_money, phase, destination, shipment_status, return_status, can_review_ok, can_review_fail, deadline_at, review_submitted_at, review_kind, recovered_at, recovered_amount, reviews")
       .eq("ml_account_id", accountId)
-      .limit(5000),
-    supabase
+      // Mesma precedência de datas de computeLeftBehind; sem ambas as datas, a linha continua elegível.
+      .or(`claim_created_at.gte.${since},and(claim_created_at.is.null,sale_at.gte.${since}),and(claim_created_at.is.null,sale_at.is.null)`)
+      .order("id")
+      .range(from, to)),
+    fetchAllPages((from, to) => supabase
       .from("recovery_actions")
       .select("return_row_id, action, status, performed_at")
       .eq("ml_account_id", accountId)
-      .limit(5000),
+      .order("id")
+      .range(from, to)),
   ])
-  for (const result of [sync, scan, escudo, waiting, findings, recovered, retainedGlobal, andamento, encerradas, leftRows, actions]) if (result.error) throw result.error
+  for (const result of [sync, scan, escudo, waiting, andamento, encerradas]) if (result.error) throw result.error
   // Linha lida pela regra antiga (antes da Sessão 31) que não é revisável de verdade some na hora; a releitura corrige.
-  const readAt = new Date()
   const waitingRows = sortActionableRows(await classifyListRows(await markEstimatedArrivals(
     accountId,
     (waiting.data ?? []).map((row) => toListRow(row as Record<string, unknown>)).filter((row) => isActionableRow(row, readAt))
   ), { mlAccountId: accountId }))
-  const outcomes = (findings.data ?? []).map((row) => ({
+  const outcomes = findings.map((row) => ({
     ...row,
     outcome: findingOutcome({ kind: row.kind as FindingKind, status: row.status, evidence: (row.evidence ?? {}) as Record<string, unknown> }),
   }))
@@ -431,18 +444,18 @@ export async function getRecoveryOverview(accountId: string): Promise<RecoveryOv
     findingsByReturn.set(finding.return_row_id, list)
   }
   const actionsByReturn = new Map<string, { action: string; status: string; performed_at: string | null }[]>()
-  for (const action of actions.data ?? []) {
+  for (const action of actions) {
     const list = actionsByReturn.get(String(action.return_row_id)) ?? []
     list.push({ action: String(action.action), status: String(action.status), performed_at: action.performed_at ?? null })
     actionsByReturn.set(String(action.return_row_id), list)
   }
   const leftBehind = computeLeftBehind(
-    (leftRows.data ?? []).map((row) => ({
+    leftRows.map((row) => ({
       ...(row as Record<string, unknown>),
       findings: findingsByReturn.get(String(row.id)) ?? [],
       actions: actionsByReturn.get(String(row.id)) ?? [],
     })),
-    new Date()
+    readAt
   )
 
   // Segmentação por status_money dentro do card "Revise agora"
@@ -468,14 +481,14 @@ export async function getRecoveryOverview(accountId: string): Promise<RecoveryOv
       rows: waitingRows,
     },
     money: {
-      retainedTotal: sum(retainedGlobal.data ?? [], "amount"),
+      retainedTotal: sum(retainedGlobal, "amount"),
       // return_cost não existe como coluna em recovery_returns ainda — placeholder honesto
       freightAtRisk: { amount: 0, count: 0, dataAvailable: false },
     },
     appealed: { count: appealed.length, amount: sum(appealed, "amount") },
     lost: { count: leftBehind.total.count, amount: leftBehind.total.amount },
     leftBehind,
-    recovered: { count: recovered.data?.length ?? 0, amount: sum(recovered.data ?? [], "recovered_amount") },
+    recovered: { count: recovered.length, amount: sum(recovered, "recovered_amount") },
     reimbursed: { count: reimbursed.length, amount: sum(reimbursed, "amount") },
     groups: groupsFromRows(waitingRows),
     counts: {
@@ -490,14 +503,15 @@ export async function getRecoveryOverview(accountId: string): Promise<RecoveryOv
 
 export async function getReturnsTab(accountId: string, filter: ReturnFilter): Promise<ReturnListRow[]> {
   const supabase = await createClient()
-  let query = supabase.from("recovery_returns").select(LIST_COLUMNS).eq("ml_account_id", accountId).in("phase", RETURN_FILTERS[filter].phases)
-  if (filter === "revisar") query = query.or("deadline_at.is.null,deadline_at.gt." + new Date().toISOString())
-  query =
-    filter === "revisar"
+  const now = new Date()
+  const data = await fetchAllPages((from, to) => {
+    let query = supabase.from("recovery_returns").select(LIST_COLUMNS).eq("ml_account_id", accountId).in("phase", RETURN_FILTERS[filter].phases)
+    if (filter === "revisar") query = query.or("deadline_at.is.null,deadline_at.gt." + now.toISOString())
+    query = filter === "revisar"
       ? query.order("deadline_at", { ascending: true, nullsFirst: false })
       : query.order("claim_created_at", { ascending: false, nullsFirst: false })
-  const { data, error } = await query.limit(200)
-  if (error) throw error
+    return query.order("id").range(from, to)
+  })
   const rows = data.map((row) => toListRow(row as Record<string, unknown>))
   const estimated = filter === "revisar" || filter === "recuperar" || filter === "confirmar"
     ? await markEstimatedArrivals(accountId, rows.filter((row) => isActionableRow(row, new Date())))
@@ -520,34 +534,42 @@ async function markEstimatedArrivals(accountId: string, rows: ReturnListRow[]): 
   const arrivals = rows.filter((row) => row.mode === "arrival")
   if (!arrivals.length) return rows
   const supabase = await createClient()
-  const { data, error } = await supabase
-    .from("reputation_claims")
-    .select("claim_id, next_due_at, detail")
-    .eq("ml_account_id", accountId)
-    .in("claim_id", arrivals.map((row) => row.claim_id))
-  if (error) {
-    console.error("[recuperador] conferir prazo estimado:", error.message)
+  const hasRealDue = new Set<number>()
+  try {
+    for (let index = 0; index < arrivals.length; index += 300) {
+      const ids = arrivals.slice(index, index + 300).map((row) => row.claim_id)
+      const data = await fetchAllPages((from, to) => supabase
+        .from("reputation_claims")
+        .select("claim_id, next_due_at, detail")
+        .eq("ml_account_id", accountId)
+        .in("claim_id", ids)
+        .order("id")
+        .range(from, to))
+      for (const claim of data) {
+        if (claim.next_due_at || typeof (claim.detail as { due_date?: unknown } | null)?.due_date === "string") {
+          hasRealDue.add(Number(claim.claim_id))
+        }
+      }
+    }
+  } catch (error) {
+    console.error("[recuperador] conferir prazo estimado:", error)
     return rows
   }
-  const hasRealDue = new Set(
-    data
-      .filter((claim) => claim.next_due_at || typeof (claim.detail as { due_date?: unknown } | null)?.due_date === "string")
-      .map((claim) => Number(claim.claim_id))
-  )
   return rows.map((row) => (row.mode === "arrival" && !hasRealDue.has(row.claim_id) ? { ...row, deadline_estimated: true } : row))
 }
 
 /** Devoluções acionáveis da organização (selo do menu): mesma regra do aviso e da lista "Revise agora". */
 export async function getActionableReturnsCount(organizationId: string): Promise<number> {
   const now = new Date()
-  const { data, error } = await (await createClient())
+  const supabase = await createClient()
+  const data = await fetchAllPages((from, to) => supabase
     .from("recovery_returns")
     .select(LIST_COLUMNS)
     .eq("organization_id", organizationId)
     .eq("phase", "needs_review")
     .or("deadline_at.is.null,deadline_at.gt." + now.toISOString())
-    .limit(300)
-  if (error) throw error
+    .order("id")
+    .range(from, to))
   const rows = data.map((row) => toListRow(row as Record<string, unknown>)).filter((row) => isActionableRow(row, now))
   const classified = await classifyListRows(rows, { organizationId })
   return recoveryBadgeCount({
@@ -622,13 +644,13 @@ export async function getRecoveryScreenData(accountId: string, opts?: { accountP
 
 export async function getFindings(accountId: string): Promise<FindingRow[]> {
   const supabase = await createClient()
-  const { data, error } = await supabase
+  const data = await fetchAllPages((from, to) => supabase
     .from("recovery_findings")
     .select("id, return_row_id, kind, confidence, amount, currency_id, evidence, status, detected_at")
     .eq("ml_account_id", accountId)
     .order("detected_at", { ascending: false })
-    .limit(300)
-  if (error) throw error
+    .order("id")
+    .range(from, to))
   return data.map((row) => {
     const evidence = (row.evidence ?? {}) as Record<string, unknown>
     return {

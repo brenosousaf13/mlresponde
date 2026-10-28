@@ -7,6 +7,7 @@ import { rowReviewMode } from "@/lib/recovery/returns"
 import { suggestActionByRules, suggestInputFromRows } from "@/lib/recovery/suggest"
 import { organizationHasAccess } from "@/lib/recovery/sync-health"
 import { createClient } from "@/lib/supabase/server"
+import { fetchAllPages } from "@/lib/supabase/paginate"
 
 const WINDOW_DAYS = 90
 const DAY_MS = 24 * 60 * 60 * 1000
@@ -20,31 +21,36 @@ export type AdminRecoveryFunnel = {
 export async function getAdminRecoveryFunnel(now = new Date()): Promise<AdminRecoveryFunnel> {
   await requireAdmin()
   const supabase = await createClient()
-  const from = new Date(now.getTime() - WINDOW_DAYS * DAY_MS).toISOString()
+  const since = new Date(now.getTime() - WINDOW_DAYS * DAY_MS).toISOString()
   const [accountsResult, returnsResult, actionsResult, findingsResult, syncResult, claimsResult] = await Promise.all([
-    supabase
+    fetchAllPages((from, to) => supabase
       .from("ml_accounts")
       .select("id, organization_id, status, token_status, organizations(name, billing_exempt, subscription_status, current_period_end, trial_ends_at)")
-      .order("created_at", { ascending: true }),
-    supabase
+      .order("created_at", { ascending: true })
+      .order("id")
+      .range(from, to)),
+    fetchAllPages((from, to) => supabase
       .from("recovery_returns")
       .select("id, ml_account_id, claim_id, claim_created_at, sale_at, amount, currency_id, status_money, phase, destination, shipment_status, return_status, can_review_ok, can_review_fail, deadline_at, review_submitted_at, review_kind, recovered_at, recovered_amount, reviews, orders, order_id, is_cart")
-      .gte("claim_created_at", from)
-      .limit(10000),
-    supabase
+      .gte("claim_created_at", since)
+      .order("id")
+      .range(from, to)),
+    fetchAllPages((from, to) => supabase
       .from("recovery_actions")
       .select("ml_account_id, return_row_id, action, status, performed_at")
-      .gte("performed_at", from)
-      .limit(10000),
-    supabase
+      .gte("performed_at", since)
+      .order("id")
+      .range(from, to)),
+    fetchAllPages((from, to) => supabase
       .from("recovery_findings")
       .select("return_row_id, kind, status, evidence, detected_at")
-      .gte("detected_at", from)
-      .limit(10000),
-    supabase.from("recovery_sync").select("ml_account_id, last_returns_at, last_error, last_error_at"),
-    supabase.from("reputation_claims").select("claim_id, reason_detail, affects_reputation").limit(10000),
+      .gte("detected_at", since)
+      .order("id")
+      .range(from, to)),
+    // recovery_sync não tem id: ml_account_id é a chave primária estável.
+    fetchAllPages((from, to) => supabase.from("recovery_sync").select("ml_account_id, last_returns_at, last_error, last_error_at").order("ml_account_id").range(from, to)),
+    fetchAllPages((from, to) => supabase.from("reputation_claims").select("claim_id, reason_detail, affects_reputation").order("id").range(from, to)),
   ])
-  for (const result of [accountsResult, returnsResult, actionsResult, findingsResult, syncResult, claimsResult]) if (result.error) throw result.error
 
   type AccountWithOrg = {
     id: string
@@ -56,7 +62,7 @@ export async function getAdminRecoveryFunnel(now = new Date()): Promise<AdminRec
       | { name: string; billing_exempt: boolean; subscription_status: string; current_period_end: string | null; trial_ends_at: string }[]
       | null
   }
-  const accounts = (accountsResult.data ?? []) as unknown as AccountWithOrg[]
+  const accounts = accountsResult as unknown as AccountWithOrg[]
   const accountInputs: RecoveryFunnelAccount[] = accounts.map((account) => {
     const organization = Array.isArray(account.organizations) ? account.organizations[0] : account.organizations
     return {
@@ -74,15 +80,15 @@ export async function getAdminRecoveryFunnel(now = new Date()): Promise<AdminRec
   })
 
   const findingsByReturn = new Map<string, { outcome?: string; kind?: string; status?: string; evidence?: Record<string, unknown> }[]>()
-  for (const finding of findingsResult.data ?? []) {
+  for (const finding of findingsResult) {
     if (!finding.return_row_id) continue
     const list = findingsByReturn.get(String(finding.return_row_id)) ?? []
     const evidence = (finding.evidence ?? {}) as Record<string, unknown>
     list.push({ outcome: typeof evidence.outcome === "string" ? evidence.outcome : undefined, kind: finding.kind, status: finding.status, evidence })
     findingsByReturn.set(String(finding.return_row_id), list)
   }
-  const claimsById = new Map((claimsResult.data ?? []).map((claim) => [Number(claim.claim_id), claim]))
-  const returns = (returnsResult.data ?? []).map((rawRow) => {
+  const claimsById = new Map(claimsResult.map((claim) => [Number(claim.claim_id), claim]))
+  const returns = returnsResult.map((rawRow) => {
     const row = rawRow as unknown as RecoveryFunnelReturn
     const mode = row.mode ?? rowReviewMode({
       can_review_ok: Boolean(row.can_review_ok),
@@ -125,9 +131,9 @@ export async function getAdminRecoveryFunnel(now = new Date()): Promise<AdminRec
       findings: findingsByReturn.get(String(row.id)) ?? [],
     }
   })
-  const actions = (actionsResult.data ?? []) as unknown as RecoveryFunnelAction[]
-  const syncs = (syncResult.data ?? []) as unknown as RecoveryFunnelSync[]
-  return { from, rows: buildRecoveryFunnel({ accounts: accountInputs, returns, actions, syncs, now }) }
+  const actions = actionsResult as unknown as RecoveryFunnelAction[]
+  const syncs = syncResult as unknown as RecoveryFunnelSync[]
+  return { from: since, rows: buildRecoveryFunnel({ accounts: accountInputs, returns, actions, syncs, now }) }
 }
 
 export { buildRecoveryFunnel }
