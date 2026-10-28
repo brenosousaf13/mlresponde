@@ -90,6 +90,16 @@ function examplesText(list: AfterSaleExample[]) {
   return list.map((item, index) => `${index + 1}. Comprador: ${item.buyerMessage}\n   Resposta da loja: ${item.answer}`).join("\n")
 }
 
+/** Regras de uso das respostas ensinadas do pós-venda: só entram no prompt quando há ensinadas candidatas. */
+const TAUGHT_RULES = [
+  "# RESPOSTAS ENSINADAS: PRIORIDADE MÁXIMA",
+  "- Se alguma resposta de RESPOSTAS_ENSINADAS_PELO_VENDEDOR trata do mesmo assunto ou da mesma intenção da mensagem do comprador (mesmo com outras palavras), ela é a base da sua resposta e vale mais do que qualquer outra fonte ou regra geral deste prompt sobre o assunto.",
+  "- Se duas ensinadas disserem coisas diferentes, vale a primeira da lista que trate do assunto (as mais parecidas vêm antes).",
+  "- Não copie ao pé da letra: adapte à mensagem real, responda o que o comprador perguntou e aplique tabelas ou regras da ensinada aos dados que ele deu, sem colar a tabela inteira. Se faltar um dado, peça-o.",
+  "- Preserve os passos, condições e números da ensinada; se não couber nos caracteres do Estilo, condense sem perder o essencial. Não acrescente nada que não esteja nela ou nas outras fontes (Regra 0).",
+  "- Nenhuma trata do assunto: ignore esta seção.",
+]
+
 const REVIEW_SENSITIVE = [
   "# Assuntos delicados (o vendedor escolheu: ficam com ele)",
   "Problema com o pedido (defeito, produto errado ou faltando, avaria, atraso grave, não recebeu), troca, devolução, cancelamento, reembolso e mudança no pedido: use action=\"escalate\". Em \"answer\" escreva um rascunho curto para o vendedor revisar: acolha, peça desculpas quando houver problema e, se as políticas da loja disserem como funciona, explique o caminho. Nunca prometa reembolso, troca, reenvio, desconto ou prazo.",
@@ -116,7 +126,7 @@ export function buildAfterSaleSystemPrompt(input: AfterSalePromptInput): string 
     "1. PEDIDO e ENVIO (dados oficiais do Mercado Livre sobre esta venda);",
     "2. ANUNCIO (dados e descrição do produto comprado);",
     "3. CONHECIMENTO_DA_LOJA e INSTRUCOES_DO_VENDEDOR;",
-    "4. RESPOSTAS_ENSINADAS_PELO_VENDEDOR;",
+    "4. RESPOSTAS_ENSINADAS_PELO_VENDEDOR (o vendedor escreveu a resposta certa: é a fonte mais forte);",
     "5. mensagens da LOJA no HISTORICO_DA_CONVERSA (o que a loja já disse ou combinou).",
     "Se a informação não está nessas fontes, você NÃO SABE: use action=\"escalate\". É proibido:",
     "- inventar ou estimar datas, prazos, códigos de rastreio, valores ou números;",
@@ -133,6 +143,7 @@ export function buildAfterSaleSystemPrompt(input: AfterSalePromptInput): string 
     "",
     ...(input.sensitivePolicy === "guide" ? GUIDE_SENSITIVE : REVIEW_SENSITIVE),
     "",
+    ...(input.examples.length ? [...TAUGHT_RULES, ""] : []),
     "# Quando usar action=\"escalate\" (a conversa fica para o vendedor)",
     "- a resposta depende de informação que não está nas fontes, ou as fontes se contradizem;",
     "- o comprador pede algo que só uma pessoa da loja pode fazer (alterar, reenviar, separar, conferir no estoque, emitir documento);",

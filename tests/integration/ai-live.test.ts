@@ -298,3 +298,45 @@ describe.skipIf(!enabled)("IA ao vivo: modo responder sempre", () => {
     }
   }, 60_000)
 })
+
+describe.skipIf(!enabled)("IA ao vivo: respostas ensinadas com prioridade", () => {
+  const multiAnswer =
+    "Olá! Para comprar mais de uma peça no mesmo pedido, basta selecionar o modelo, a cor e o tamanho desejados e adicionar ao carrinho. Em seguida, volte ao anúncio, escolha a outra peça e adicione também. No carrinho, confira tudo e finalize a compra."
+  const sizeAnswer =
+    "Para escolher o tamanho, use a altura e o peso: 34 (1,50 a 1,60 m, 45 a 52 kg); 36 (1,52 a 1,63 m, 50 a 58 kg); 38 (1,55 a 1,66 m, 56 a 65 kg); 40 (1,58 a 1,70 m, 63 a 73 kg); 42 (1,60 a 1,73 m, 70 a 80 kg); 44 (1,62 a 1,76 m, 77 a 88 kg); 46 (1,65 a 1,80 m, 85 a 98 kg)."
+
+  it("responde com os passos da ensinada, não com a regra genérica do carrinho", async () => {
+    const { run, decision } = await askAlways("Quero levar 2 peças num pedido só, como faço?", {
+      taughtExamples: [
+        {
+          question: "Como eu faço para comprar mais de uma peça na mesma compra?",
+          answer: multiAnswer,
+          scope: "store",
+          similarity: 0.9,
+        },
+      ],
+    })
+    console.log("ensinada-multi:", run.result)
+    expect(decision.kind).toBe("answer")
+    const text = run.result.answer.toLowerCase()
+    expect(text).toContain("volte ao anúncio")
+    expect(text).toContain("confira")
+  }, 60_000)
+
+  it("aplica a tabela ensinada às medidas do comprador, sem colar a tabela", async () => {
+    const { run, decision } = await askAlways("Tenho 1,62 m e 60 kg, qual número eu pego?", {
+      taughtExamples: [
+        {
+          question: "Minha cintura é X, quadril Y e altura Z, qual calça eu devo comprar?",
+          answer: sizeAnswer,
+          scope: "item",
+          similarity: 0.5,
+        },
+      ],
+    })
+    console.log("ensinada-tabela:", run.result)
+    expect(decision.kind).toBe("answer")
+    expect(run.result.answer).toMatch(/\b(38|40)\b/)
+    expect(run.result.answer).not.toMatch(/46 \(1,65/)
+  }, 60_000)
+})
