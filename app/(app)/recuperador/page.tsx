@@ -5,6 +5,7 @@ import { AccountSelect } from "@/components/app/account-select"
 import { PageHeader } from "@/components/app/page-header"
 import { RefreshRecoveryButton } from "@/components/recuperador/recovery-buttons"
 import { RecoveryTabs } from "@/components/recuperador/recovery-tabs"
+import { ReviewBanner } from "@/components/recuperador/review-banner"
 import { ReturnsList } from "@/components/recuperador/returns-list"
 import { SummaryCards, WaitingCard } from "@/components/recuperador/summary-cards"
 import { Findings, XrayProgress } from "@/components/recuperador/xray"
@@ -22,6 +23,7 @@ import {
 } from "@/lib/dal/recovery"
 import { timeAgo } from "@/lib/format"
 import { recoveryHref } from "@/lib/recovery/presentation"
+import { classifySyncHealth } from "@/lib/recovery/sync-health"
 import { createClient } from "@/lib/supabase/server"
 
 export const metadata: Metadata = { title: "Recuperador" }
@@ -59,6 +61,8 @@ export default async function RecoveryPage({ searchParams }: PageProps<"/recuper
     id: account.id,
     nickname: account.nickname || "Conta " + account.ml_user_id,
     usable: account.status === "active" && account.token_status === "valid",
+    active: account.status === "active",
+    tokenValid: account.token_status === "valid",
   }))
   const requested = typeof params.conta === "string" ? accounts.find((account) => account.id === params.conta) : undefined
   const account = requested ?? accounts.find((item) => item.usable) ?? accounts[0]
@@ -73,6 +77,15 @@ export default async function RecoveryPage({ searchParams }: PageProps<"/recuper
     tab === "raio-x" ? getFindings(account.id) : null,
   ])
   const accountParam = accounts.length > 1 ? account.id : null
+  // Por que a leitura parou (token, teste vencido ou rodada parada), em linguagem simples.
+  const health = classifySyncHealth({
+    now,
+    accountActive: account.active,
+    tokenValid: account.tokenValid,
+    hasAccess: context.access.state !== "blocked",
+    trialEndsAt: context.access.trialEndsAt,
+    sync: overview.sync,
+  })
   const loading = !overview.sync?.last_returns_at || overview.scan?.status !== "done"
   const href = (next: RecoveryTab, nextFilter?: ReturnFilter) => recoveryHref(accountParam, next, nextFilter)
 
@@ -97,17 +110,30 @@ export default async function RecoveryPage({ searchParams }: PageProps<"/recuper
         <span>Alertas por e-mail: os mesmos do Escudo de Reputação (liga e desliga na tela Reputação).</span>
       </div>
 
+      <ReviewBanner
+        count={overview.waiting.count}
+        amount={overview.waiting.actionableAmount}
+        nextDeadline={overview.waiting.nextDeadline}
+        href={href("devolucoes", "revisar")}
+      />
+
       <RecoveryTabs active={tab} waiting={overview.counts.revisar} hrefFor={(key) => href(key)} />
 
-      {!account.usable ? (
-        <Alert>
+      {health.status !== "ok" ? (
+        <Alert variant="destructive">
           <AlertTriangleIcon />
-          <AlertTitle>Esta conta não está conectada</AlertTitle>
-          <AlertDescription>Reconecte a conta em Contas do Mercado Livre para a maanu voltar a acompanhar as devoluções.</AlertDescription>
+          <AlertTitle>
+            {health.status === "token_invalido"
+              ? "Esta conta não está conectada"
+              : health.status === "sem_acesso"
+                ? "O Recuperador está pausado"
+                : "O Recuperador está sem ler as devoluções"}
+          </AlertTitle>
+          <AlertDescription>{health.message}</AlertDescription>
         </Alert>
       ) : null}
 
-      {overview.sync?.last_error && overview.sync.last_error_at && Date.parse(overview.sync.last_error_at) > now.getTime() - 60 * 60 * 1000 ? (
+      {health.status === "ok" && overview.sync?.last_error && overview.sync.last_error_at && Date.parse(overview.sync.last_error_at) > now.getTime() - 60 * 60 * 1000 ? (
         <Alert>
           <AlertTriangleIcon />
           <AlertTitle>Não conseguimos ler tudo no Mercado Livre agora</AlertTitle>

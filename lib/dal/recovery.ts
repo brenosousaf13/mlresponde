@@ -2,6 +2,7 @@ import "server-only"
 
 import { followUpSummary, type FollowUpSummary } from "@/lib/recovery/follow-up"
 import {
+  deadlinePassed,
   findingOutcome,
   rowReviewMode,
   type FindingKind,
@@ -57,6 +58,13 @@ export type ReturnListRow = {
   mode: ReviewMode | null
   /** Acompanhamento da revisão que a maanu enviou (em análise, ressarcido, ML negou...); null = nada enviado. */
   follow_up: FollowUpSummary | null
+  /** O prazo é uma estimativa (contestação do armazém: 60 dias; chegada sem prazo do ML: 3 dias). */
+  deadline_estimated: boolean
+}
+
+/** Acionável agora: precisa de revisão/contestação liberada e o prazo (real ou estimado) ainda não venceu. */
+export function isActionableRow(row: ReturnListRow, now: Date): boolean {
+  return row.phase === "needs_review" && row.mode !== null && !deadlinePassed(row.deadline_at, now)
 }
 
 function toListRow(row: Record<string, unknown>): ReturnListRow {
@@ -91,6 +99,7 @@ function toListRow(row: Record<string, unknown>): ReturnListRow {
     recovered_amount: row.recovered_amount === null || row.recovered_amount === undefined ? null : Number(row.recovered_amount),
     is_cart: Boolean(row.is_cart),
     mode,
+    deadline_estimated: mode === "appeal",
     follow_up: followUpSummary({
       phase: String(row.phase),
       review_kind: (row.review_kind as string | null) ?? null,
@@ -190,6 +199,7 @@ export async function getRecoveryOverview(accountId: string): Promise<RecoveryOv
       .select(LIST_COLUMNS)
       .eq("ml_account_id", accountId)
       .eq("phase", "needs_review")
+      .or("deadline_at.is.null,deadline_at.gt." + new Date().toISOString())
       .order("deadline_at", { ascending: true, nullsFirst: false })
       .limit(300),
     supabase.from("recovery_findings").select("kind, status, amount, evidence").eq("ml_account_id", accountId).limit(5000),
@@ -214,7 +224,11 @@ export async function getRecoveryOverview(accountId: string): Promise<RecoveryOv
   ])
   for (const result of [sync, scan, escudo, waiting, findings, recovered, retainedGlobal, andamento, encerradas]) if (result.error) throw result.error
   // Linha lida pela regra antiga (antes da Sessão 31) que não é revisável de verdade some na hora; a releitura corrige.
-  const waitingRows = (waiting.data ?? []).map((row) => toListRow(row as Record<string, unknown>)).filter((row) => row.mode !== null)
+  const readAt = new Date()
+  const waitingRows = await markEstimatedArrivals(
+    accountId,
+    (waiting.data ?? []).map((row) => toListRow(row as Record<string, unknown>)).filter((row) => isActionableRow(row, readAt))
+  )
   const outcomes = (findings.data ?? []).map((row) => ({
     ...row,
     outcome: findingOutcome({ kind: row.kind as FindingKind, status: row.status, evidence: (row.evidence ?? {}) as Record<string, unknown> }),
@@ -261,6 +275,7 @@ export async function getRecoveryOverview(accountId: string): Promise<RecoveryOv
 export async function getReturnsTab(accountId: string, filter: ReturnFilter): Promise<ReturnListRow[]> {
   const supabase = await createClient()
   let query = supabase.from("recovery_returns").select(LIST_COLUMNS).eq("ml_account_id", accountId).in("phase", RETURN_FILTERS[filter].phases)
+  if (filter === "revisar") query = query.or("deadline_at.is.null,deadline_at.gt." + new Date().toISOString())
   query =
     filter === "revisar"
       ? query.order("deadline_at", { ascending: true, nullsFirst: false })
@@ -268,7 +283,46 @@ export async function getReturnsTab(accountId: string, filter: ReturnFilter): Pr
   const { data, error } = await query.limit(200)
   if (error) throw error
   const rows = data.map((row) => toListRow(row as Record<string, unknown>))
-  return filter === "revisar" ? rows.filter((row) => row.mode !== null) : rows
+  return filter === "revisar" ? markEstimatedArrivals(accountId, rows.filter((row) => isActionableRow(row, new Date()))) : rows
+}
+
+/**
+ * Revisão do pacote que chegou sem prazo do ML: o prazo gravado é a estimativa de 3 dias. Não há coluna para isso (sem
+ * migração), então confere na reclamação lida pelo Escudo se o ML mandou algum prazo (detail.due_date ou next_due_at).
+ */
+async function markEstimatedArrivals(accountId: string, rows: ReturnListRow[]): Promise<ReturnListRow[]> {
+  const arrivals = rows.filter((row) => row.mode === "arrival")
+  if (!arrivals.length) return rows
+  const supabase = await createClient()
+  const { data, error } = await supabase
+    .from("reputation_claims")
+    .select("claim_id, next_due_at, detail")
+    .eq("ml_account_id", accountId)
+    .in("claim_id", arrivals.map((row) => row.claim_id))
+  if (error) {
+    console.error("[recuperador] conferir prazo estimado:", error.message)
+    return rows
+  }
+  const hasRealDue = new Set(
+    data
+      .filter((claim) => claim.next_due_at || typeof (claim.detail as { due_date?: unknown } | null)?.due_date === "string")
+      .map((claim) => Number(claim.claim_id))
+  )
+  return rows.map((row) => (row.mode === "arrival" && !hasRealDue.has(row.claim_id) ? { ...row, deadline_estimated: true } : row))
+}
+
+/** Devoluções acionáveis da organização (selo do menu): mesma regra do aviso e da lista "Revise agora". */
+export async function getActionableReturnsCount(organizationId: string): Promise<number> {
+  const now = new Date()
+  const { data, error } = await (await createClient())
+    .from("recovery_returns")
+    .select(LIST_COLUMNS)
+    .eq("organization_id", organizationId)
+    .eq("phase", "needs_review")
+    .or("deadline_at.is.null,deadline_at.gt." + now.toISOString())
+    .limit(300)
+  if (error) throw error
+  return data.map((row) => toListRow(row as Record<string, unknown>)).filter((row) => isActionableRow(row, now)).length
 }
 
 export async function getFindings(accountId: string): Promise<FindingRow[]> {

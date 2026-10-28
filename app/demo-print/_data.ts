@@ -40,6 +40,7 @@ function returnRow(partial: Partial<ReturnListRow> & Pick<ReturnListRow, "id" | 
     is_cart: false,
     mode: "arrival",
     follow_up: null,
+    deadline_estimated: partial.mode === "appeal",
     ...partial,
   }
 }

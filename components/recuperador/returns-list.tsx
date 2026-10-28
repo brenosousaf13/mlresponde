@@ -46,7 +46,7 @@ export function ReturnRowItem({ row, accountId, now }: { row: ReturnListRow; acc
             {row.phase === "needs_review" && row.deadline_at ? (
               <span className={cn("shrink-0 text-xs font-medium tabular-nums", DUE_TEXT[due])}>
                 {deadlineLabel(row.mode, due === "overdue")}
-                {formatDateTime(row.deadline_at)} ({timeAgo(row.deadline_at, now)}){row.mode === "appeal" ? " · estimado" : ""}
+                {formatDateTime(row.deadline_at)} ({timeAgo(row.deadline_at, now)}){row.deadline_estimated ? " · estimado" : ""}
               </span>
             ) : row.claim_created_at ? (
               <span className="shrink-0 text-xs text-muted-foreground">Aberta {timeAgo(row.claim_created_at, now)}</span>

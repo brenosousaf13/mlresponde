@@ -40,8 +40,10 @@ export function returnAlerts(rows: readonly ReturnAlertInput[], now: Date = new 
   for (const row of rows) {
     const label = truncate(row.item_title || "Devolução " + row.claim_id, 90)
     const data = { return_row_id: row.id, claim_id: row.claim_id }
-    if (row.phase === "needs_review") {
-      const due = row.deadline_at ? Date.parse(row.deadline_at) : NaN
+    const dueTime = row.deadline_at ? Date.parse(row.deadline_at) : NaN
+    // Prazo vencido não é acionável: sem alerta (o que já existia se resolve na próxima rodada).
+    if (row.phase === "needs_review" && !(Number.isFinite(dueTime) && dueTime <= now.getTime())) {
+      const due = dueTime
       const left = due - now.getTime()
       const appeal = row.mode === "appeal"
       const value = row.amount ? money(row.amount) : null

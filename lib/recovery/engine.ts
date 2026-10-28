@@ -16,9 +16,13 @@ import {
   uploadReturnAttachment,
 } from "@/lib/mercadolivre/reputation"
 import { returnAlerts } from "@/lib/recovery/alerts"
+import { logRecovery, shortAccount } from "@/lib/recovery/log"
+import { classifySyncHealth, organizationHasAccess, SYNC_STALE_MS } from "@/lib/recovery/sync-health"
 import {
+  arrivalDate,
   cartOrderIds,
   classifyReturn,
+  deadlinePassed,
   ownReviews,
   recoveredByMaanu,
   returnAmount,
@@ -250,7 +254,6 @@ async function syncReturn(
     reviews,
   })
   const reviewSubmitted = Boolean(existing?.review_submitted_at)
-  const phase = returnPhase({ claimStatus: claim.status, parsed, mode, reviews, reviewSubmitted })
   const deadline = reviewDeadline({
     mode,
     actionDue: availability.dueDate,
@@ -258,7 +261,33 @@ async function syncReturn(
     detail: claim.detail as ClaimDetailLike,
     reviews,
     viaTriage: parsed?.viaTriage ?? false,
+    arrivedAt: arrivalDate(parsed, reviews),
   })
+  // Prazo vencido (real ou estimado): sai da fila "Revise agora" e vai para o histórico (closed), sem esperar nada do ML.
+  const overdue = mode !== null && deadlinePassed(deadline.at, now)
+  const phase = returnPhase({ claimStatus: claim.status, parsed, mode, reviews, reviewSubmitted, deadlineAt: deadline.at, now })
+  logRecovery({
+    etapa: "lido",
+    conta: account.id,
+    claim_id: claimId,
+    resultado: "ok",
+    detalhe: "fase=" + phase + (mode ? " modo=" + mode : "") + (overdue ? " prazo vencido" : ""),
+  })
+  if (phase === "needs_review" && existing?.phase !== "needs_review") {
+    logRecovery({
+      etapa: "elegivel",
+      conta: account.id,
+      claim_id: claimId,
+      resultado: "ok",
+      detalhe: "modo=" + mode + (deadline.estimated ? " prazo estimado" : ""),
+    })
+  }
+  const wasDecided = Array.isArray(existing?.reviews)
+    ? (existing.reviews as unknown as ReturnReview[]).some((review) => review.seller_status === "failed" || review.seller_status === "success")
+    : false
+  if (existing && !wasDecided && reviews.some((review) => review.seller_status === "failed" || review.seller_status === "success")) {
+    logRecovery({ etapa: "decidido", conta: account.id, claim_id: claimId, resultado: "ok", detalhe: "o ML decidiu a revisão" })
+  }
   const claimOrder = parsed?.orders.find((order) => order.order_id === orderId) ?? parsed?.orders[0] ?? null
   // Venda: a lida pelo Escudo; senão a que a maanu já buscou antes (não apaga o valor a cada leitura).
   const amount = returnAmount(summary, claimOrder) ?? (existing?.amount === null || existing?.amount === undefined ? null : Number(existing.amount))
@@ -286,8 +315,8 @@ async function syncReturn(
     is_cart: orders.length > 1,
     orders: (parsed?.orders ?? []) as unknown as Json,
     // O que a maanu oferece na tela: só quando o vendedor pode agir de verdade (na contestação, só "com problema").
-    can_review_ok: mode === "arrival" && availability.ok,
-    can_review_fail: mode !== null && availability.fail,
+    can_review_ok: mode === "arrival" && availability.ok && !overdue,
+    can_review_fail: mode !== null && availability.fail && !overdue,
     deadline_at: deadline.at,
     reviews: allReviews as unknown as Json,
     order_id: orderId,
@@ -314,6 +343,7 @@ async function syncReturn(
       reviews,
       mode,
       deadlineAt: deadline.at,
+      overdue,
       reviewSubmittedKind: existing?.review_kind ?? null,
       buyerReason,
       amount: fields.amount ?? null,
@@ -342,6 +372,9 @@ async function syncReturn(
     .select("id")
     .single()
   if (error) throw error
+  if (fields.recovered_at && !existing?.recovered_at) {
+    logRecovery({ etapa: "recuperado", conta: account.id, claim_id: claimId, resultado: "ok", detalhe: "ressarcimento detectado" })
+  }
 
   if (finding) {
     const { error: findingError } = await admin.from("recovery_findings").upsert(
@@ -397,10 +430,24 @@ async function refreshReturnAlerts(account: ReputationAccount, now: Date) {
       recovered_amount: row.recovered_amount === null ? null : Number(row.recovered_amount),
     }))
       // Só o que o vendedor pode fazer de verdade (linha da regra antiga que não é revisável não vira alerta).
-      .map((row) => (row.phase === "needs_review" && row.mode === null ? { ...row, phase: "other" } : row)),
+      .map((row) => (row.phase === "needs_review" && row.mode === null ? { ...row, phase: "other" } : row))
+      // Prazo vencido não é mais acionável: o alerta se resolve sozinho.
+      .map((row) => (row.phase === "needs_review" && deadlinePassed(row.deadline_at, now) ? { ...row, phase: "closed" } : row)),
     now
   )
   await applyAlerts(account, drafts, RETURN_ALERT_KINDS, undefined, now)
+  for (const draft of drafts) {
+    if (draft.kind === "return_review_due" || draft.kind === "return_review_closing") {
+      const claimId = Number((draft.data as { claim_id?: unknown } | undefined)?.claim_id)
+      logRecovery({
+        etapa: "avisado",
+        conta: account.id,
+        claim_id: Number.isFinite(claimId) ? claimId : null,
+        resultado: "ok",
+        detalhe: draft.kind,
+      })
+    }
+  }
 }
 
 /** Progresso do Raio-X: quantas devoluções da janela já foram lidas. */
@@ -515,7 +562,7 @@ export async function syncRecoveryAccount(account: ReputationAccount, budget: Ca
             stop = error
             break
           }
-          console.error("[recuperador] devolução " + claim.claim_id + ":", errorMessage(error))
+          logRecovery({ etapa: "lido", conta: account.id, claim_id: Number(claim.claim_id), resultado: "falha", detalhe: errorMessage(error) })
           processed++
         }
       }
@@ -535,7 +582,7 @@ export async function syncRecoveryAccount(account: ReputationAccount, budget: Ca
     } else {
       lastError = errorMessage(error)
       next = error instanceof MlAccountUnavailableError ? INTERVALS.accountUnavailable : INTERVALS.error
-      console.error("[recuperador] conta " + account.id + ":", lastError)
+      logRecovery({ etapa: "lido", conta: account.id, resultado: "falha", detalhe: lastError })
     }
   }
   const { error } = await admin
@@ -553,7 +600,7 @@ export async function syncRecoveryAccount(account: ReputationAccount, budget: Ca
 
 async function releaseLock(accountId: string) {
   const { error } = await createServiceClient().from("recovery_sync").update({ locked_until: null }).eq("ml_account_id", accountId)
-  if (error) console.error("[recuperador] trava da conta " + accountId + ":", error.message)
+  if (error) logRecovery({ etapa: "lido", conta: accountId, resultado: "falha", detalhe: "trava da conta: " + error.message })
 }
 
 async function forEachLimit<T>(items: readonly T[], limit: number, task: (item: T) => Promise<unknown>) {
@@ -589,7 +636,7 @@ export async function runRecoverySync(): Promise<RecoverySyncResult> {
         result.accounts++
       } catch (error) {
         result.failures++
-        console.error("[recuperador] conta " + row.ml_account_id + ":", errorMessage(error))
+        logRecovery({ etapa: "lido", conta: row.ml_account_id, resultado: "falha", detalhe: errorMessage(error) })
         await releaseLock(row.ml_account_id)
       }
     })
@@ -597,8 +644,77 @@ export async function runRecoverySync(): Promise<RecoverySyncResult> {
     result.failures++
     console.error("[recuperador] rodada:", errorMessage(error))
   }
+  try {
+    await monitorRecoveryHealth(new Date())
+  } catch (error) {
+    console.error("[recuperador] monitor de contas paradas:", errorMessage(error))
+  }
   result.rateLimited = budget.rateLimited
   return result
+}
+
+/** Última vez que cada conta foi registrada como parada / sem acesso (evita repetir o mesmo log e a mesma gravação). */
+const healthReported = new Map<string, number>()
+
+/**
+ * Só leitura (mais 1 gravação do motivo, quando não há erro real): contas ativas que o claim_recovery_sync pulou por
+ * organização sem acesso e contas paradas há mais de 30 minutos. Roda 1 vez por rodada do cron e registra cada conta no
+ * máximo 1 vez a cada 30 minutos por instância. Sem migração e sem alerta novo.
+ */
+export async function monitorRecoveryHealth(now: Date) {
+  const admin = createServiceClient()
+  const { data: accounts, error } = await admin
+    .from("ml_accounts")
+    .select("id, organization_id, status, token_status")
+    .eq("status", "active")
+    .eq("token_status", "valid")
+    .limit(2000)
+  if (error) throw error
+  if (!accounts.length) return
+  const orgIds = [...new Set(accounts.map((account) => account.organization_id))]
+  const [orgs, syncs] = await Promise.all([
+    admin.from("organizations").select("id, billing_exempt, subscription_status, current_period_end, trial_ends_at").in("id", orgIds),
+    admin
+      .from("recovery_sync")
+      .select("ml_account_id, last_returns_at, last_error, last_error_at")
+      .in("ml_account_id", accounts.map((account) => account.id)),
+  ])
+  if (orgs.error) throw orgs.error
+  if (syncs.error) throw syncs.error
+  const orgById = new Map(orgs.data.map((org) => [org.id, org]))
+  const syncById = new Map(syncs.data.map((sync) => [sync.ml_account_id, sync]))
+  for (const account of accounts) {
+    const org = orgById.get(account.organization_id)
+    const sync = syncById.get(account.id) ?? null
+    if (!org) continue
+    const health = classifySyncHealth({
+      now,
+      accountActive: true,
+      tokenValid: true,
+      hasAccess: organizationHasAccess(org, now),
+      trialEndsAt: org.trial_ends_at,
+      sync,
+    })
+    if (health.status !== "parado" && health.status !== "sem_acesso") continue
+    const last = healthReported.get(account.id) ?? 0
+    if (now.getTime() - last < SYNC_STALE_MS) continue
+    healthReported.set(account.id, now.getTime())
+    logRecovery({
+      etapa: health.status === "parado" ? "sync_parado" : "sem_acesso",
+      conta: account.id,
+      resultado: "pulado",
+      detalhe: health.reason,
+    })
+    // Grava o motivo só quando não há erro real (o histórico de erro verdadeiro nunca é apagado).
+    if (sync && !sync.last_error && health.reason) {
+      const { error: reasonError } = await admin
+        .from("recovery_sync")
+        .update({ last_error: health.reason, last_error_at: sync.last_returns_at ?? now.toISOString() })
+        .eq("ml_account_id", account.id)
+        .is("last_error", null)
+      if (reasonError) console.error("[recuperador] gravar motivo " + shortAccount(account.id) + ":", reasonError.message)
+    }
+  }
 }
 
 /** "Atualizar agora" na tela: uma rodada da conta já (se não estiver em andamento). */
@@ -870,7 +986,13 @@ export async function submitReturnReviewFor(input: ReviewInput): Promise<ReviewR
   } catch (error) {
     const mlStatus = error instanceof MlApiError ? error.status : null
     await recordReview({ loaded, userId: input.userId, decision: input.decision, details, status: "failed", mlStatus, error: errorMessage(error) })
-    console.error("[recuperador] revisão da devolução " + claimId + ":", errorMessage(error))
+    logRecovery({
+      etapa: "enviado",
+      conta: account.id,
+      claim_id: claimId,
+      resultado: "falha",
+      detalhe: "ml_status=" + (mlStatus ?? "sem resposta") + " decisao=" + input.decision,
+    })
     return { ok: false, message: friendlyMlError(error) }
   }
 
@@ -883,6 +1005,13 @@ export async function submitReturnReviewFor(input: ReviewInput): Promise<ReviewR
     status: "success",
     mlStatus: submitted.result.status,
     response: submitted.result.body,
+  })
+  logRecovery({
+    etapa: "enviado",
+    conta: account.id,
+    claim_id: claimId,
+    resultado: "ok",
+    detalhe: "ml_status=" + submitted.result.status + " decisao=" + input.decision,
   })
   const { error: updateError } = await createServiceClient()
     .from("recovery_returns")

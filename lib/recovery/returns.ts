@@ -38,7 +38,16 @@ export type MlReturn = {
   status_money?: string | null
   refund_at?: string | null
   date_closed?: string | null
-  shipments?: { status?: string | null; type?: string | null; destination?: { name?: string | null } | null }[] | null
+  shipments?:
+    | {
+        status?: string | null
+        type?: string | null
+        destination?: { name?: string | null } | null
+        /** Datas do envio (quando o ML as manda): servem de chegada ao vendedor para o prazo estimado. */
+        date_delivered?: string | null
+        last_updated?: string | null
+      }[]
+    | null
   orders?: { order_id?: IdLike; item_id?: string | null; return_quantity?: unknown; total_quantity?: unknown }[] | null
 }
 
@@ -70,6 +79,8 @@ export type ParsedReturn = {
   destination: string | null
   /** O produto passou pela revisão do armazém e segue para o endereço do vendedor (envio "return_from_triage"). */
   viaTriage: boolean
+  /** Melhor data de chegada ao vendedor que o ML informou no envio (entrega ou última atualização); null = não informou. */
+  arrivedAt: string | null
   orders: ReturnOrder[]
   /** Pedidos desta devolução vistos nesta reclamação (o carrinho de verdade é detectado com cartOrderIds). */
   isCart: boolean
@@ -133,6 +144,7 @@ export function parseReturn(raw: MlReturn | MlReturn[] | null | undefined): Pars
     shipmentStatus: text(shipment?.status, 30),
     destination: text(shipment?.destination?.name, 40),
     viaTriage: shipments.some((entry) => entry?.type === "return_from_triage"),
+    arrivedAt: isoDate(shipment?.date_delivered) ?? isoDate(shipment?.last_updated),
     orders,
     isCart: new Set(orders.map((order) => order.order_id).filter(Boolean)).size > 1,
   }
@@ -269,6 +281,27 @@ export function rowReviewMode(row: {
 const DAY_MS = 24 * 60 * 60 * 1000
 /** Full: o vendedor tem até 60 dias depois do resultado da revisão para contestar (regra publicada pelo ML). */
 export const APPEAL_WINDOW_DAYS = 60
+/**
+ * Revisão do pacote que chegou: a central do vendedor do Mercado Livre diz que o vendedor tem "3 dias depois que a
+ * devolução chegar no seu endereço" para revisar. Usado como ESTIMATIVA quando o ML não manda o prazo.
+ */
+export const ARRIVAL_WINDOW_DAYS = 3
+
+/** O prazo já passou? (sem prazo = não venceu). */
+export function deadlinePassed(deadlineAt: string | null | undefined, now: Date): boolean {
+  const time = deadlineAt ? Date.parse(deadlineAt) : NaN
+  return Number.isFinite(time) && time <= now.getTime()
+}
+
+/**
+ * Melhor data de chegada do pacote ao vendedor: a do envio (quando o ML a manda) ou a revisão mais recente do pedido;
+ * null se nenhuma existir.
+ */
+export function arrivalDate(parsed: { arrivedAt?: string | null } | null, reviews: readonly ReturnReview[]): string | null {
+  if (parsed?.arrivedAt) return parsed.arrivedAt
+  const times = reviews.map((review) => Date.parse(review.updated_at ?? "")).filter((time) => Number.isFinite(time))
+  return times.length ? new Date(Math.max(...times)).toISOString() : null
+}
 
 export type ClaimDetailLike = { due_date?: string | null; action_responsible?: string | null } | null
 
@@ -276,7 +309,7 @@ export type ClaimDetailLike = { due_date?: string | null; action_responsible?: s
  * Prazo do vendedor:
  *  - due_date da ação, quando o ML manda;
  *  - "arrival": o detail.due_date da reclamação (qualquer action_responsible: o ML manda "complainant" em casos reais),
- *    senão o próximo prazo obrigatório;
+ *    senão o próximo prazo obrigatório; sem nenhum dos dois, ESTIMATIVA de 3 dias depois da chegada (arrivedAt);
  *  - "appeal": o detail.due_date quando o produto foi para o endereço do vendedor depois do armazém; senão ESTIMATIVA de
  *    60 dias depois da revisão do armazém (o ML não informa pela API).
  */
@@ -287,11 +320,20 @@ export function reviewDeadline(input: {
   detail: ClaimDetailLike
   reviews: readonly ReturnReview[]
   viaTriage?: boolean
+  /** Melhor data de chegada do pacote ao vendedor (ver arrivalDate). */
+  arrivedAt?: string | null
 }): { at: string | null; estimated: boolean } {
   if (!input.mode) return { at: null, estimated: false }
   if (input.actionDue) return { at: input.actionDue, estimated: false }
   const detailDue = isoDate(input.detail?.due_date)
-  if (input.mode === "arrival") return { at: detailDue ?? input.nextDueAt ?? null, estimated: false }
+  if (input.mode === "arrival") {
+    const real = detailDue ?? input.nextDueAt ?? null
+    if (real) return { at: real, estimated: false }
+    const arrived = Date.parse(input.arrivedAt ?? "")
+    return Number.isFinite(arrived)
+      ? { at: new Date(arrived + ARRIVAL_WINDOW_DAYS * DAY_MS).toISOString(), estimated: true }
+      : { at: null, estimated: false }
+  }
   if (input.viaTriage && detailDue) return { at: detailDue, estimated: false }
   const reviewedAt = Date.parse(triageAwaitingSeller(input.reviews)?.updated_at ?? "")
   return Number.isFinite(reviewedAt)
@@ -310,6 +352,21 @@ export function sellerReviewed(reviews: readonly ReturnReview[]): boolean {
  * mora o dinheiro); contestação enviada e ainda sem decisão do ML fica "reviewed".
  */
 export function returnPhase(input: {
+  claimStatus: string
+  parsed: ParsedReturn | null
+  mode: ReviewMode | null
+  reviews: readonly ReturnReview[]
+  reviewSubmitted: boolean
+  /** Prazo do vendedor (real ou estimado): vencido, a devolução sai de "needs_review" e vai para o histórico (closed). */
+  deadlineAt?: string | null
+  now?: Date
+}): ReturnPhase {
+  const phase = basePhase(input)
+  if (phase === "needs_review" && deadlinePassed(input.deadlineAt, input.now ?? new Date())) return "closed"
+  return phase
+}
+
+function basePhase(input: {
   claimStatus: string
   parsed: ParsedReturn | null
   mode: ReviewMode | null
@@ -506,6 +563,8 @@ export function classifyReturn(input: {
   reviews: readonly ReturnReview[]
   mode: ReviewMode | null
   deadlineAt?: string | null
+  /** O prazo do vendedor já passou: a contestação/revisão não é mais possível (o achado fecha como "expired"). */
+  overdue?: boolean
   reviewSubmittedKind?: string | null
   buyerReason?: string | null
   amount: number | null
@@ -541,7 +600,7 @@ export function classifyReturn(input: {
   })
   if (sellerCompensated(input.reviews, input.resolution)) return make("return_reimbursed", "reimbursed", "resolved", "high")
   const strength = appealStrength(input.buyerReason, review.reason_id)
-  if (input.mode === "appeal") return make("return_unsaleable_unreimbursed", "contestable", "open", strength)
+  if (input.mode === "appeal" && !input.overdue) return make("return_unsaleable_unreimbursed", "contestable", "open", strength)
   const contested = input.reviews.some((item) => item.seller_status === "claimed")
   const submittedFail = input.reviewSubmittedKind === "fail"
   const decidedForBuyer = input.reviews.some((item) => item.seller_status === "success")
@@ -550,7 +609,7 @@ export function classifyReturn(input: {
     return make("return_unsaleable_unreimbursed", "appeal_lost", "resolved", "low")
   }
   // Ainda aberta e sem contestação liberada: o armazém pode liberar depois (a próxima leitura decide).
-  if (input.claimStatus === "opened" && review.stage !== "closed" && review.stage !== "timeout") return null
+  if (!input.overdue && input.claimStatus === "opened" && review.stage !== "closed" && review.stage !== "timeout") return null
   if (review.benefited === "buyer" || input.statusMoney === "refunded") {
     return make("return_unsaleable_unreimbursed", "expired", "resolved", strength)
   }
