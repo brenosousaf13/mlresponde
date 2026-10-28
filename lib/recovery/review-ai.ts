@@ -17,6 +17,10 @@ export type ReturnMessageInput = {
   photos: number
   itemTitle: string | null
   quantity: number | null
+  /** Reason id registrado pela triagem do armazém, quando disponível. */
+  warehouseReasonId?: string | null
+  /** Condição registrada pela triagem do armazém, quando disponível. */
+  productCondition?: string | null
   /** Contestação da revisão do armazém do ML (o vendedor pode não ter o produto em mãos). */
   appeal?: boolean
   /** Motivo declarado pelo comprador ao abrir a devolução (texto do ML). */
@@ -41,14 +45,14 @@ export function buildReturnMessageSystemPrompt(storeName: string, appeal = false
     "",
     "Regras:",
     "- Português do Brasil, primeira pessoa (o vendedor), tom objetivo e educado. Até 600 caracteres.",
-    "- Use SÓ os fatos informados (motivo, itens marcados e observações do vendedor). Nunca invente dano, peça, data, valor ou estado do produto.",
+    "- Use somente estes fatos: motivo do comprador, veredito/reason_id e condição registrados na triagem, título do item e o que o vendedor marcou ou escreveu. Nunca invente dano, peça, data, prazo, valor, quantidade ou estado do produto.",
     "- Se houver fotos, diga que elas vão anexadas. Se não houver, não mencione fotos.",
     "- Não acuse o comprador de má-fé nem use adjetivos fortes. Descreva o que foi constatado.",
     "- Proibido contato fora do Mercado Livre: nada de telefone, WhatsApp, e-mail, links ou redes sociais.",
     "- Termine pedindo a análise do caso" + (appeal ? " e o ressarcimento do valor da venda." : "."),
     ...(appeal
       ? [
-          "- Na contestação, cite o motivo que o comprador declarou e o que o armazém registrou só como estão no texto (não acrescente nada) e explique, com os fatos do vendedor, por que o produto voltou fora das condições em que foi enviado.",
+          "- Na contestação, cite o motivo do comprador e o veredito/reason_id e condição da triagem somente quando estiverem informados. Não diga que o produto foi enviado em perfeito estado nem atribua responsabilidade sem que o vendedor tenha escrito isso.",
         ]
       : []),
   ].join("\n")
@@ -56,12 +60,18 @@ export function buildReturnMessageSystemPrompt(storeName: string, appeal = false
 
 export function buildReturnMessageUserPrompt(input: ReturnMessageInput): string {
   return [
-    "Produto: " + (input.itemTitle ?? "(não informado)") + (input.quantity ? " · " + input.quantity + " unidade(s)" : ""),
+    "Título do item: " + (input.itemTitle ?? "(não informado)"),
     "Motivo escolhido: " + input.reasonLabel,
     "O que o vendedor marcou ao conferir: " + (input.checks.length ? input.checks.join("; ") : "(nada marcado)"),
     "Observações do vendedor: " + (input.notes.trim() ? input.notes.trim().slice(0, 600) : "(nenhuma)"),
-    "Fotos anexadas: " + input.photos,
-    ...(input.appeal
+    "Fotos anexadas pelo vendedor: " + input.photos,
+    ...(input.warehouseReasonId || input.productCondition
+      ? [
+          "Triagem do armazém — reason_id: " + (input.warehouseReasonId ?? "(não informado)"),
+          "Triagem do armazém — condição: " + (input.productCondition ?? "(não informado)"),
+        ]
+      : []),
+    ...(input.appeal || input.buyerReason
       ? [
           "Motivo declarado pelo comprador: " + (input.buyerReason?.trim() ? input.buyerReason.trim().slice(0, 300) : "(não informado)"),
           "O que o armazém do Mercado Livre registrou: " +

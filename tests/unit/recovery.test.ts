@@ -644,7 +644,7 @@ describe("revisão: motivos, validação e corpo", () => {
     )
     const appeal = fallbackReturnMessage({ reasonLabel: "O produto chegou avariado", checks: [], notes: "", photos: 0, appeal: true })
     expect(appeal).toBe(
-      "Contesto a revisão desta devolução. O produto foi enviado em perfeito estado e voltou com problema: O produto chegou avariado. Peço a análise do caso e o ressarcimento do valor da venda."
+      "Contesto a revisão desta devolução. O motivo que selecionei foi: O produto chegou avariado. Peço a análise do caso e o ressarcimento do valor da venda."
     )
   })
 })

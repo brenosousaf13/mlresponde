@@ -28,8 +28,9 @@ import {
   cartOrderIds,
   destinationLabel,
   ownReviews,
+  triageAwaitingSeller,
 } from "@/lib/recovery/returns"
-import { FALLBACK_REASONS } from "@/lib/recovery/review"
+import { FALLBACK_REASONS, suggestFailReason } from "@/lib/recovery/review"
 import { suggestActionByRules, suggestInputFromRows } from "@/lib/recovery/suggest"
 import { DUE_TEXT, claimHref, dueState, mlSaleUrl } from "@/lib/reputation/presentation"
 import { cn } from "@/lib/utils"
@@ -69,6 +70,13 @@ export default async function ReturnPage({ params, searchParams }: PageProps<"/r
   const backHref = recoveryHref(conta, "devolucoes", row.phase === "needs_review" ? undefined : row.phase === "closed" ? "encerradas" : "andamento")
   // Só a avaliação do pedido desta reclamação (a devolução pode juntar os pedidos de um carrinho).
   const warehouse = ownReviews(row.reviews, row.order_id).filter((review) => review.product_condition || review.benefited)
+  const triage = triageAwaitingSeller(ownReviews(row.reviews, row.order_id))
+  const suggestedReasonId = suggestFailReason({
+    warehouseReasonId: triage?.reason_id ?? null,
+    productCondition: triage?.product_condition ?? warehouse[0]?.product_condition ?? null,
+    buyerReason: claim?.reason_detail ?? null,
+    reasons: FALLBACK_REASONS,
+  })
   const cartOrders = cartOrderIds({ orders: row.orders, reviews: row.reviews }).length
   const quantity = row.orders.reduce((total, order) => total + (order.return_quantity ?? 0), 0)
   const mode = row.phase === "needs_review" ? row.mode : null
@@ -221,6 +229,7 @@ export default async function ReturnPage({ params, searchParams }: PageProps<"/r
           isCart={row.is_cart}
           cartOrders={Math.max(cartOrders, row.is_cart ? 2 : 1)}
           amount={row.amount ? formatMoney(row.amount, row.currency_id) : null}
+          suggestedReasonId={suggestedReasonId}
         />
       ) : row.phase === "at_warehouse" ? (
         <Alert>

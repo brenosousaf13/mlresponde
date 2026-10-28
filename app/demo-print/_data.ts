@@ -41,6 +41,13 @@ function returnRow(partial: Partial<ReturnListRow> & Pick<ReturnListRow, "id" | 
     mode: "arrival",
     follow_up: null,
     deadline_estimated: partial.mode === "appeal",
+    recommendation: partial.mode === "appeal" ? "contestar" : "chegou_certinho",
+    action_group: partial.mode === "appeal" ? "recover" : "confirm_receipt",
+    confidence: partial.mode === "appeal" ? "medium" : "low",
+    suggestion_label: partial.mode === "appeal" ? "Dá para contestar" : "Chegou certinho",
+    reason_short: partial.mode === "appeal" ? "O caso pode recuperar o valor da venda." : "Confira o pacote e confirme se chegou como foi enviado.",
+    recoverable_amount: partial.mode === "appeal" ? partial.amount ?? null : null,
+    quick_confirm_available: partial.mode === "arrival",
     ...partial,
   }
 }
@@ -113,7 +120,11 @@ export const OVERVIEW: RecoveryOverview = {
   lost: { count: 6, amount: 1286.5 },
   recovered: { count: 5, amount: 1247.3 },
   reimbursed: { count: 3, amount: 702.4 },
-  counts: { revisar: WAITING_ROWS.length, andamento: 7, encerradas: 41 },
+  groups: {
+    recover: { count: 2, amount: 509.8, nextDeadlineAt: WAITING_ROWS[0].deadline_at, nextDeadlineEstimated: true },
+    confirmReceipt: { count: 2, nextDeadlineAt: WAITING_ROWS[1].deadline_at, nextDeadlineEstimated: false },
+  },
+  counts: { revisar: WAITING_ROWS.length, recuperar: 2, confirmar: 2, andamento: 7, encerradas: 41 },
 }
 
 function finding(partial: Partial<FindingRow> & Pick<FindingRow, "id" | "outcome" | "amount"> & { evidence: Record<string, unknown> }): FindingRow {

@@ -2,6 +2,7 @@ import type { FollowUpTone } from "@/lib/recovery/follow-up"
 import type { PhotoReviewVerdict } from "@/lib/recovery/photo-review"
 import type { ReturnPhase, ReviewMode } from "@/lib/recovery/returns"
 import type { SuggestedAction } from "@/lib/recovery/suggest"
+import type { QueueRecommendation } from "@/lib/recovery/contract"
 
 /** Visual do Recuperador (puro). */
 
@@ -25,6 +26,21 @@ export const SUGGESTION_BADGE: Record<SuggestedAction, string> = {
   contest: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300",
   do_not_contest: "bg-muted text-muted-foreground",
   partial_refund: "bg-amber-500/10 text-amber-700 dark:text-amber-300",
+}
+
+/** Cores da recomendação curta que aparece em cada linha da lista. */
+export const RECOMMENDATION_BADGE: Record<QueueRecommendation, string> = {
+  contestar: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300",
+  ressarcimento_parcial: "bg-amber-500/10 text-amber-700 dark:text-amber-300",
+  ressarcimento_total: "bg-amber-500/10 text-amber-700 dark:text-amber-300",
+  chegou_certinho: "bg-muted text-muted-foreground",
+}
+
+export const RECOMMENDATION_LABEL: Record<QueueRecommendation, string> = {
+  contestar: "Dá para contestar",
+  ressarcimento_parcial: "Pedir ressarcimento parcial",
+  ressarcimento_total: "Pedir ressarcimento total",
+  chegou_certinho: "Chegou certinho",
 }
 
 /** Caixa do resultado da conferência das fotos. */

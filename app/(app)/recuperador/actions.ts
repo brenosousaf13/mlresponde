@@ -6,11 +6,17 @@ import { z } from "zod"
 import { canManageOrganization, requireSection } from "@/lib/dal/app-context"
 import { reviewReturnPhotos, suggestReturnAction, type PhotoReviewResult } from "@/lib/recovery/assist"
 import { draftReturnMessage, returnReasonsFor, submitReturnReviewFor, syncRecoveryNow, syncReturnNow } from "@/lib/recovery/engine"
+import { isQuickConfirmBatchEligible, validateConfirmReceiptBatch } from "@/lib/recovery/batch"
 import { validatePhotos, type ReturnReason } from "@/lib/recovery/review"
 import type { ReturnSuggestion } from "@/lib/recovery/suggest"
+import { logRecovery } from "@/lib/recovery/log"
+import { getReturnDetail } from "@/lib/dal/recovery"
 import { createServiceClient } from "@/lib/supabase/admin"
 
 export type RecoveryActionState = { ok: boolean; message: string }
+
+export type ConfirmReceiptBatchItem = { id: string; status: "ok" | "falha" | "pulado"; message: string }
+export type ConfirmReceiptBatchResult = { ok: boolean; message: string; items: ConfirmReceiptBatchItem[] }
 
 const uuid = z.string().uuid()
 
@@ -195,5 +201,75 @@ export async function submitReturnReviewAction(formData: FormData): Promise<Reco
     return result
   } catch (error) {
     return failure(error, "revisão da devolução")
+  }
+}
+
+/** Confirma em série até 20 devoluções selecionadas explicitamente pelo dono/admin. */
+export async function confirmReceiptBatchAction(formData: FormData): Promise<ConfirmReceiptBatchResult> {
+  const context = await requireSection("recuperador")
+  const validation = validateConfirmReceiptBatch({
+    selectedIds: formData.getAll("returnRowId"),
+    canManage: canManageOrganization(context.role),
+    confirmed: formData.get("confirmed"),
+  })
+  if (!validation.ok) return { ok: false, message: validation.message, items: [] }
+
+  const items: ConfirmReceiptBatchItem[] = []
+  let stoppedByRateLimit = false
+  for (const returnRowId of validation.ids) {
+    if (stoppedByRateLimit) {
+      items.push({ id: returnRowId, status: "pulado", message: "Pulada porque o Mercado Livre pediu para esperar." })
+      logRecovery({ etapa: "enviado", conta: context.organization.id, resultado: "pulado", detalhe: "lote confirmar: limite do ML" })
+      continue
+    }
+    let detail
+    try {
+      detail = await getReturnDetail(context.organization.id, returnRowId)
+    } catch (error) {
+      const message = "Não foi possível validar esta devolução agora."
+      items.push({ id: returnRowId, status: "falha", message })
+      console.error("[recuperador] validar confirmação em lote:", error instanceof Error ? error.message : error)
+      continue
+    }
+    if (!detail) {
+      const message = "Devolução não encontrada."
+      items.push({ id: returnRowId, status: "pulado", message })
+      logRecovery({ etapa: "enviado", conta: context.organization.id, resultado: "pulado", detalhe: "lote confirmar: devolução não encontrada" })
+      continue
+    }
+    if (!isQuickConfirmBatchEligible(detail.row)) {
+      const message = "Esta devolução não está liberada para confirmação rápida."
+      items.push({ id: returnRowId, status: "pulado", message })
+      logRecovery({ etapa: "enviado", conta: detail.account.id, claim_id: detail.row.claim_id, resultado: "pulado", detalhe: "lote confirmar: item inelegível" })
+      continue
+    }
+    try {
+      const result = await submitReturnReviewFor({
+        organizationId: context.organization.id,
+        userId: context.user.id,
+        returnRowId,
+        canManage: true,
+        decision: "ok",
+        reasonId: null,
+        message: "",
+        photos: [],
+      })
+      const status = result.ok ? "ok" : "falha"
+      items.push({ id: returnRowId, status, message: result.message })
+      if (result.rateLimited) stoppedByRateLimit = true
+    } catch (error) {
+      const message = "Não foi possível confirmar esta devolução agora."
+      items.push({ id: returnRowId, status: "falha", message })
+      console.error("[recuperador] confirmação em lote:", error instanceof Error ? error.message : error)
+    }
+  }
+  revalidatePath("/recuperador")
+  const success = items.filter((item) => item.status === "ok").length
+  const failed = items.filter((item) => item.status === "falha").length
+  const skipped = items.filter((item) => item.status === "pulado").length
+  return {
+    ok: success > 0 && failed === 0,
+    message: `${success} confirmada${success === 1 ? "" : "s"}, ${failed} com falha e ${skipped} pulada${skipped === 1 ? "" : "s"}.`,
+    items,
   }
 }

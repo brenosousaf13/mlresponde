@@ -202,6 +202,18 @@ export function photoReviewGate(input: {
   }
 }
 
+/**
+ * Confirmação extra para o caso em que o vendedor decide enviar uma revisão sem foto.
+ * Motivos que exigem foto continuam bloqueados pela validação de `review.ts`.
+ */
+export function photoSubmissionGate(input: { photoCount: number; acknowledged: boolean }): { blocked: boolean; reason: string | null } {
+  if (input.photoCount > 0 || input.acknowledged) return { blocked: false, reason: null }
+  return {
+    blocked: true,
+    reason: "Sem fotos, a chance de o Mercado Livre dar razão a você cai bastante.",
+  }
+}
+
 /** Identifica o conjunto de fotos + motivo (a conferência só roda de novo quando isso muda). */
 export function photoFingerprint(reasonId: string, photos: readonly { name: string; size: number }[]): string {
   return reasonId + "|" + photos.map((photo) => photo.name + ":" + photo.size).join(",")

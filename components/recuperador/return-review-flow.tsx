@@ -42,7 +42,7 @@ import { Label } from "@/components/ui/label"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Spinner } from "@/components/ui/spinner"
 import { Textarea } from "@/components/ui/textarea"
-import { photoFingerprint, photoReviewGate, type PhotoReview, type PhotoReviewState } from "@/lib/recovery/photo-review"
+import { photoFingerprint, photoReviewGate, photoSubmissionGate, type PhotoReview, type PhotoReviewState } from "@/lib/recovery/photo-review"
 import {
   PHOTO_GUIDE,
   RETURN_MESSAGE_MAX,
@@ -84,6 +84,7 @@ export function ReturnReviewFlow({
   isCart,
   cartOrders,
   amount,
+  suggestedReasonId,
 }: {
   returnRowId: string
   canManage: boolean
@@ -93,6 +94,7 @@ export function ReturnReviewFlow({
   isCart: boolean
   cartOrders: number
   amount: string | null
+  suggestedReasonId: string | null
 }) {
   const appeal = mode === "appeal"
   const router = useRouter()
@@ -111,6 +113,7 @@ export function ReturnReviewFlow({
   const [pending, startSubmit] = useTransition()
   const [photoCheck, setPhotoCheck] = useState<PhotoCheck | null>(null)
   const [photoAck, setPhotoAck] = useState(false)
+  const [noPhotoAck, setNoPhotoAck] = useState(false)
   const [draftKey, setDraftKey] = useState<string | null>(null)
   const [sent, setSent] = useState<ReviewDecision | null>(null)
   const fileInput = useRef<HTMLInputElement>(null)
@@ -138,6 +141,7 @@ export function ReturnReviewFlow({
     verdict: photoNow?.review?.verdict ?? null,
     acknowledged: photoAck,
   })
+  const noPhotoGate = photoSubmissionGate({ photoCount: photos.length, acknowledged: noPhotoAck })
   const currentDraftKey = checks.slice().sort().join(",") + "|" + photos.length
   const invalid = useMemo(
     () =>
@@ -156,10 +160,16 @@ export function ReturnReviewFlow({
 
   function openProblem() {
     setStep("problem")
-    if (reasons) return
+    if (reasons) {
+      if (suggestedReasonId && reasons.some((item) => item.id === suggestedReasonId)) setReasonId(suggestedReasonId)
+      return
+    }
     loadReturnReasons(returnRowId)
       .then((result) => {
-        if (result.ok) setReasons(result.reasons)
+        if (result.ok) {
+          setReasons(result.reasons)
+          if (suggestedReasonId && result.reasons.some((item) => item.id === suggestedReasonId)) setReasonId(suggestedReasonId)
+        }
         else setReasonsError(result.message)
       })
       .catch(() => setReasonsError("Não foi possível buscar os motivos agora. Tente de novo."))
@@ -193,6 +203,7 @@ export function ReturnReviewFlow({
       if (photo) URL.revokeObjectURL(photo.url)
       return current.filter((_, position) => position !== index)
     })
+    if (photos.length === 1) setNoPhotoAck(false)
   }
 
   // Relato pela IA. auto = chamado sozinho pelo fluxo (erro sem alarde); o botão "Escrever de novo" regenera e avisa o erro.
@@ -228,9 +239,8 @@ export function ReturnReviewFlow({
     [reason, returnRowId, checks, notes, photos.length]
   )
 
-  // Relato automático: quando o motivo e o que o dono viu estão escolhidos (com foto, nos motivos que exigem), uma vez por
-  // motivo e só se o dono ainda não escreveu nada. Depois disso só o botão regenera (sem laço).
-  const draftReady = Boolean(reason) && (checklist.length === 0 || checks.length > 0) && (!needsPhotos || photos.length > 0) && !preparing
+  // Relato automático: o motivo sugerido já recebe um rascunho ao abrir o fluxo; depois disso só o botão regenera (sem laço).
+  const draftReady = Boolean(reason) && !preparing
   useEffect(() => {
     if (!draftReady || !reason || drafting || pending) return
     if (autoDrafted.current === reason.id || messageEdited.current || message.trim()) return
@@ -408,6 +418,7 @@ export function ReturnReviewFlow({
                     setReasonId(String(value))
                     setChecks([])
                     setPhotoAck(false)
+                    setNoPhotoAck(false)
                     // Relato que a IA escreveu para o motivo anterior (e o dono não mexeu) sai para a IA escrever o do novo.
                     if (!messageEdited.current) {
                       setMessage("")
@@ -430,6 +441,7 @@ export function ReturnReviewFlow({
                           Foto
                         </Badge>
                       ) : null}
+                      {item.id === suggestedReasonId ? <Badge className="ml-auto shrink-0">Sugerido pela maanu — confira</Badge> : null}
                     </Label>
                   ))}
                 </RadioGroup>
@@ -463,8 +475,7 @@ export function ReturnReviewFlow({
                   </section>
                 ) : null}
 
-                {guide.length || needsPhotos ? (
-                  <section className="flex flex-col gap-3">
+                <section className="flex flex-col gap-3">
                     <h3 className="flex items-center gap-2 text-sm font-semibold">
                       3. Fotos
                       {needsPhotos ? <Badge variant="outline">obrigatória</Badge> : <Badge variant="outline">recomendado</Badge>}
@@ -476,6 +487,11 @@ export function ReturnReviewFlow({
                         ))}
                       </ul>
                     ) : null}
+                    <Alert variant="destructive" className="border-amber-500/45 bg-amber-500/10 text-amber-950 dark:text-amber-100">
+                      <CameraIcon />
+                      <AlertTitle>Envie fotos do produto e da embalagem</AlertTitle>
+                      <AlertDescription>Sem fotos, a chance de o Mercado Livre dar razão a você cai bastante.</AlertDescription>
+                    </Alert>
                     {appeal ? (
                       <p className="text-xs text-muted-foreground">
                         O produto está no Full? Valem fotos de quando ele saiu (embalagem, etiqueta, peça inteira) ou depois de
@@ -523,6 +539,12 @@ export function ReturnReviewFlow({
                     <p className="text-xs text-muted-foreground">
                       Até {RETURN_PHOTOS_MAX} fotos. A maanu reduz as fotos antes de enviar (fica mais rápido no 4G).
                     </p>
+                    {!photos.length ? (
+                      <Label className="flex min-h-10 items-start gap-2.5 rounded-lg border border-amber-500/35 bg-amber-500/10 px-3 py-2.5 text-xs leading-relaxed font-normal text-amber-950 dark:text-amber-100">
+                        <Checkbox className="mt-0.5 shrink-0" checked={noPhotoAck} onCheckedChange={(checked) => setNoPhotoAck(Boolean(checked))} disabled={pending} />
+                        Entendi que estou enviando sem fotos e quero continuar mesmo assim
+                      </Label>
+                    ) : null}
                     {photos.length > 0 ? (
                       <PhotoReviewPanel
                         state={photoState}
@@ -534,11 +556,10 @@ export function ReturnReviewFlow({
                         disabled={pending}
                       />
                     ) : null}
-                  </section>
-                ) : null}
+                </section>
 
                 <section className="flex flex-col gap-3">
-                  <h3 className="text-sm font-semibold">{guide.length || needsPhotos ? "4" : checklist.length ? "3" : "2"}. Algo mais? (opcional)</h3>
+                  <h3 className="text-sm font-semibold">4. Algo mais? (opcional)</h3>
                   <Textarea
                     value={notes}
                     onChange={(event) => setNotes(event.target.value.slice(0, 600))}
@@ -588,7 +609,7 @@ export function ReturnReviewFlow({
                 <Button
                   size="lg"
                   className="w-full sm:w-fit"
-                  disabled={!canManage || pending || drafting || Boolean(invalid) || gate.blocked}
+                  disabled={!canManage || pending || drafting || Boolean(invalid) || gate.blocked || noPhotoGate.blocked}
                   onClick={() => setConfirm("fail")}
                 >
                   <SendIcon data-icon="inline-start" />
@@ -596,6 +617,8 @@ export function ReturnReviewFlow({
                 </Button>
                 {gate.blocked && gate.reason ? (
                   <p className="text-sm text-muted-foreground">{gate.reason}</p>
+                ) : noPhotoGate.blocked ? (
+                  <p className="text-sm text-muted-foreground">{noPhotoGate.reason}</p>
                 ) : invalid && message ? (
                   <p className="text-sm text-muted-foreground">{invalid}</p>
                 ) : null}

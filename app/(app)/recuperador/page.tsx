@@ -70,9 +70,15 @@ export default async function RecoveryPage({ searchParams }: PageProps<"/recuper
 
   const now = new Date()
   const tab = parseRecoveryTab(params.aba)
-  const filter = parseReturnFilter(params.filtro)
-  const [overview, rows, findings] = await Promise.all([
-    getRecoveryOverview(account.id),
+  const overview = await getRecoveryOverview(account.id)
+  const filter = params.filtro
+    ? parseReturnFilter(params.filtro)
+    : overview.groups.recover.count > 0
+      ? "recuperar"
+      : overview.groups.confirmReceipt.count > 0
+        ? "confirmar"
+        : "revisar"
+  const [rows, findings] = await Promise.all([
     tab === "devolucoes" ? getReturnsTab(account.id, filter) : null,
     tab === "raio-x" ? getFindings(account.id) : null,
   ])
@@ -111,10 +117,8 @@ export default async function RecoveryPage({ searchParams }: PageProps<"/recuper
       </div>
 
       <ReviewBanner
-        count={overview.waiting.count}
-        amount={overview.waiting.actionableAmount}
-        nextDeadline={overview.waiting.nextDeadline}
-        href={href("devolucoes", "revisar")}
+        groups={overview.groups}
+        href={href("devolucoes", overview.groups.recover.count > 0 ? "recuperar" : "confirmar")}
       />
 
       <RecoveryTabs active={tab} waiting={overview.counts.revisar} hrefFor={(key) => href(key)} />
@@ -143,7 +147,7 @@ export default async function RecoveryPage({ searchParams }: PageProps<"/recuper
 
       {tab === "visao" ? (
         <>
-          <SummaryCards overview={overview} hrefReturns={href("devolucoes")} hrefXray={href("raio-x")} now={now} />
+          <SummaryCards overview={overview} hrefReturns={href("devolucoes", overview.groups.recover.count > 0 ? "recuperar" : "confirmar")} hrefXray={href("raio-x")} now={now} />
           <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
             <div className="min-w-0 xl:col-span-2">
               <WaitingCard overview={overview} accountId={account.id} loading={loading && !overview.waiting.count} now={now} />

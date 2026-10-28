@@ -1,13 +1,14 @@
 import { CheckCircle2Icon, ChevronRightIcon, LoaderIcon, PackageOpenIcon } from "lucide-react"
 import Link from "next/link"
 
+import { ConfirmReceiptBatch } from "@/components/recuperador/confirm-receipt-batch"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty"
 import { formatMoney } from "@/lib/customers/presentation"
 import { RETURN_FILTERS, type ReturnFilter, type ReturnListRow } from "@/lib/dal/recovery"
 import { formatDateTime, formatNumber, timeAgo } from "@/lib/format"
-import { FOLLOW_UP_BADGE, MODE_LABELS, PHASE_BADGE, deadlineLabel, returnHref } from "@/lib/recovery/presentation"
+import { FOLLOW_UP_BADGE, MODE_LABELS, PHASE_BADGE, RECOMMENDATION_BADGE, deadlineLabel, returnHref } from "@/lib/recovery/presentation"
 import { PHASE_LABELS, SHIPMENT_STATUS_LABELS, STATUS_MONEY_LABELS, destinationLabel } from "@/lib/recovery/returns"
 import { DUE_TEXT, dueState } from "@/lib/reputation/presentation"
 import { cn } from "@/lib/utils"
@@ -17,6 +18,14 @@ const EMPTY: Record<ReturnFilter, { title: string; description: string }> = {
     title: "Nenhuma devolução esperando você",
     description:
       "Quando uma devolução chegar até você ou o armazém do ML devolver o dinheiro ao comprador e der para contestar, ela aparece aqui e avisamos você.",
+  },
+  recuperar: {
+    title: "Nenhuma devolução para recuperar",
+    description: "Quando as regras encontrarem uma contestação ou um ressarcimento possível, ela aparece aqui.",
+  },
+  confirmar: {
+    title: "Nenhuma devolução só para confirmar",
+    description: "As devoluções com recomendação de confirmação aparecem aqui quando o Mercado Livre liberar o botão.",
   },
   andamento: { title: "Nenhuma devolução em andamento", description: "Devoluções a caminho ou no armazém do ML aparecem aqui." },
   encerradas: { title: "Nenhuma devolução encerrada", description: "As devoluções encerradas dos últimos 90 dias aparecem aqui." },
@@ -62,6 +71,11 @@ export function ReturnRowItem({ row, accountId, now }: { row: ReturnListRow; acc
             </Badge>
             {row.review_kind ? (
               <Badge variant="outline">{row.review_kind === "fail" ? "Você relatou problema" : "Você confirmou que chegou certinho"}</Badge>
+            ) : null}
+            {row.recommendation ? (
+              <Badge variant="outline" className={cn("border-transparent", RECOMMENDATION_BADGE[row.recommendation])} title={row.reason_short ?? undefined}>
+                {row.suggestion_label ?? row.recommendation}
+              </Badge>
             ) : null}
             {row.follow_up && (row.follow_up.stage === "analyzing" || row.follow_up.stage === "denied" || row.follow_up.stage === "closed") ? (
               <Badge variant="outline" className={cn("border-transparent", FOLLOW_UP_BADGE[row.follow_up.tone])}>
@@ -156,11 +170,26 @@ export function ReturnsList({
             </EmptyHeader>
           </Empty>
         ) : (
-          <ul className="divide-y border-t">
-            {rows.map((row) => (
-              <ReturnRowItem key={row.id} row={row} accountId={accountId} now={now} />
-            ))}
-          </ul>
+          filter === "confirmar" ? (
+            <ConfirmReceiptBatch
+              rows={rows.map(({ id, claim_id, item_title, amount, currency_id, deadline_at, quick_confirm_available }) => ({
+                id,
+                claim_id,
+                item_title,
+                amount,
+                currency_id,
+                deadline_at,
+                quick_confirm_available,
+              }))}
+              accountId={accountId}
+            />
+          ) : (
+            <ul className="divide-y border-t">
+              {rows.map((row) => (
+                <ReturnRowItem key={row.id} row={row} accountId={accountId} now={now} />
+              ))}
+            </ul>
+          )
         )}
       </CardContent>
     </Card>

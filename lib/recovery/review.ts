@@ -25,6 +25,48 @@ const PHOTO_TYPES = new Set(["image/jpeg", "image/png"])
 
 export type ReturnReason = { id: string; label: string; apply: string[]; position: number }
 
+/**
+ * Sugere um motivo que existe na lista atual do Mercado Livre.
+ *
+ * Mapeamento da triagem: different_product → SRF4; incomplete → SRF3 (ou SRF5);
+ * missing → SRF5 (ou SRF3); misused, not_working e open_box → SRF2 (ou SRF6);
+ * blocked e discard → SRF6 (ou SRF2). Quando não há reason_id, condição e motivo
+ * do comprador servem apenas como pistas conservadoras. Nunca retorna um id ausente.
+ */
+export function suggestFailReason(input: {
+  warehouseReasonId: string | null | undefined
+  productCondition: string | null | undefined
+  buyerReason: string | null | undefined
+  reasons: readonly ReturnReason[]
+}): string | null {
+  const available = new Set(input.reasons.map((reason) => reason.id))
+  const choose = (ids: readonly string[]) => ids.find((id) => available.has(id)) ?? null
+  const warehouse = (input.warehouseReasonId ?? "").trim().toLowerCase()
+  const condition = (input.productCondition ?? "").trim().toLowerCase()
+  const buyer = (input.buyerReason ?? "").trim().toLowerCase()
+
+  const byWarehouse: Record<string, readonly string[]> = {
+    different_product: ["SRF4"],
+    incomplete: ["SRF3", "SRF5"],
+    missing: ["SRF5", "SRF3"],
+    misused: ["SRF2", "SRF6"],
+    not_working: ["SRF2", "SRF6"],
+    blocked: ["SRF6", "SRF2"],
+    open_box: ["SRF2", "SRF6"],
+    discard: ["SRF6", "SRF2"],
+  }
+  if (warehouse && byWarehouse[warehouse]) return choose(byWarehouse[warehouse])
+
+  if (["missing", "incomplete"].includes(condition) || /faltou|incomplet|sem (peça|item|acessório)|caixa vazia/.test(buyer)) {
+    return choose(["SRF5", "SRF3"])
+  }
+  if (["unsaleable", "misused", "not_working", "damaged"].includes(condition) || /quebrad|avariad|danificad|não funciona|nao funciona/.test(buyer)) {
+    return choose(["SRF2", "SRF6"])
+  }
+  if (/outro modelo|outra marca|produto diferente|cor ou tamanho diferente/.test(buyer)) return choose(["SRF4"])
+  return null
+}
+
 /** Motivos do fluxo seller_return_failed como o ML devolveu em 2026-10-20 (usados se a leitura ao vivo falhar). */
 export const FALLBACK_REASONS: readonly ReturnReason[] = [
   { id: "SRF2", label: "O produto chegou avariado", apply: ["order"], position: 1 },
@@ -183,7 +225,7 @@ export function fallbackReturnMessage(input: {
   const reason = input.reasonLabel.replace(/\.$/, "")
   const parts = [
     input.appeal
-      ? "Contesto a revisão desta devolução. O produto foi enviado em perfeito estado e voltou com problema: " + reason + "."
+      ? "Contesto a revisão desta devolução. O motivo que selecionei foi: " + reason + "."
       : "Recebi a devolução e, ao conferir, constatei: " + reason + ".",
   ]
   if (input.checks.length) parts.push("Detalhes: " + input.checks.map((item) => item.toLowerCase()).join("; ") + ".")

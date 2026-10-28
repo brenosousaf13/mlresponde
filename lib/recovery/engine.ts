@@ -813,6 +813,7 @@ export async function draftReturnMessage(
   const appeal = rowReviewMode(row) === "appeal"
   const detail = (claim?.detail ?? null) as { title?: unknown; description?: unknown } | null
   const verdict = [detail?.title, detail?.description].filter((part): part is string => typeof part === "string" && part.trim() !== "").join(". ")
+  const triage = triageAwaitingSeller(ownReviews((Array.isArray(row.reviews) ? row.reviews : []) as ReturnReview[], row.order_id))
   const prompt = {
     storeName: organization?.name ?? "sua loja",
     reasonLabel: input.reasonLabel,
@@ -822,8 +823,10 @@ export async function draftReturnMessage(
     itemTitle: row.item_title,
     quantity,
     appeal,
-    buyerReason: appeal ? (claim?.reason_detail ?? null) : null,
+    buyerReason: claim?.reason_detail ?? null,
     warehouseVerdict: appeal ? verdict || null : null,
+    warehouseReasonId: appeal ? triage?.reason_id ?? null : null,
+    productCondition: appeal ? triage?.product_condition ?? null : null,
   }
   try {
     return await runReturnMessageModel(prompt, {
@@ -851,7 +854,7 @@ export type ReviewInput = {
   photos: File[]
 }
 
-export type ReviewResult = { ok: boolean; message: string }
+export type ReviewResult = { ok: boolean; message: string; rateLimited?: boolean }
 
 function friendlyMlError(error: unknown): string {
   if (error instanceof MlApiError) {
@@ -909,7 +912,7 @@ export async function submitReturnReviewFor(input: ReviewInput): Promise<ReviewR
 
   const budget = new CallBudget(15)
   const claimId = Number(row.claim_id)
-  const details: Record<string, unknown> = { decision: input.decision }
+  const details: Record<string, unknown> = { decision: input.decision, photos_count: input.photos.length }
   let submitted: { returnId: number; result: { status: number; body: unknown } } | null = null
   try {
     // Tudo lido de novo no ML (a tela pode estar desatualizada): a ação continua liberada E o vendedor pode agir de verdade
@@ -993,7 +996,7 @@ export async function submitReturnReviewFor(input: ReviewInput): Promise<ReviewR
       resultado: "falha",
       detalhe: "ml_status=" + (mlStatus ?? "sem resposta") + " decisao=" + input.decision,
     })
-    return { ok: false, message: friendlyMlError(error) }
+      return { ok: false, message: friendlyMlError(error), rateLimited: error instanceof MlApiError && error.status === 429 }
   }
 
   // Enviada: histórico e a linha (falhas aqui só vão para os logs; a revisão já está no ML).

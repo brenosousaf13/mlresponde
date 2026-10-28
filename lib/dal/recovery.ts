@@ -12,19 +12,40 @@ import {
   type ReviewMode,
 } from "@/lib/recovery/returns"
 import { createClient } from "@/lib/supabase/server"
+import {
+  buildRecoveryScreenData,
+  classifyQueueItem,
+  sortReviewQueue,
+  type RecoveryScreenData,
+  type RecoveryQueueGroups,
+  type QueueActionGroup,
+  type QueueRecommendation,
+  type RecoveredSummary,
+  type ReviewQueueClassification,
+  type ReviewNowSummary,
+  type ReviewQueueItem,
+} from "@/lib/recovery/contract"
+import { suggestActionByRules, suggestInputFromRows } from "@/lib/recovery/suggest"
+import { recoveryBadgeCount } from "@/lib/recovery/banner"
+
+export { buildRecoveryScreenData, sortReviewQueue }
+export { classifyQueueItem }
+export type { RecoveryQueueGroups, RecoveryScreenData, RecoveredSummary, ReviewNowSummary, ReviewQueueClassification, ReviewQueueItem }
 
 // Leituras do Recuperador com a sessão do usuário (RLS por organização). Escrita só no servidor (lib/recovery/engine.ts).
 
-export type ReturnFilter = "revisar" | "andamento" | "encerradas"
+export type ReturnFilter = "revisar" | "recuperar" | "confirmar" | "andamento" | "encerradas"
 
 export const RETURN_FILTERS: Record<ReturnFilter, { label: string; phases: ReturnPhase[] }> = {
   revisar: { label: "Revise agora", phases: ["needs_review"] },
+  recuperar: { label: "Dá pra recuperar", phases: ["needs_review"] },
+  confirmar: { label: "Só confirmar", phases: ["needs_review"] },
   andamento: { label: "Em andamento", phases: ["waiting", "at_warehouse", "reviewed", "other"] },
   encerradas: { label: "Encerradas", phases: ["closed"] },
 }
 
 export function parseReturnFilter(value: unknown): ReturnFilter {
-  return value === "andamento" || value === "encerradas" ? value : "revisar"
+  return value === "recuperar" || value === "confirmar" || value === "andamento" || value === "encerradas" ? value : "revisar"
 }
 
 export type RecoveryTab = "visao" | "devolucoes" | "raio-x"
@@ -34,7 +55,7 @@ export function parseRecoveryTab(value: unknown): RecoveryTab {
 }
 
 const LIST_COLUMNS =
-  "id, claim_id, phase, item_title, amount, currency_id, deadline_at, claim_created_at, ml_closed_at, status_money, shipment_status, destination, review_kind, review_submitted_at, recovered_at, recovered_amount, is_cart, can_review_ok, can_review_fail, return_status, reviews, order_id"
+  "id, claim_id, phase, item_title, amount, currency_id, deadline_at, claim_created_at, ml_closed_at, status_money, shipment_status, destination, review_kind, review_submitted_at, recovered_at, recovered_amount, is_cart, can_review_ok, can_review_fail, return_status, reviews, orders, order_id"
 
 export type ReturnListRow = {
   id: string
@@ -60,6 +81,26 @@ export type ReturnListRow = {
   follow_up: FollowUpSummary | null
   /** O prazo é uma estimativa (contestação do armazém: 60 dias; chegada sem prazo do ML: 3 dias). */
   deadline_estimated: boolean
+  /** Sugestão determinada pelas regras, sem chamada de IA. */
+  recommendation: QueueRecommendation | null
+  /** Grupo da fila: recuperar dinheiro ou só confirmar recebimento. */
+  action_group: QueueActionGroup | null
+  /** Confiança da sugestão por regras. */
+  confidence: ReviewQueueClassification["confidence"] | null
+  /** Rótulo curto da sugestão. */
+  suggestion_label: string | null
+  /** Motivo curto da sugestão. */
+  reason_short: string | null
+  /** Valor envolvido na recuperação, quando aplicável. */
+  recoverable_amount: number | null
+  /** Confirmação rápida liberada pelo ML para esta linha. */
+  quick_confirm_available: boolean
+  /** Dados internos já lidos, usados para classificar sem novas consultas por item. */
+  reviews?: unknown
+  orders?: unknown
+  order_id?: number | null
+  can_review_ok?: boolean
+  can_review_fail?: boolean
 }
 
 /** Acionável agora: precisa de revisão/contestação liberada e o prazo (real ou estimado) ainda não venceu. */
@@ -67,7 +108,7 @@ export function isActionableRow(row: ReturnListRow, now: Date): boolean {
   return row.phase === "needs_review" && row.mode !== null && !deadlinePassed(row.deadline_at, now)
 }
 
-function toListRow(row: Record<string, unknown>): ReturnListRow {
+function toListRow(row: Record<string, unknown>, classification?: ReviewQueueClassification): ReturnListRow {
   const mode =
     row.phase === "needs_review"
       ? rowReviewMode({
@@ -110,7 +151,139 @@ function toListRow(row: Record<string, unknown>): ReturnListRow {
       reviews: row.reviews,
       order_id: (row.order_id as number | string | null) ?? null,
     }),
+    recommendation: classification?.recommendation ?? null,
+    action_group: classification?.actionGroup ?? null,
+    confidence: classification?.confidence ?? null,
+    suggestion_label: classification?.suggestionLabel ?? null,
+    reason_short: classification?.reasonShort ?? null,
+    recoverable_amount: classification?.recoverableAmount ?? null,
+    quick_confirm_available: classification?.quickConfirmAvailable ?? false,
+    reviews: row.reviews,
+    orders: row.orders,
+    order_id: row.order_id === null || row.order_id === undefined ? null : Number(row.order_id),
+    can_review_ok: Boolean(row.can_review_ok),
+    can_review_fail: Boolean(row.can_review_fail),
   }
+}
+
+type ClaimSuggestionRow = { claim_id: number; reason_detail: string | null; affects_reputation: string | null }
+
+/** Classifica as linhas acionáveis em uma única consulta aos motivos das reclamações. */
+async function classifyListRows(
+  rows: readonly ReturnListRow[],
+  scope: { mlAccountId?: string; organizationId?: string }
+): Promise<ReturnListRow[]> {
+  const candidates = rows.filter((row) => row.mode !== null)
+  if (!candidates.length) return [...rows]
+  const supabase = await createClient()
+  let query = supabase.from("reputation_claims").select("claim_id, reason_detail, affects_reputation").in("claim_id", candidates.map((row) => row.claim_id))
+  if (scope.mlAccountId) query = query.eq("ml_account_id", scope.mlAccountId)
+  if (scope.organizationId) query = query.eq("organization_id", scope.organizationId)
+  const { data, error } = await query
+  if (error) throw error
+  const claims = new Map((data ?? []).map((claim) => [Number(claim.claim_id), claim as ClaimSuggestionRow]))
+  return rows.map((row) => {
+    if (!row.mode) return row
+    const input = suggestInputFromRows(
+      {
+        reviews: row.reviews,
+        orders: row.orders,
+        order_id: row.order_id ?? null,
+        status_money: row.status_money,
+        amount: row.amount,
+        currency_id: row.currency_id,
+        deadline_at: row.deadline_at,
+        is_cart: row.is_cart,
+        can_review_ok: row.can_review_ok ?? false,
+        can_review_fail: row.can_review_fail ?? false,
+      },
+      claims.get(row.claim_id) ?? null,
+      row.mode
+    )
+    const classification = classifyQueueItem({
+      mode: row.mode,
+      amount: row.amount,
+      canReviewOk: row.can_review_ok ?? false,
+      suggestion: suggestActionByRules(input),
+    })
+    return {
+      ...row,
+      recommendation: classification.recommendation,
+      action_group: classification.actionGroup,
+      confidence: classification.confidence,
+      suggestion_label: classification.suggestionLabel,
+      reason_short: classification.reasonShort,
+      recoverable_amount: classification.recoverableAmount,
+      quick_confirm_available: classification.quickConfirmAvailable,
+    }
+  })
+}
+
+function queueItemFromRow(row: ReturnListRow): ReviewQueueItem | null {
+  if (!row.mode || !row.action_group || !row.recommendation || !row.confidence || !row.suggestion_label || !row.reason_short) return null
+  return {
+    id: row.id,
+    claimId: row.claim_id,
+    title: row.item_title,
+    amount: row.amount,
+    currencyId: row.currency_id,
+    deadlineAt: row.deadline_at,
+    deadlineEstimated: row.deadline_estimated,
+    mode: row.mode,
+    statusMoney: row.status_money,
+    recommendation: row.recommendation,
+    actionGroup: row.action_group,
+    confidence: row.confidence,
+    suggestionLabel: row.suggestion_label,
+    reasonShort: row.reason_short,
+    recoverableAmount: row.recoverable_amount,
+    quickConfirmAvailable: row.quick_confirm_available,
+    href: row.id,
+  }
+}
+
+function groupsFromRows(rows: readonly ReturnListRow[]): RecoveryQueueGroups {
+  const items = rows.map(queueItemFromRow).filter((row): row is ReviewQueueItem => Boolean(row))
+  const recover = items.filter((row) => row.actionGroup === "recover")
+  const confirm = items.filter((row) => row.actionGroup === "confirm_receipt")
+  const next = (list: readonly ReviewQueueItem[]) => {
+    const item = [...list].filter((row) => row.deadlineAt && Number.isFinite(Date.parse(row.deadlineAt))).sort((a, b) => Date.parse(a.deadlineAt as string) - Date.parse(b.deadlineAt as string))[0]
+    return { nextDeadlineAt: item?.deadlineAt ?? null, nextDeadlineEstimated: item?.deadlineEstimated ?? false }
+  }
+  return {
+    recover: { count: recover.length, amount: Math.round(recover.reduce((total, row) => total + (row.recoverableAmount ?? 0), 0) * 100) / 100, ...next(recover) },
+    confirmReceipt: { count: confirm.length, ...next(confirm) },
+  }
+}
+
+/** Ordena as linhas acionáveis com o mesmo critério da fila estável da nova tela. */
+function sortActionableRows(rows: readonly ReturnListRow[]): ReturnListRow[] {
+  const byId = new Map(rows.map((row) => [row.id, row]))
+  const queue = sortReviewQueue(
+    rows
+      .filter((row): row is ReturnListRow & { mode: ReviewMode } => row.mode !== null)
+      .map((row) => ({
+        id: row.id,
+        claimId: row.claim_id,
+        title: row.item_title,
+        amount: row.amount,
+        currencyId: row.currency_id,
+        deadlineAt: row.deadline_at,
+        deadlineEstimated: row.deadline_estimated,
+        mode: row.mode,
+        statusMoney: row.status_money,
+        recommendation: row.recommendation ?? "chegou_certinho",
+        actionGroup: row.action_group ?? "confirm_receipt",
+        confidence: row.confidence ?? "low",
+        suggestionLabel: row.suggestion_label ?? "Confira a devolução",
+        reasonShort: row.reason_short ?? "Confira a devolução antes de decidir.",
+        recoverableAmount: row.recoverable_amount,
+        quickConfirmAvailable: row.quick_confirm_available,
+        href: row.id,
+        claimCreatedAt: row.claim_created_at,
+      }))
+  )
+  return queue.map((item) => byId.get(item.id)).filter((row): row is ReturnListRow => Boolean(row))
 }
 
 export type FindingRow = {
@@ -177,6 +350,8 @@ export type RecoveryOverview = {
   lost: { count: number; amount: number }
   recovered: { count: number; amount: number }
   reimbursed: { count: number; amount: number }
+  /** Grupos acionáveis da fila, já classificados pelas regras. */
+  groups: RecoveryQueueGroups
   counts: Record<ReturnFilter, number>
 }
 
@@ -225,10 +400,10 @@ export async function getRecoveryOverview(accountId: string): Promise<RecoveryOv
   for (const result of [sync, scan, escudo, waiting, findings, recovered, retainedGlobal, andamento, encerradas]) if (result.error) throw result.error
   // Linha lida pela regra antiga (antes da Sessão 31) que não é revisável de verdade some na hora; a releitura corrige.
   const readAt = new Date()
-  const waitingRows = await markEstimatedArrivals(
+  const waitingRows = sortActionableRows(await classifyListRows(await markEstimatedArrivals(
     accountId,
     (waiting.data ?? []).map((row) => toListRow(row as Record<string, unknown>)).filter((row) => isActionableRow(row, readAt))
-  )
+  ), { mlAccountId: accountId }))
   const outcomes = (findings.data ?? []).map((row) => ({
     ...row,
     outcome: findingOutcome({ kind: row.kind as FindingKind, status: row.status, evidence: (row.evidence ?? {}) as Record<string, unknown> }),
@@ -268,7 +443,14 @@ export async function getRecoveryOverview(accountId: string): Promise<RecoveryOv
     lost: { count: lost.length, amount: sum(lost, "amount") },
     recovered: { count: recovered.data?.length ?? 0, amount: sum(recovered.data ?? [], "recovered_amount") },
     reimbursed: { count: reimbursed.length, amount: sum(reimbursed, "amount") },
-    counts: { revisar: waitingRows.length, andamento: andamento.count ?? 0, encerradas: encerradas.count ?? 0 },
+    groups: groupsFromRows(waitingRows),
+    counts: {
+      revisar: waitingRows.length,
+      recuperar: waitingRows.filter((row) => row.action_group === "recover").length,
+      confirmar: waitingRows.filter((row) => row.action_group === "confirm_receipt").length,
+      andamento: andamento.count ?? 0,
+      encerradas: encerradas.count ?? 0,
+    },
   }
 }
 
@@ -283,7 +465,17 @@ export async function getReturnsTab(accountId: string, filter: ReturnFilter): Pr
   const { data, error } = await query.limit(200)
   if (error) throw error
   const rows = data.map((row) => toListRow(row as Record<string, unknown>))
-  return filter === "revisar" ? markEstimatedArrivals(accountId, rows.filter((row) => isActionableRow(row, new Date()))) : rows
+  const estimated = filter === "revisar" || filter === "recuperar" || filter === "confirmar"
+    ? await markEstimatedArrivals(accountId, rows.filter((row) => isActionableRow(row, new Date())))
+    : rows
+  const classified = await classifyListRows(estimated, { mlAccountId: accountId })
+  const filtered =
+    filter === "recuperar"
+      ? classified.filter((row) => row.action_group === "recover")
+      : filter === "confirmar"
+        ? classified.filter((row) => row.action_group === "confirm_receipt")
+        : classified
+  return filter === "revisar" || filter === "recuperar" || filter === "confirmar" ? sortActionableRows(filtered) : filtered
 }
 
 /**
@@ -322,7 +514,75 @@ export async function getActionableReturnsCount(organizationId: string): Promise
     .or("deadline_at.is.null,deadline_at.gt." + now.toISOString())
     .limit(300)
   if (error) throw error
-  return data.map((row) => toListRow(row as Record<string, unknown>)).filter((row) => isActionableRow(row, now)).length
+  const rows = data.map((row) => toListRow(row as Record<string, unknown>)).filter((row) => isActionableRow(row, now))
+  const classified = await classifyListRows(rows, { organizationId })
+  return recoveryBadgeCount({
+    recover: {
+      count: classified.filter((row) => row.action_group === "recover").length,
+      amount: 0,
+      nextDeadlineAt: null,
+      nextDeadlineEstimated: false,
+    },
+    confirmReceipt: {
+      count: classified.filter((row) => row.action_group === "confirm_receipt").length,
+      nextDeadlineAt: null,
+      nextDeadlineEstimated: false,
+    },
+  })
+}
+
+/** Contrato enxuto da tela do Recuperador, reunindo fila, resumos e links em uma leitura do DAL. */
+export async function getRecoveryScreenData(accountId: string, opts?: { accountParam?: string }): Promise<RecoveryScreenData> {
+  const overview = await getRecoveryOverview(accountId)
+  const { count, error } = await (await createClient())
+    .from("recovery_actions")
+    .select("id", { count: "exact", head: true })
+    .eq("ml_account_id", accountId)
+    .eq("status", "success")
+  if (error) throw error
+  const nextRow = overview.waiting.rows.find((row) => row.deadline_at === overview.waiting.nextDeadline)
+  return buildRecoveryScreenData({
+    accountParam: opts?.accountParam,
+    reviewRows: overview.waiting.rows.flatMap((row) =>
+      row.mode
+        ? [
+            {
+              id: row.id,
+              claim_id: row.claim_id,
+              item_title: row.item_title,
+              amount: row.amount,
+              currency_id: row.currency_id,
+              deadline_at: row.deadline_at,
+              deadline_estimated: row.deadline_estimated,
+              mode: row.mode,
+              status_money: row.status_money,
+              claim_created_at: row.claim_created_at,
+              can_review_ok: row.can_review_ok,
+              classification:
+                row.action_group && row.recommendation && row.confidence && row.suggestion_label && row.reason_short
+                  ? {
+                      recommendation: row.recommendation,
+                      actionGroup: row.action_group,
+                      confidence: row.confidence,
+                      suggestionLabel: row.suggestion_label,
+                      reasonShort: row.reason_short,
+                      recoverableAmount: row.recoverable_amount,
+                      quickConfirmAvailable: row.quick_confirm_available,
+                    }
+                  : undefined,
+            },
+          ]
+        : []
+    ),
+    reviewNow: {
+      count: overview.waiting.count,
+      amount: overview.waiting.actionableAmount,
+      nextDeadline: overview.waiting.nextDeadline,
+      nextDeadlineEstimated: overview.waiting.nextDeadline ? Boolean(nextRow?.deadline_estimated) : false,
+    },
+    recovered: { count: overview.recovered.count, amount: overview.recovered.amount },
+    hasFirstSubmission: (count ?? 0) > 0,
+  })
 }
 
 export async function getFindings(accountId: string): Promise<FindingRow[]> {
@@ -420,9 +680,42 @@ export async function getReturnDetail(organizationId: string, returnRowId: strin
       .maybeSingle()
     reasonDetail = same?.reason_detail ?? null
   }
+  const baseListRow = toListRow(row as unknown as Record<string, unknown>)
+  const detailClassification = baseListRow.mode
+    ? classifyQueueItem({
+        mode: baseListRow.mode,
+        amount: baseListRow.amount,
+        canReviewOk: Boolean(row.can_review_ok),
+        suggestion: suggestActionByRules(
+          suggestInputFromRows(
+            {
+              reviews: row.reviews,
+              orders: row.orders,
+              order_id: row.order_id,
+              status_money: row.status_money,
+              amount: row.amount,
+              currency_id: row.currency_id,
+              deadline_at: row.deadline_at,
+              is_cart: row.is_cart,
+              can_review_ok: row.can_review_ok,
+              can_review_fail: row.can_review_fail,
+            },
+            claim.data ? { reason_detail: reasonDetail, affects_reputation: claim.data.affects_reputation } : null,
+            baseListRow.mode
+          )
+        ),
+      })
+    : null
   return {
     row: {
-      ...toListRow(row as unknown as Record<string, unknown>),
+      ...baseListRow,
+      recommendation: detailClassification?.recommendation ?? null,
+      action_group: detailClassification?.actionGroup ?? null,
+      confidence: detailClassification?.confidence ?? null,
+      suggestion_label: detailClassification?.suggestionLabel ?? null,
+      reason_short: detailClassification?.reasonShort ?? null,
+      recoverable_amount: detailClassification?.recoverableAmount ?? null,
+      quick_confirm_available: detailClassification?.quickConfirmAvailable ?? false,
       ml_account_id: row.ml_account_id,
       claim_row_id: row.claim_row_id,
       return_id: row.return_id === null ? null : Number(row.return_id),
