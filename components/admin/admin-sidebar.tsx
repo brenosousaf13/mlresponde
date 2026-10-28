@@ -4,6 +4,7 @@ import {
   ActivityIcon,
   ArrowLeftIcon,
   BotIcon,
+  CircleDollarSignIcon,
   ChevronsUpDownIcon,
   CreditCardIcon,
   KeyRoundIcon,
@@ -55,6 +56,7 @@ type Item = { title: string; href: string; icon: LucideIcon; exact?: boolean }
 const MONITOR: Item[] = [
   { title: "Visão geral", href: "/admin", icon: LayoutDashboardIcon, exact: true },
   { title: "Clientes", href: "/admin/clientes", icon: UsersIcon },
+  { title: "Recuperador", href: "/admin/recuperador", icon: CircleDollarSignIcon },
   { title: "Uso de IA", href: "/admin/uso-ia", icon: BotIcon },
   { title: "Financeiro", href: "/admin/financeiro", icon: WalletIcon },
   { title: "Cobrança", href: "/admin/cobranca", icon: CreditCardIcon },

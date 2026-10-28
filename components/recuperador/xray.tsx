@@ -9,6 +9,7 @@ import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/
 import { Progress } from "@/components/ui/progress"
 import { formatMoney } from "@/lib/customers/presentation"
 import type { FindingRow, RecoveryOverview } from "@/lib/dal/recovery"
+import type { LeftBehindSummary } from "@/lib/recovery/left-behind"
 import { formatDate, formatNumber } from "@/lib/format"
 import { DESTINATION_LABELS, returnHref } from "@/lib/recovery/presentation"
 import { APPEAL_STRENGTH_LABELS, CONDITION_LABELS, WAREHOUSE_REASON_LABELS, findingRequestText } from "@/lib/recovery/returns"
@@ -99,12 +100,21 @@ const STRENGTH_BADGE: Record<string, string> = {
  * Achados do Raio-X, separados pelo que dá para fazer: contestar agora (pela maanu), em análise no ML, o que ficou para
  * trás (texto pronto para a Ajuda do ML) e os ressarcimentos já recebidos (referência).
  */
-export function Findings({ findings, accountId }: { findings: FindingRow[]; accountId: string }) {
+export function Findings({ findings, accountId, leftBehind }: { findings: FindingRow[]; accountId: string; leftBehind?: LeftBehindSummary }) {
   const contestable = findings.filter((finding) => finding.outcome === "contestable")
   const appealed = findings.filter((finding) => finding.outcome === "appealed")
   const lost = findings.filter((finding) => finding.outcome === "expired")
   const appealLost = findings.filter((finding) => finding.outcome === "appeal_lost")
   const reimbursed = findings.filter((finding) => finding.outcome === "reimbursed")
+  const leftBehindTotal = leftBehind?.total ?? { count: lost.length, amount: totalOf(lost), estimated: false }
+  const leftBehindDetails = leftBehind
+  const leftBehindReasons = leftBehind
+    ? ([
+        ["sem_condicao_venda", "sem condição de venda"],
+        ["contestacao_full_nao_feita", "contestação Full não feita"],
+        ["prazo_endereco", "prazo no endereço vencido"],
+      ] as const).filter(([reason]) => leftBehind.byReason[reason].count > 0)
+    : []
   return (
     <div className="grid gap-4 lg:grid-cols-3">
       <div className="flex min-w-0 flex-col gap-4 lg:col-span-2">
@@ -200,20 +210,29 @@ export function Findings({ findings, accountId }: { findings: FindingRow[]; acco
           </Card>
         ) : null}
 
-        {lost.length ? (
+        {leftBehindTotal.count ? (
           <Card className="gap-0">
             <CardHeader className="pb-4">
               <CardTitle className="flex flex-wrap items-baseline justify-between gap-2">
                 <span>Ficou para trás</span>
-                <span className="text-base tabular-nums">{formatMoney(totalOf(lost))}</span>
+                <span className="text-base tabular-nums">{formatMoney(leftBehindTotal.amount)}</span>
               </CardTitle>
               <CardDescription>
-                O produto voltou sem condição de venda, o dinheiro ficou com o comprador e o ML não aceita mais contestação por
-                aqui. Se quiser tentar pela Ajuda do Mercado Livre, copie o texto pronto.
+                {leftBehindTotal.count} {leftBehindTotal.count === 1 ? "devolução" : "devoluções"} venceram sem uma ação que recuperasse o dinheiro.
+                {leftBehindTotal.estimated ? " Inclui prazo estimado." : ""}
               </CardDescription>
             </CardHeader>
             <CardContent className="px-0">
-              <ul className="divide-y border-t">
+              {leftBehindReasons.length ? (
+                <ul className="flex flex-wrap gap-2 border-t px-4 py-3 text-xs text-muted-foreground">
+                  {leftBehindReasons.map(([reason, label]) => (
+                    <li key={reason} className="rounded-full bg-muted px-2.5 py-1">
+                      {label}: {leftBehindDetails?.byReason[reason].count ?? 0} · {formatMoney(leftBehindDetails?.byReason[reason].amount ?? 0)}
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
+              {lost.length ? <ul className="divide-y border-t">
                 {lost.map((finding) => {
                   const orderUrl = mlSaleUrl(finding.evidence.order_id as number | null)
                   return (
@@ -239,7 +258,7 @@ export function Findings({ findings, accountId }: { findings: FindingRow[]; acco
                     </li>
                   )
                 })}
-              </ul>
+              </ul> : null}
             </CardContent>
           </Card>
         ) : null}

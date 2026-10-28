@@ -155,7 +155,7 @@ export default async function RecoveryPage({ searchParams }: PageProps<"/recuper
       {tab === "raio-x" && findings ? (
         <>
           <XrayProgress overview={overview} />
-          <Findings findings={findings} accountId={account.id} />
+          <Findings findings={findings} accountId={account.id} leftBehind={overview.leftBehind} />
         </>
       ) : null}
     </>

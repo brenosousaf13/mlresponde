@@ -8,6 +8,7 @@ import {
   type SuggestionConfidence,
 } from "@/lib/recovery/suggest"
 import type { ReviewMode } from "@/lib/recovery/returns"
+import type { LeftBehindSummary } from "@/lib/recovery/left-behind"
 
 /** Recomendação exibida; ressarcimento_total fica reservado para regras futuras. */
 export type QueueRecommendation = "contestar" | "ressarcimento_parcial" | "ressarcimento_total" | "chegou_certinho"
@@ -179,6 +180,8 @@ export type RecoveryScreenData = {
   xrayHref: string
   /** Link para a lista de devoluções a revisar. */
   returnsHref: string
+  /** Resumo do dinheiro que ficou para trás no Raio-X, quando carregado pelo DAL. */
+  leftBehind?: LeftBehindSummary
 }
 
 export type ReviewQueueInput = {
@@ -272,6 +275,7 @@ export function buildRecoveryScreenData(input: {
   reviewNow: { count: number; amount: number; nextDeadline: string | null; nextDeadlineEstimated: boolean }
   recovered: RecoveredSummary
   hasFirstSubmission: boolean
+  leftBehind?: LeftBehindSummary
 }): RecoveryScreenData {
   const accountParam = input.accountParam ?? null
   const queue = sortReviewQueue(input.reviewRows.map((row) => queueItem(row, accountParam))).map((item) => {
@@ -294,5 +298,6 @@ export function buildRecoveryScreenData(input: {
     hasFirstSubmission: input.hasFirstSubmission,
     xrayHref: recoveryHref(accountParam, "raio-x"),
     returnsHref: recoveryHref(accountParam, "devolucoes", "recuperar"),
+    leftBehind: input.leftBehind,
   }
 }

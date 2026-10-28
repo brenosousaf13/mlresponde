@@ -27,6 +27,7 @@ import {
 } from "@/lib/recovery/contract"
 import { suggestActionByRules, suggestInputFromRows } from "@/lib/recovery/suggest"
 import { recoveryBadgeCount } from "@/lib/recovery/banner"
+import { computeLeftBehind, type LeftBehindSummary } from "@/lib/recovery/left-behind"
 
 export { buildRecoveryScreenData, sortReviewQueue }
 export { classifyQueueItem }
@@ -348,6 +349,8 @@ export type RecoveryOverview = {
   appealed: { count: number; amount: number }
   /** Raio-X: produto voltou sem condição de venda, o dinheiro ficou com o comprador e não dá mais para contestar. */
   lost: { count: number; amount: number }
+  /** Resumo completo de devoluções vencidas, com os motivos e prazos estimados. */
+  leftBehind?: LeftBehindSummary
   recovered: { count: number; amount: number }
   reimbursed: { count: number; amount: number }
   /** Grupos acionáveis da fila, já classificados pelas regras. */
@@ -361,7 +364,7 @@ function sum(rows: readonly { amount?: unknown; recovered_amount?: unknown }[], 
 
 export async function getRecoveryOverview(accountId: string): Promise<RecoveryOverview> {
   const supabase = await createClient()
-  const [sync, scan, escudo, waiting, findings, recovered, retainedGlobal, andamento, encerradas] = await Promise.all([
+  const [sync, scan, escudo, waiting, findings, recovered, retainedGlobal, andamento, encerradas, leftRows, actions] = await Promise.all([
     supabase.from("recovery_sync").select("last_returns_at, last_error, last_error_at").eq("ml_account_id", accountId).maybeSingle(),
     supabase
       .from("recovery_scans")
@@ -377,7 +380,7 @@ export async function getRecoveryOverview(accountId: string): Promise<RecoveryOv
       .or("deadline_at.is.null,deadline_at.gt." + new Date().toISOString())
       .order("deadline_at", { ascending: true, nullsFirst: false })
       .limit(300),
-    supabase.from("recovery_findings").select("kind, status, amount, evidence").eq("ml_account_id", accountId).limit(5000),
+    supabase.from("recovery_findings").select("return_row_id, kind, status, amount, evidence, detected_at").eq("ml_account_id", accountId).limit(5000),
     supabase.from("recovery_returns").select("recovered_amount").eq("ml_account_id", accountId).not("recovered_at", "is", null).limit(5000),
     // Total retido no MP (todas as fases) — usado no card money
     supabase
@@ -396,8 +399,18 @@ export async function getRecoveryOverview(accountId: string): Promise<RecoveryOv
       .select("id", { count: "exact", head: true })
       .eq("ml_account_id", accountId)
       .eq("phase", "closed"),
+    supabase
+      .from("recovery_returns")
+      .select("id, claim_id, claim_created_at, sale_at, amount, currency_id, status_money, phase, destination, shipment_status, return_status, can_review_ok, can_review_fail, deadline_at, review_submitted_at, review_kind, recovered_at, recovered_amount, reviews")
+      .eq("ml_account_id", accountId)
+      .limit(5000),
+    supabase
+      .from("recovery_actions")
+      .select("return_row_id, action, status, performed_at")
+      .eq("ml_account_id", accountId)
+      .limit(5000),
   ])
-  for (const result of [sync, scan, escudo, waiting, findings, recovered, retainedGlobal, andamento, encerradas]) if (result.error) throw result.error
+  for (const result of [sync, scan, escudo, waiting, findings, recovered, retainedGlobal, andamento, encerradas, leftRows, actions]) if (result.error) throw result.error
   // Linha lida pela regra antiga (antes da Sessão 31) que não é revisável de verdade some na hora; a releitura corrige.
   const readAt = new Date()
   const waitingRows = sortActionableRows(await classifyListRows(await markEstimatedArrivals(
@@ -409,8 +422,28 @@ export async function getRecoveryOverview(accountId: string): Promise<RecoveryOv
     outcome: findingOutcome({ kind: row.kind as FindingKind, status: row.status, evidence: (row.evidence ?? {}) as Record<string, unknown> }),
   }))
   const appealed = outcomes.filter((row) => row.outcome === "appealed")
-  const lost = outcomes.filter((row) => row.outcome === "expired")
   const reimbursed = outcomes.filter((row) => row.outcome === "reimbursed")
+  const findingsByReturn = new Map<string, { outcome: string; kind: string; status: string; evidence: Record<string, unknown> }[]>()
+  for (const finding of outcomes) {
+    if (!finding.return_row_id) continue
+    const list = findingsByReturn.get(finding.return_row_id) ?? []
+    list.push({ outcome: finding.outcome, kind: String(finding.kind), status: String(finding.status), evidence: (finding.evidence ?? {}) as Record<string, unknown> })
+    findingsByReturn.set(finding.return_row_id, list)
+  }
+  const actionsByReturn = new Map<string, { action: string; status: string; performed_at: string | null }[]>()
+  for (const action of actions.data ?? []) {
+    const list = actionsByReturn.get(String(action.return_row_id)) ?? []
+    list.push({ action: String(action.action), status: String(action.status), performed_at: action.performed_at ?? null })
+    actionsByReturn.set(String(action.return_row_id), list)
+  }
+  const leftBehind = computeLeftBehind(
+    (leftRows.data ?? []).map((row) => ({
+      ...(row as Record<string, unknown>),
+      findings: findingsByReturn.get(String(row.id)) ?? [],
+      actions: actionsByReturn.get(String(row.id)) ?? [],
+    })),
+    new Date()
+  )
 
   // Segmentação por status_money dentro do card "Revise agora"
   const waitingRetained = waitingRows.filter((row) => row.status_money === "retained")
@@ -440,7 +473,8 @@ export async function getRecoveryOverview(accountId: string): Promise<RecoveryOv
       freightAtRisk: { amount: 0, count: 0, dataAvailable: false },
     },
     appealed: { count: appealed.length, amount: sum(appealed, "amount") },
-    lost: { count: lost.length, amount: sum(lost, "amount") },
+    lost: { count: leftBehind.total.count, amount: leftBehind.total.amount },
+    leftBehind,
     recovered: { count: recovered.data?.length ?? 0, amount: sum(recovered.data ?? [], "recovered_amount") },
     reimbursed: { count: reimbursed.length, amount: sum(reimbursed, "amount") },
     groups: groupsFromRows(waitingRows),
@@ -582,6 +616,7 @@ export async function getRecoveryScreenData(accountId: string, opts?: { accountP
     },
     recovered: { count: overview.recovered.count, amount: overview.recovered.amount },
     hasFirstSubmission: (count ?? 0) > 0,
+    leftBehind: overview.leftBehind,
   })
 }
 
