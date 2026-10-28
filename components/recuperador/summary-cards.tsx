@@ -66,7 +66,7 @@ export function SummaryCards(props: SummaryCardsProps) {
           <CardTitle className="text-3xl font-semibold tracking-tight tabular-nums sm:text-4xl">{formatMoney(recovered.amount)}</CardTitle>
           <p className="text-sm text-muted-foreground">
             {recovered.count
-              ? pluralize(recovered.count, "devolução confirmada", "devoluções confirmadas")
+              ? pluralize(recovered.count, "devolução recuperada", "devoluções recuperadas")
               : "O total aparece aqui quando o Mercado Livre confirmar a seu favor."}
           </p>
         </CardHeader>
