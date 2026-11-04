@@ -700,6 +700,7 @@ function detailText(detail: unknown, key: "title" | "description"): string | nul
 
 export async function getReturnDetail(organizationId: string, returnRowId: string): Promise<ReturnDetail | null> {
   const supabase = await createClient()
+  // A linha alimenta o DTO da tela e toListRow; conserva todos os campos usados pelas classificações da UI.
   const { data: row, error } = await supabase
     .from("recovery_returns")
     .select("*")

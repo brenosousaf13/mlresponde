@@ -37,6 +37,7 @@ export async function getReputationPage(organizationId: string, accountId: strin
   const supabase = await createClient()
   const monthAgo = new Date(now.getTime() - 30 * DAY).toISOString()
   const [snapshots, sync, alerts, shipments, claims, costs, settings] = await Promise.all([
+    // O snapshot completo faz parte do retorno da página (SnapshotRow), além de alimentar snapshotReading.
     supabase
       .from("reputation_snapshots")
       .select("*")

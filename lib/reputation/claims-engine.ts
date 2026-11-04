@@ -279,7 +279,8 @@ export async function syncClaimDetails(
   if (updateError) throw updateError
 }
 
-const CLAIM_COLUMNS = "*"
+// Apenas a identidade e os critérios usados por detailsQueue; o detalhe completo só é lido para a rodada escolhida.
+const CLAIM_COLUMNS = "id, claim_id, status, details_synced_at, ml_updated_at, next_due_at"
 
 /**
  * Gancho das rodadas (depois da busca de reclamações): detalhe das abertas/alteradas e os alertas de reclamação.
@@ -300,7 +301,17 @@ export async function claimsHook(account: ReputationAccount, _changed: unknown, 
   const reasons = new Map<string, string | null>()
   let stop: unknown = null
   const queue = detailsQueue(candidates, now)
-  const selected = queue.slice(0, DETAILS_PER_RUN)
+  const selectedIds = queue.slice(0, DETAILS_PER_RUN).map((claim) => claim.id)
+  const { data: details, error: detailsError } = selectedIds.length
+    ? await admin.from("reputation_claims").select("*").eq("ml_account_id", account.id).in("id", selectedIds)
+    : { data: [], error: null }
+  if (detailsError) throw detailsError
+  const byId = new Map((details ?? []).map((claim) => [claim.id, claim]))
+  // IN não garante ordenação: conserva a prioridade calculada pela fila.
+  const selected = selectedIds.flatMap((id) => {
+    const claim = byId.get(id)
+    return claim ? [claim] : []
+  })
   const orderIds = selected.flatMap((claim) => (claim.resource === "order" && claim.resource_id ? [Number(claim.resource_id)] : []))
   const orders = new Map<number, StoredOrder | null>(orderIds.map((orderId) => [orderId, null]))
   for (const order of await storedOrders(account.id, orderIds)) orders.set(Number(order.ml_order_id), order)

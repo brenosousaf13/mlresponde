@@ -5,7 +5,7 @@ import { parseMessageNotification } from "@/lib/after-sale/notification"
 import { processDueQuestions, processQuestion, reconcileQuestion } from "@/lib/answers/engine"
 import { registerQuestion } from "@/lib/answers/ingest"
 import { parseQuestionNotification } from "@/lib/answers/notification"
-import { handleOrderNotification } from "@/lib/customers/engine"
+import { handleOrder } from "@/lib/customers/engine"
 import { parseOrderNotification } from "@/lib/customers/notification"
 import { serverEnv } from "@/lib/env"
 import { organizationIncludes } from "@/lib/plans/plans"
@@ -101,22 +101,6 @@ async function handleMessage(mlUserId: number, messageId: string) {
     await processDueConversations(5)
   } catch (error) {
     console.error("[webhook] pós-venda:", error instanceof Error ? error.message : error)
-  }
-}
-
-/** Venda nova ou alterada (aba Clientes, todos os planos). Contas desconectadas e organizações bloqueadas ficam de fora. */
-async function handleOrder(mlUserId: number, orderId: number) {
-  try {
-    const { data: account, error } = await createServiceClient()
-      .from("ml_accounts")
-      .select("id, ml_user_id, status, organizations(trial_ends_at, subscription_status, billing_exempt, current_period_end)")
-      .eq("ml_user_id", mlUserId)
-      .maybeSingle()
-    if (error) throw error
-    if (!account) return
-    await handleOrderNotification(account, orderId)
-  } catch (error) {
-    console.error("[webhook] venda:", error instanceof Error ? error.message : error)
   }
 }
 

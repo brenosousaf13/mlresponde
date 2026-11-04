@@ -62,7 +62,7 @@ function questionFields(question: MlQuestion): QuestionUpdate {
 }
 
 /** Pergunta que deixou de estar pendente no ML (respondida lá, apagada, banida...). */
-function closedOnMercadoLivre(row: QuestionRow, question: MlQuestion): QuestionUpdate {
+function closedOnMercadoLivre(row: Pick<QuestionRow, "answer_text" | "answer_source" | "answered_at">, question: MlQuestion): QuestionUpdate {
   if (question.status === "ANSWERED" && question.answer?.text) {
     const answeredByUs = Boolean(row.answer_text) && normalize(row.answer_text) === normalize(question.answer.text)
     return {
@@ -78,7 +78,7 @@ function closedOnMercadoLivre(row: QuestionRow, question: MlQuestion): QuestionU
   return { status: "ignored", review_reason: null, locked_until: null }
 }
 
-async function buildPromptContext(admin: ServiceClient, account: AccountRow, row: QuestionRow, question: MlQuestion) {
+async function buildPromptContext(admin: ServiceClient, account: AccountRow, row: Pick<QuestionRow, "question_text">, question: MlQuestion) {
   // Anúncio completo (dados, ficha, variações, descrição, catálogo e medidas). Se a descrição falhar por
   // instabilidade do ML, o erro sobe e a fila tenta de novo: a IA não responde sem ter lido o anúncio.
   const [{ item, description, extras }, previousQnA, taught] = await Promise.all([
@@ -266,7 +266,7 @@ export async function processDueQuestions(limit = 10): Promise<number> {
 /** Confere no ML se uma pergunta em revisão já foi respondida/apagada fora da plataforma. */
 export async function reconcileQuestion(questionId: string): Promise<void> {
   const admin = createServiceClient()
-  const { data: row, error } = await admin.from("ml_questions").select("*").eq("id", questionId).single()
+  const { data: row, error } = await admin.from("ml_questions").select("id, status, ml_account_id, ml_question_id, answer_text, answer_source, answered_at").eq("id", questionId).single()
   if (error) throw error
   if (!["needs_review", "failed"].includes(row.status)) return
   try {
@@ -284,7 +284,7 @@ export type SuggestionResult = { draft: string; confidence: number; reason: stri
 /** Gera uma sugestão da IA para o vendedor revisar (não envia nada ao ML). */
 export async function suggestAnswer(questionId: string): Promise<SuggestionResult> {
   const admin = createServiceClient()
-  const { data: row, error } = await admin.from("ml_questions").select("*").eq("id", questionId).single()
+  const { data: row, error } = await admin.from("ml_questions").select("id, organization_id, ml_account_id, ml_question_id, question_text, answer_text, answer_source, answered_at").eq("id", questionId).single()
   if (error) throw error
   const account = await loadAccount(admin, row.ml_account_id)
   const question = await fetchQuestion(account.id, row.ml_question_id)
@@ -329,7 +329,7 @@ export class QuestionClosedError extends Error {
 /** Envia uma resposta escrita pelo vendedor. */
 export async function sendManualAnswer(questionId: string, text: string, userId: string): Promise<void> {
   const admin = createServiceClient()
-  const { data: row, error } = await admin.from("ml_questions").select("*").eq("id", questionId).single()
+  const { data: row, error } = await admin.from("ml_questions").select("id, ml_account_id, ml_question_id, answer_text, answer_source, answered_at").eq("id", questionId).single()
   if (error) throw error
 
   try {

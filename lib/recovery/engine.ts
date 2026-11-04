@@ -100,6 +100,16 @@ export const RECOVERY_RULES_SINCE = "2026-10-20T23:50:00.000Z"
 
 const CLAIM_COLUMNS =
   "id, claim_id, status, seller_actions, next_due_at, detail, resolution, order_summary, resource_id, reason_id, reason_detail, ml_created_at, ml_updated_at, sale_at"
+// A fila não precisa dos JSONs do detalhe. Eles são lidos só depois de escolher a rodada.
+const CLAIM_QUEUE_COLUMNS = "id, claim_id, status, seller_actions, ml_created_at, ml_updated_at"
+// Inclui os campos de rowReviewMode/siblingIndex e todos os valores anteriores preservados por syncReturn.
+const RETURN_COLUMNS = "id, organization_id, ml_account_id, claim_row_id, claim_id, claim_updated_at, synced_at, phase, return_status, review_kind, return_id, order_id, review_submitted_at, reviews, amount, item_title, sale_at, currency_id, recovered_at, can_review_ok, can_review_fail, destination, shipment_status, is_cart"
+type StoredReturn = Pick<ReturnRow,
+  | "id" | "organization_id" | "ml_account_id" | "claim_row_id" | "claim_id" | "claim_updated_at" | "synced_at"
+  | "phase" | "return_status" | "review_kind" | "return_id" | "order_id" | "review_submitted_at" | "reviews"
+  | "amount" | "item_title" | "sale_at" | "currency_id" | "recovered_at" | "can_review_ok" | "can_review_fail"
+  | "destination" | "shipment_status" | "is_cart"
+>
 type CandidateClaim = Pick<
   ClaimRow,
   | "id"
@@ -137,7 +147,7 @@ function hasReviewAction(claim: Pick<ClaimRow, "seller_actions">): boolean {
 }
 
 /** Pedido desta reclamação: o que a devolução lista para ela, a venda lida pelo Escudo ou o recurso da reclamação. */
-function claimOrderId(claim: Pick<ClaimRow, "resource_id">, parsed: ParsedReturn | null, summary: OrderSummary | null, existing?: ReturnRow) {
+function claimOrderId(claim: Pick<ClaimRow, "resource_id">, parsed: ParsedReturn | null, summary: OrderSummary | null, existing?: Pick<ReturnRow, "order_id">) {
   const fromReturn = parsed?.orders.find((order) => order.order_id)?.order_id ?? null
   const fromClaim = claim.resource_id ? Number(claim.resource_id) : null
   return fromReturn ?? summary?.order_id ?? (fromClaim && Number.isSafeInteger(fromClaim) ? fromClaim : null) ?? (existing?.order_id ? Number(existing.order_id) : null)
@@ -220,7 +230,7 @@ async function optional<T>(call: () => Promise<T>): Promise<T | null> {
 async function syncReturn(
   account: ReputationAccount,
   claim: CandidateClaim,
-  existing: ReturnRow | undefined,
+  existing: StoredReturn | undefined,
   budget: CallBudget,
   now: Date,
   siblings?: SiblingIndex
@@ -454,7 +464,7 @@ async function refreshReturnAlerts(account: ReputationAccount, now: Date) {
 }
 
 /** Progresso do Raio-X: quantas devoluções da janela já foram lidas. */
-async function updateScan(account: ReputationAccount, windowClaims: readonly CandidateClaim[], now: Date) {
+async function updateScan(account: ReputationAccount, windowClaims: readonly Pick<ClaimRow, "claim_id">[], now: Date) {
   const admin = createServiceClient()
   const ids = windowClaims.map((claim) => Number(claim.claim_id))
   let done = 0
@@ -524,14 +534,14 @@ export async function syncRecoveryAccount(account: ReputationAccount, budget: Ca
       const since = iso(now.getTime() - SCAN_WINDOW_DAYS * DAY)
       const claims = await fetchAllPages((from, to) => admin
         .from("reputation_claims")
-        .select(CLAIM_COLUMNS)
+        .select(CLAIM_QUEUE_COLUMNS)
         .eq("ml_account_id", account.id)
         .eq("type", "returns")
         .or("status.eq.opened,ml_created_at.gte." + since)
         .order("ml_created_at", { ascending: false })
         .order("id")
         .range(from, to))
-      const known = await fetchAllPages((from, to) => admin.from("recovery_returns").select("*").eq("ml_account_id", account.id).order("id").range(from, to))
+      const known = await fetchAllPages((from, to) => admin.from("recovery_returns").select(RETURN_COLUMNS).eq("ml_account_id", account.id).order("id").range(from, to))
       const byClaim = new Map(known.map((row) => [Number(row.claim_id), row]))
       const siblings = siblingIndex(known)
       const knownState = new Map<number, KnownReturn>(
@@ -554,8 +564,17 @@ export async function syncRecoveryAccount(account: ReputationAccount, budget: Ca
       )
       let processed = 0
       let stop: unknown = null
-      for (const claim of queue.slice(0, RETURNS_PER_RUN)) {
+      const selected = queue.slice(0, RETURNS_PER_RUN)
+      // Mantém a fila completa e os intervalos: devoluções sem mudança na reclamação também podem precisar de releitura.
+      const { data: details, error: detailsError } = selected.length && !budget.exhausted && Date.now() <= deadline
+        ? await admin.from("reputation_claims").select(CLAIM_COLUMNS).eq("ml_account_id", account.id).in("id", selected.map((claim) => claim.id))
+        : { data: [], error: null }
+      if (detailsError) throw detailsError
+      const detailsById = new Map((details ?? []).map((claim) => [claim.id, claim]))
+      for (const candidate of selected) {
         if (budget.exhausted || Date.now() > deadline) break
+        const claim = detailsById.get(candidate.id)
+        if (!claim) continue
         try {
           await syncReturn(account, claim, byClaim.get(Number(claim.claim_id)), budget, now, siblings)
           processed++
@@ -657,13 +676,20 @@ export async function runRecoverySync(): Promise<RecoverySyncResult> {
 
 /** Última vez que cada conta foi registrada como parada / sem acesso (evita repetir o mesmo log e a mesma gravação). */
 const healthReported = new Map<string, number>()
+const HEALTH_INTERVAL_MS = 15 * MINUTE
+let lastHealthCheck: number | null = null
 
 /**
  * Só leitura (mais 1 gravação do motivo, quando não há erro real): contas ativas que o claim_recovery_sync pulou por
- * organização sem acesso e contas paradas há mais de 30 minutos. Roda 1 vez por rodada do cron e registra cada conta no
- * máximo 1 vez a cada 30 minutos por instância. Sem migração e sem alerta novo.
+ * organização sem acesso e contas paradas há mais de 30 minutos. Sem estado persistido adequado, só consulta nos minutos
+ * UTC múltiplos de 15 (inclusive em instâncias novas) e no máximo a cada 15 min por instância. Não é uma trava distribuída.
+ * Cada conta continua sendo registrada no máximo 1 vez a cada 30 min por instância. Sem migração e sem alerta novo.
  */
 export async function monitorRecoveryHealth(now: Date) {
+  const time = now.getTime()
+  if (now.getUTCMinutes() % 15 !== 0 || (lastHealthCheck !== null && time - lastHealthCheck < HEALTH_INTERVAL_MS)) return
+  // Reserva antes do primeiro await para impedir consultas simultâneas nesta instância, inclusive se a consulta falhar.
+  lastHealthCheck = time
   const admin = createServiceClient()
   const accounts = await fetchAllPages((from, to) => admin
     .from("ml_accounts")
@@ -739,19 +765,19 @@ export async function syncRecoveryNow(accountId: string): Promise<"done" | "busy
 
 // ---------------------------------------------------------------------------------------------- revisão (a pedido do dono)
 
-type LoadedReturn = { row: ReturnRow; claim: ClaimRow; account: ReputationAccount }
+type LoadedReturn = { row: StoredReturn; claim: Pick<ClaimRow, "id" | "claim_id" | "resource_id">; account: ReputationAccount }
 
 async function loadReturn(organizationId: string, returnRowId: string): Promise<LoadedReturn | null> {
   const admin = createServiceClient()
   const { data: row, error } = await admin
     .from("recovery_returns")
-    .select("*")
+    .select(RETURN_COLUMNS)
     .eq("id", returnRowId)
     .eq("organization_id", organizationId)
     .maybeSingle()
   if (error) throw error
   if (!row) return null
-  const { data: claim, error: claimError } = await admin.from("reputation_claims").select("*").eq("id", row.claim_row_id).maybeSingle()
+  const { data: claim, error: claimError } = await admin.from("reputation_claims").select("id, claim_id, resource_id").eq("id", row.claim_row_id).maybeSingle()
   if (claimError) throw claimError
   const account = (await loadAccounts([row.ml_account_id])).get(row.ml_account_id)
   return claim && account ? { row, claim, account } : null
@@ -766,7 +792,7 @@ export async function syncReturnNow(organizationId: string, returnRowId: string)
   )
   const { data: claim, error } = await createServiceClient().from("reputation_claims").select(CLAIM_COLUMNS).eq("id", loaded.claim.id).single()
   if (error) throw error
-  const { data: row } = await createServiceClient().from("recovery_returns").select("*").eq("id", returnRowId).single()
+  const { data: row } = await createServiceClient().from("recovery_returns").select(RETURN_COLUMNS).eq("id", returnRowId).single()
   const current = row ?? loaded.row
   const siblings = await loadSiblings(loaded.account.id, current.return_id === null ? null : Number(current.return_id))
   await syncReturn(loaded.account, claim, current, new CallBudget(5), new Date(), siblings)

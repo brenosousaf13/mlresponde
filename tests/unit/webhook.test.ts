@@ -25,7 +25,7 @@ const mocks = vi.hoisted(() => {
     processDueQuestions: vi.fn(async () => 0),
     handleMessageNotification: vi.fn(async () => undefined),
     processDueConversations: vi.fn(async () => 0),
-    handleOrderNotification: vi.fn(async () => undefined),
+    handleOrder: vi.fn(async () => undefined),
   }
 })
 
@@ -41,7 +41,7 @@ vi.mock("@/lib/after-sale/engine", () => ({
   handleMessageNotification: mocks.handleMessageNotification,
   processDueConversations: mocks.processDueConversations,
 }))
-vi.mock("@/lib/customers/engine", () => ({ handleOrderNotification: mocks.handleOrderNotification }))
+vi.mock("@/lib/customers/engine", () => ({ handleOrder: mocks.handleOrder }))
 
 process.env.ML_CLIENT_ID = "8693830632560554"
 const { POST } = await import("@/app/api/webhook/mercadolivre/route")
@@ -95,7 +95,7 @@ describe("webhook do Mercado Livre", () => {
     expect(mocks.after).toHaveBeenCalledTimes(1)
 
     await runAfterTasks()
-    expect(mocks.handleOrderNotification).toHaveBeenCalledWith(mocks.account, 2000012345678901)
+    expect(mocks.handleOrder).toHaveBeenCalledWith(254752194, 2000012345678901)
   })
 
   it("notificação de outro app ou tópico ignorado: 200 e nada agendado", async () => {

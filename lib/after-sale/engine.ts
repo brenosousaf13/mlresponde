@@ -79,6 +79,7 @@ async function loadAccount(admin: ServiceClient, accountId: string) {
 export type AfterSaleAccount = Awaited<ReturnType<typeof loadAccount>>
 
 async function loadConversation(admin: ServiceClient, id: string) {
+  // A linha inteira é repassada como ConversationRow aos consumidores da sincronização e das ações da conversa.
   const { data, error } = await admin.from("ml_conversations").select("*").eq("id", id).single()
   if (error) throw error
   return data
@@ -220,6 +221,7 @@ async function storeMessages(admin: ServiceClient, conversation: ConversationRow
     if (insertError) throw insertError
   }
 
+  // Mantém MessageRow completo: as mensagens seguem para classificação, sincronização e construção do contexto da IA.
   const { data: rows, error: rowsError } = await admin
     .from("ml_conversation_messages")
     .select("*")

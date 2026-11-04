@@ -256,17 +256,61 @@ type NotifiedAccount = {
   organizations: { trial_ends_at: string; subscription_status: string; billing_exempt: boolean; current_period_end: string | null } | null
 }
 
+const ORDER_DEDUPE_MS = 60 * 1000
+// Melhor esforço por instância; a conferência periódica continua cobrindo notificações perdidas e mudanças no intervalo.
+const notifiedOrders = new Map<string, { until: number; pending: boolean }>()
+
+/** Venda nova ou alterada: deduplica antes de ler a conta e repassa a conta carregada ao processamento. */
+export async function handleOrder(mlUserId: number, orderId: number) {
+  await deduplicateOrder(mlUserId, orderId, async () => {
+    const { data, error } = await createServiceClient()
+      .from("ml_accounts")
+      .select("id, ml_user_id, status, organizations(trial_ends_at, subscription_status, billing_exempt, current_period_end)")
+      .eq("ml_user_id", mlUserId)
+      .maybeSingle()
+    if (error) throw error
+    return data
+  })
+}
+
+async function deduplicateOrder(mlUserId: number, orderId: number, loadAccount: () => Promise<NotifiedAccount | null>) {
+  const now = Date.now()
+  for (const [key, entry] of notifiedOrders) {
+    if (!entry.pending && entry.until <= now) notifiedOrders.delete(key)
+  }
+  const key = mlUserId + ":" + orderId
+  if (notifiedOrders.has(key)) return
+  const entry = { until: now + ORDER_DEDUPE_MS, pending: true }
+  notifiedOrders.set(key, entry)
+  let handled = false
+  try {
+    const account = await loadAccount()
+    if (account) handled = await processOrderNotification(account, orderId)
+  } catch (error) {
+    console.error("[webhook] venda:", error instanceof Error ? error.message : error)
+  } finally {
+    entry.pending = false
+    if (!handled) notifiedOrders.delete(key)
+  }
+}
+
 /** Notificação orders_v2: lê a venda no ML e grava (só vendas da própria conta, de organizações com acesso). */
-export async function handleOrderNotification(account: NotifiedAccount, orderId: number) {
-  if (account.status !== "active" || !account.organizations) return
-  if (computeAccess(account.organizations).state === "blocked") return
+export async function handleOrderNotification(account: NotifiedAccount, orderId: number): Promise<void> {
+  await deduplicateOrder(Number(account.ml_user_id), orderId, async () => account)
+}
+
+async function processOrderNotification(account: NotifiedAccount, orderId: number): Promise<boolean> {
+  if (account.status !== "active" || !account.organizations) return false
+  if (computeAccess(account.organizations).state === "blocked") return false
   try {
     const order = await fetchOrder(account.id, orderId)
     // O ML avisa das vendas da conta; se a conta for a compradora, não é cliente desta loja.
-    if (mlId(order.seller?.id) !== Number(account.ml_user_id)) return
+    if (mlId(order.seller?.id) !== Number(account.ml_user_id)) return true
     await ingestOrders(account.id, [order])
+    return true
   } catch (error) {
     // A conferência a cada 10 minutos pega a venda se esta leitura falhar.
     if (!(error instanceof MlAccountUnavailableError)) console.error("[clientes] venda " + orderId + ":", errorMessage(error))
+    return false
   }
 }

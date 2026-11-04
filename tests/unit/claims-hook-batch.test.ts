@@ -14,7 +14,11 @@ const mocks = vi.hoisted(() => {
     const result = () => {
       if (call.op !== "select") return { data: null, error: null }
       if (table === "ml_orders") return { data: state.orders, error: null }
-      if (table === "reputation_claims" && call.columns === "*") return { data: state.candidates, error: null }
+      if (table === "reputation_claims" && (call.columns === "*" || call.columns?.includes("details_synced_at"))) {
+        const ids = call.filters.find(([column]) => column === "id")?.[1] as string[] | undefined
+        const rows = state.candidates.filter((row) => !ids || ids.includes(String(row.id)))
+        return { data: rows.map((row) => call.columns === "*" ? row : Object.fromEntries(call.columns!.split(",").map((column) => [column.trim(), row[column.trim()]]))), error: null }
+      }
       return { data: [], error: null }
     }
     const query: Record<string, unknown> = {
@@ -123,6 +127,7 @@ const writes = () => mocks.state.calls.filter((call) => call.op !== "select")
 
 describe("claimsHook (gravações agrupadas)", () => {
   beforeEach(() => {
+    vi.clearAllMocks()
     mocks.state.calls = []
     mocks.state.candidates = [candidate(1), candidate(2), candidate(3)]
     mocks.state.orders = [
@@ -162,5 +167,32 @@ describe("claimsHook (gravações agrupadas)", () => {
   it("vendas que não estão gravadas não geram uma consulta ao banco por reclamação", async () => {
     await claimsHook(account, [], new CallBudget(100), now)
     expect(mocks.state.calls.filter((call) => call.table === "ml_orders")).toHaveLength(1)
+  })
+
+  it("seleciona a fila com colunas leves e carrega linhas completas somente das 12 escolhidas, na ordem da fila", async () => {
+    mocks.state.candidates = Array.from({ length: 20 }, (_, i) => candidate(i + 1))
+    const pending = await claimsHook(account, [], new CallBudget(300), now)
+    expect(pending).toBe(true)
+    const reads = mocks.state.calls.filter((call) => call.table === "reputation_claims" && call.op === "select")
+    expect(reads[0].columns).not.toMatch(/\*|order_summary|shipping|ai_result|detail,/)
+    expect(reads[0].columns?.split(",").map((column) => column.trim())).toEqual(expect.arrayContaining(["id", "status", "details_synced_at", "ml_updated_at", "next_due_at"]))
+    expect(reads.filter((call) => call.columns === "*")).toHaveLength(1)
+    expect(reads[1].filters).toContainEqual(["id", Array.from({ length: 12 }, (_, i) => `row-${i + 1}`)])
+    expect(writes().filter((call) => call.table === "reputation_claims")).toHaveLength(12)
+  })
+
+  it("não carrega linhas completas quando o detalhe já está atualizado", async () => {
+    mocks.state.candidates = [{ ...candidate(1), details_synced_at: now.toISOString() }]
+    await claimsHook(account, [], new CallBudget(100), now)
+    expect(mocks.state.calls.filter((call) => call.columns === "*")).toHaveLength(0)
+  })
+
+  it("preserva venda, comprador, envio e limite de análises vindos da segunda leitura", async () => {
+    mocks.state.orders = []
+    mocks.state.candidates = [{ ...candidate(1), buyer_nickname: "CLIENTE", shipping: { status: "shipped" }, order_summary: { order_id: 9001, items: [], total: 99 }, ai_analyses: 8 }]
+    await claimsHook(account, [], new CallBudget(100), now)
+    expect(writes().find((call) => call.table === "reputation_claims")?.payload).toMatchObject({
+      buyer_nickname: "CLIENTE", shipping: { status: "shipped" }, order_summary: { order_id: 9001, items: [], total: 99 }, ai_status: "skipped",
+    })
   })
 })
