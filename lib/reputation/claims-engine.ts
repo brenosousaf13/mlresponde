@@ -48,6 +48,8 @@ import { applyAlerts, forEachLimit, isClientError, isStopError, loadAccounts, ty
 import { exclusionLabel } from "@/lib/reputation/exclusions"
 import type { Database, Json } from "@/lib/supabase/database.types"
 import { createServiceClient } from "@/lib/supabase/admin"
+import { fetchAllPages } from "@/lib/supabase/paginate"
+import { changedFields } from "@/lib/db-write-diff"
 
 // Escudo de Reputação, etapa 2: detalhe das reclamações, fila da IA, alertas de reclamação e as ações que o vendedor
 // aprova. Regras puras em lib/reputation/{claim-details,claim-ai,alerts}.ts. Roda como gancho das rodadas da etapa 1
@@ -132,6 +134,32 @@ async function storedOrders(accountId: string, orderIds: number[]) {
 type StoredOrder = Awaited<ReturnType<typeof storedOrders>>[number]
 type ClaimMessageInsert = Database["public"]["Tables"]["reputation_claim_messages"]["Insert"]
 
+const MESSAGE_COLUMNS = "claim_row_id, hash, organization_id, ml_account_id, sender_role, receiver_role, message, message_at, stage, status, moderation_status, attachments"
+
+/** Uma leitura paginada por lote; mantém o upsert agrupado só dos hashes novos ou alterados. */
+async function writeChangedMessages(messages: ClaimMessageInsert[]) {
+  if (!messages.length) return
+  const admin = createServiceClient()
+  const claimIds = [...new Set(messages.map((message) => message.claim_row_id))]
+  const stored = await fetchAllPages((from, to) => admin.from("reputation_claim_messages")
+    .select(MESSAGE_COLUMNS)
+    .in("claim_row_id", claimIds)
+    .order("claim_row_id")
+    .order("hash")
+    .range(from, to))
+  const key = (message: { claim_row_id: string; hash: string }) => JSON.stringify([message.claim_row_id, message.hash])
+  const byHash = new Map(stored.map((message) => [key(message), message]))
+  const changed = messages.filter((message) => {
+    const previous = byHash.get(key(message))
+    return !previous || Object.keys(changedFields(previous, message)).length > 0
+  })
+  for (let index = 0; index < changed.length; index += 500) {
+    const { error } = await admin.from("reputation_claim_messages")
+      .upsert(changed.slice(index, index + 500), { onConflict: "claim_row_id,hash" })
+    if (error) throw error
+  }
+}
+
 /**
  * Gravações agrupadas das rodadas do cron: as vendas das reclamações são lidas numa consulta só e as mensagens e
  * atualizações das reclamações saem juntas no fim (flushClaimDetails), em vez de 3 idas ao banco por reclamação.
@@ -146,12 +174,7 @@ type DetailsBatch = {
 async function flushClaimDetails(batch: DetailsBatch) {
   const admin = createServiceClient()
   // Mensagens antes das reclamações: se falhar, nenhuma é marcada como lida e a próxima rodada tenta de novo.
-  for (let index = 0; index < batch.messages.length; index += 500) {
-    const { error } = await admin
-      .from("reputation_claim_messages")
-      .upsert(batch.messages.slice(index, index + 500), { onConflict: "claim_row_id,hash" })
-    if (error) throw error
-  }
+  await writeChangedMessages(batch.messages)
   const results = await Promise.all(
     batch.updates.map(({ id, update }) => admin.from("reputation_claims").update(update).eq("id", id))
   )
@@ -257,6 +280,7 @@ export async function syncClaimDetails(
     update.ai_input_hash = hash
     update.ai_status = claim.ai_analyses >= MAX_CLAIM_ANALYSES ? "skipped" : "pending"
   }
+  const minimalUpdate: ClaimUpdate = { ...changedFields(claim, update), details_synced_at: now.toISOString() }
   const messageRows: ClaimMessageInsert[] = messages.map((message) => ({
     organization_id: account.organization_id,
     ml_account_id: account.id,
@@ -266,16 +290,11 @@ export async function syncClaimDetails(
   }))
   if (batch) {
     batch.messages.push(...messageRows)
-    batch.updates.push({ id: claim.id, update })
+    batch.updates.push({ id: claim.id, update: minimalUpdate })
     return
   }
-  if (messageRows.length) {
-    const { error: messagesError } = await admin
-      .from("reputation_claim_messages")
-      .upsert(messageRows, { onConflict: "claim_row_id,hash" })
-    if (messagesError) throw messagesError
-  }
-  const { error: updateError } = await admin.from("reputation_claims").update(update).eq("id", claim.id)
+  await writeChangedMessages(messageRows)
+  const { error: updateError } = await admin.from("reputation_claims").update(minimalUpdate).eq("id", claim.id)
   if (updateError) throw updateError
 }
 

@@ -1,6 +1,7 @@
 import "server-only"
 
 import { fetchAllPages } from "@/lib/supabase/paginate"
+import { changedFields } from "@/lib/db-write-diff"
 
 import { PlatformAiPausedError } from "@/lib/ai/usage"
 import { MlAccountUnavailableError } from "@/lib/mercadolivre/accounts"
@@ -102,13 +103,15 @@ const CLAIM_COLUMNS =
   "id, claim_id, status, seller_actions, next_due_at, detail, resolution, order_summary, resource_id, reason_id, reason_detail, ml_created_at, ml_updated_at, sale_at"
 // A fila não precisa dos JSONs do detalhe. Eles são lidos só depois de escolher a rodada.
 const CLAIM_QUEUE_COLUMNS = "id, claim_id, status, seller_actions, ml_created_at, ml_updated_at"
-// Inclui os campos de rowReviewMode/siblingIndex e todos os valores anteriores preservados por syncReturn.
-const RETURN_COLUMNS = "id, organization_id, ml_account_id, claim_row_id, claim_id, claim_updated_at, synced_at, phase, return_status, review_kind, return_id, order_id, review_submitted_at, reviews, amount, item_title, sale_at, currency_id, recovered_at, can_review_ok, can_review_fail, destination, shipment_status, is_cart"
+// Inclui todos os campos gravados por syncReturn, para não regravar JSONs sem mudança de negócio.
+const RETURN_COLUMNS = "id, organization_id, ml_account_id, claim_row_id, claim_id, claim_updated_at, synced_at, phase, return_status, review_kind, return_id, order_id, review_submitted_at, reviews, amount, item_title, sale_at, currency_id, recovered_at, can_review_ok, can_review_fail, destination, shipment_status, is_cart, claim_status, return_subtype, status_money, refund_at, orders, deadline_at, claim_created_at, ml_closed_at, recovered_amount"
 type StoredReturn = Pick<ReturnRow,
   | "id" | "organization_id" | "ml_account_id" | "claim_row_id" | "claim_id" | "claim_updated_at" | "synced_at"
   | "phase" | "return_status" | "review_kind" | "return_id" | "order_id" | "review_submitted_at" | "reviews"
   | "amount" | "item_title" | "sale_at" | "currency_id" | "recovered_at" | "can_review_ok" | "can_review_fail"
   | "destination" | "shipment_status" | "is_cart"
+  | "claim_status" | "return_subtype" | "status_money" | "refund_at" | "orders" | "deadline_at"
+  | "claim_created_at" | "ml_closed_at" | "recovered_amount"
 >
 type CandidateClaim = Pick<
   ClaimRow,
@@ -378,33 +381,52 @@ async function syncReturn(
     }
   }
 
-  const { data: saved, error } = await admin
-    .from("recovery_returns")
-    .upsert(fields, { onConflict: "ml_account_id,claim_id" })
-    .select("id")
-    .single()
-  if (error) throw error
+  const { synced_at, claim_updated_at, ...businessFields } = fields
+  let saved: { id: string }
+  if (existing && !Object.keys(changedFields(existing, businessFields)).length) {
+    const { error } = await admin.from("recovery_returns")
+      .update({ synced_at, ...changedFields(existing, { claim_updated_at }) })
+      .eq("id", existing.id)
+    if (error) throw error
+    saved = { id: existing.id }
+  } else {
+    const { data, error } = await admin
+      .from("recovery_returns")
+      .upsert(fields, { onConflict: "ml_account_id,claim_id" })
+      .select("id")
+      .single()
+    if (error) throw error
+    saved = data
+  }
   if (fields.recovered_at && !existing?.recovered_at) {
     logRecovery({ etapa: "recuperado", conta: account.id, claim_id: claimId, resultado: "ok", detalhe: "ressarcimento detectado" })
   }
 
   if (finding) {
-    const { error: findingError } = await admin.from("recovery_findings").upsert(
-      {
-        organization_id: account.organization_id,
-        ml_account_id: account.id,
-        return_row_id: saved.id,
-        kind: finding.kind,
-        dedupe_key: finding.dedupeKey,
-        confidence: finding.confidence,
-        amount: finding.amount,
-        currency_id: finding.currencyId,
-        evidence: finding.evidence as Json,
-        status: finding.status,
-      },
-      { onConflict: "ml_account_id,dedupe_key" }
-    )
-    if (findingError) throw findingError
+    const findingFields = {
+      organization_id: account.organization_id,
+      ml_account_id: account.id,
+      return_row_id: saved.id,
+      kind: finding.kind,
+      dedupe_key: finding.dedupeKey,
+      confidence: finding.confidence,
+      amount: finding.amount,
+      currency_id: finding.currencyId,
+      evidence: finding.evidence as Json,
+      status: finding.status,
+    }
+    const { data: previous, error: readError } = await admin.from("recovery_findings")
+      .select("organization_id, ml_account_id, dedupe_key, return_row_id, kind, confidence, amount, currency_id, evidence, status")
+      .eq("ml_account_id", account.id)
+      .eq("dedupe_key", finding.dedupeKey)
+      .maybeSingle()
+    if (readError) throw readError
+    if (!previous || Object.keys(changedFields(previous, findingFields)).length) {
+      const { error: findingError } = await admin.from("recovery_findings").upsert(
+        findingFields, { onConflict: "ml_account_id,dedupe_key" }
+      )
+      if (findingError) throw findingError
+    }
   } else {
     // A regra mudou ou a leitura nova não confirma mais o achado: tira o antigo (achado é derivado, não histórico).
     const { error: deleteError } = await admin
@@ -413,6 +435,14 @@ async function syncReturn(
       .eq("ml_account_id", account.id)
       .eq("dedupe_key", "return:" + claimId)
     if (deleteError) throw deleteError
+  }
+  return {
+    phase,
+    mode,
+    deadlineAt: deadline.at,
+    // Sem prazo real, acelera só a rodada em que a chegada passou a pedir revisão.
+    newArrival: phase === "needs_review" && mode === "arrival" && (!deadline.at || deadline.estimated)
+      && (!existing || existing.phase !== "needs_review" || rowReviewMode(existing) !== "arrival"),
   }
 }
 
@@ -479,23 +509,31 @@ async function updateScan(account: ReputationAccount, windowClaims: readonly Pic
   }
   const { data: scan, error: scanError } = await admin
     .from("recovery_scans")
-    .select("status, started_at")
+    .select("status, started_at, returns_total, returns_done, window_days, completed_at")
     .eq("ml_account_id", account.id)
     .maybeSingle()
   if (scanError) throw scanError
   const finished = done >= ids.length
+  const fields: Database["public"]["Tables"]["recovery_scans"]["Insert"] = {
+    ml_account_id: account.id,
+    organization_id: account.organization_id,
+    window_days: SCAN_WINDOW_DAYS,
+    returns_total: ids.length,
+    returns_done: Math.min(done, ids.length),
+    // Depois de pronto, o Raio-X continua pronto (devoluções novas entram no ritmo normal).
+    status: scan?.status === "done" || finished ? "done" : "running",
+    started_at: scan?.started_at ?? now.toISOString(),
+    ...(scan?.status !== "done" && finished ? { completed_at: now.toISOString() } : {}),
+  }
+  if (scan && !Object.keys(changedFields(scan, {
+    returns_total: fields.returns_total,
+    returns_done: fields.returns_done,
+    status: fields.status,
+    window_days: fields.window_days,
+    completed_at: fields.completed_at ?? scan.completed_at,
+  })).length) return
   const { error } = await admin.from("recovery_scans").upsert(
-    {
-      ml_account_id: account.id,
-      organization_id: account.organization_id,
-      window_days: SCAN_WINDOW_DAYS,
-      returns_total: ids.length,
-      returns_done: Math.min(done, ids.length),
-      // Depois de pronto, o Raio-X continua pronto (devoluções novas entram no ritmo normal).
-      status: scan?.status === "done" || finished ? "done" : "running",
-      started_at: scan?.started_at ?? now.toISOString(),
-      ...(scan?.status !== "done" && finished ? { completed_at: now.toISOString() } : {}),
-    },
+    fields,
     { onConflict: "ml_account_id" }
   )
   if (error) throw error
@@ -543,6 +581,9 @@ export async function syncRecoveryAccount(account: ReputationAccount, budget: Ca
         .range(from, to))
       const known = await fetchAllPages((from, to) => admin.from("recovery_returns").select(RETURN_COLUMNS).eq("ml_account_id", account.id).order("id").range(from, to))
       const byClaim = new Map(known.map((row) => [Number(row.claim_id), row]))
+      const pollState = new Map(known.map((row) => [Number(row.claim_id), {
+        phase: row.phase, mode: rowReviewMode(row), deadlineAt: row.deadline_at, newArrival: false,
+      }]))
       const siblings = siblingIndex(known)
       const knownState = new Map<number, KnownReturn>(
         [...byClaim].map(([id, row]) => [
@@ -576,7 +617,8 @@ export async function syncRecoveryAccount(account: ReputationAccount, budget: Ca
         const claim = detailsById.get(candidate.id)
         if (!claim) continue
         try {
-          await syncReturn(account, claim, byClaim.get(Number(claim.claim_id)), budget, now, siblings)
+          const state = await syncReturn(account, claim, byClaim.get(Number(claim.claim_id)), budget, now, siblings)
+          pollState.set(Number(claim.claim_id), state)
           processed++
         } catch (error) {
           if (isStopError(error)) {
@@ -593,7 +635,11 @@ export async function syncRecoveryAccount(account: ReputationAccount, budget: Ca
       await refreshReturnAlerts(account, now)
       if (stop) throw stop
       if (processed < queue.length) next = INTERVALS.unfinished
-      else if (known.some((row) => row.phase === "needs_review" && rowReviewMode(row) === "arrival")) next = INTERVALS.needsReview
+      else if ([...pollState.values()].some((row) => {
+        if (row.phase !== "needs_review" || row.mode !== "arrival") return false
+        const due = row.deadlineAt ? Date.parse(row.deadlineAt) : NaN
+        return row.newArrival || (due > now.getTime() && due <= now.getTime() + DAY)
+      })) next = INTERVALS.needsReview
     }
   } catch (error) {
     if (error instanceof BudgetExhaustedError) next = budget.rateLimited ? INTERVALS.rateLimited : INTERVALS.unfinished

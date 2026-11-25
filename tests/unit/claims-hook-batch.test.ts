@@ -46,6 +46,7 @@ const mocks = vi.hoisted(() => {
       },
       or: () => query,
       order: () => query,
+      range: () => query,
       limit: () => query,
       maybeSingle: () => query,
       then: (resolve: (value: unknown) => unknown, reject: (error: unknown) => unknown) =>
@@ -192,7 +193,11 @@ describe("claimsHook (gravações agrupadas)", () => {
     mocks.state.candidates = [{ ...candidate(1), buyer_nickname: "CLIENTE", shipping: { status: "shipped" }, order_summary: { order_id: 9001, items: [], total: 99 }, ai_analyses: 8 }]
     await claimsHook(account, [], new CallBudget(100), now)
     expect(writes().find((call) => call.table === "reputation_claims")?.payload).toMatchObject({
-      buyer_nickname: "CLIENTE", shipping: { status: "shipped" }, order_summary: { order_id: 9001, items: [], total: 99 }, ai_status: "skipped",
+      ai_status: "skipped",
     })
+    const update = writes().find((call) => call.table === "reputation_claims")?.payload
+    expect(update).not.toHaveProperty("buyer_nickname")
+    expect(update).not.toHaveProperty("shipping")
+    expect(update).not.toHaveProperty("order_summary")
   })
 })
