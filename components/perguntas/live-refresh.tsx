@@ -2,9 +2,12 @@
 
 import type { RealtimeChannel } from "@supabase/supabase-js"
 import { useRouter } from "next/navigation"
-import { useEffect, useRef } from "react"
+import { useEffect } from "react"
 
 import { createClient } from "@/lib/supabase/client"
+import { createLiveRefreshController } from "./live-refresh-controller"
+
+export { LIVE_REFRESH_DEBOUNCE_MS } from "./live-refresh-controller"
 
 /** Atualiza a tela quando muda alguma linha da organização (perguntas ou conversas de pós-venda). */
 export function LiveRefresh({
@@ -15,10 +18,10 @@ export function LiveRefresh({
   table?: "ml_questions" | "ml_conversations"
 }) {
   const router = useRouter()
-  const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => {
     const supabase = createClient()
+    const refresh = createLiveRefreshController(() => router.refresh(), document)
     let channel: RealtimeChannel | null = null
     let cancelled = false
 
@@ -26,15 +29,13 @@ export function LiveRefresh({
       const { data } = await supabase.auth.getSession()
       if (cancelled || !data.session) return
       await supabase.realtime.setAuth(data.session.access_token)
+      if (cancelled) return
       channel = supabase
         .channel(`${table}:${organizationId}`)
         .on(
           "postgres_changes",
           { event: "*", schema: "public", table, filter: `organization_id=eq.${organizationId}` },
-          () => {
-            if (timer.current) clearTimeout(timer.current)
-            timer.current = setTimeout(() => router.refresh(), 800)
-          }
+          refresh.schedule
         )
         .subscribe()
     }
@@ -43,7 +44,7 @@ export function LiveRefresh({
 
     return () => {
       cancelled = true
-      if (timer.current) clearTimeout(timer.current)
+      refresh.dispose()
       if (channel) void supabase.removeChannel(channel)
     }
   }, [organizationId, router, table])

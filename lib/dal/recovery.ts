@@ -1,5 +1,7 @@
 import "server-only"
 
+import { cache } from "react"
+
 import { followUpSummary, type FollowUpSummary } from "@/lib/recovery/follow-up"
 import {
   deadlinePassed,
@@ -369,7 +371,8 @@ function sum(rows: readonly { amount?: unknown; recovered_amount?: unknown }[], 
   return Math.round(rows.reduce((total, row) => total + (Number(row[key]) || 0), 0) * 100) / 100
 }
 
-export async function getRecoveryOverview(accountId: string): Promise<RecoveryOverview> {
+// Página e DTO compartilham a mesma leitura, somente durante a requisição React atual.
+export const getRecoveryOverview = cache(async (accountId: string): Promise<RecoveryOverview> => {
   const supabase = await createClient()
   const readAt = new Date()
   const since = new Date(readAt.getTime() - LEFT_BEHIND_WINDOW_DAYS * 24 * 60 * 60 * 1000).toISOString()
@@ -499,7 +502,7 @@ export async function getRecoveryOverview(accountId: string): Promise<RecoveryOv
       encerradas: encerradas.count ?? 0,
     },
   }
-}
+})
 
 export async function getReturnsTab(accountId: string, filter: ReturnFilter): Promise<ReturnListRow[]> {
   const supabase = await createClient()
