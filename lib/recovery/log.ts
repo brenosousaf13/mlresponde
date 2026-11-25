@@ -5,17 +5,20 @@
  * apelido, e-mail, endereço, texto da reclamação): campos fora da lista abaixo são descartados e o "detalhe" passa por limpeza.
  */
 
-export type RecoveryLogStage = "lido" | "elegivel" | "avisado" | "enviado" | "decidido" | "recuperado" | "sync_parado" | "sem_acesso"
+export type RecoveryLogStage = "lido" | "elegivel" | "avisado" | "enviado" | "decidido" | "recuperado" | "sync_parado" | "sem_acesso" | "rodada"
 export type RecoveryLogResult = "ok" | "falha" | "pulado"
+export type RecoveryRoundReason = "normal" | "revisao_24h" | "chegada_nova" | "inacabado" | "aguardando" | "erro" | "rate_limit" | "indisponivel" | "orcamento"
 
 export type RecoveryLogEntry = {
-  etapa: RecoveryLogStage
   /** Id da conta do ML na maanu (só os 4 últimos caracteres vão para o log). */
   conta: string
   claim_id?: number | null
   resultado: RecoveryLogResult
   detalhe?: string | null
-}
+} & (
+  | { etapa: Exclude<RecoveryLogStage, "rodada"> }
+  | { etapa: "rodada"; fila: number; lidas: number; proxima_minutos: number; motivo: RecoveryRoundReason }
+)
 
 const DETAIL_MAX = 200
 
@@ -37,6 +40,12 @@ export function formatRecoveryLog(entry: RecoveryLogEntry): string {
   const payload: Record<string, unknown> = { etapa: entry.etapa, conta: shortAccount(entry.conta) }
   if (entry.claim_id !== undefined && entry.claim_id !== null) payload.claim_id = Number(entry.claim_id)
   payload.resultado = entry.resultado
+  if (entry.etapa === "rodada") {
+    payload.fila = entry.fila
+    payload.lidas = entry.lidas
+    payload.proxima_minutos = entry.proxima_minutos
+    payload.motivo = entry.motivo
+  }
   if (entry.detalhe) payload.detalhe = cleanDetail(entry.detalhe)
   return "[recuperador] " + JSON.stringify(payload)
 }

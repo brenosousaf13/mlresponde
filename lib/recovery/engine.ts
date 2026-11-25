@@ -19,7 +19,7 @@ import {
   uploadReturnAttachment,
 } from "@/lib/mercadolivre/reputation"
 import { returnAlerts } from "@/lib/recovery/alerts"
-import { logRecovery, shortAccount } from "@/lib/recovery/log"
+import { logRecovery, shortAccount, type RecoveryRoundReason } from "@/lib/recovery/log"
 import { classifySyncHealth, organizationHasAccess, SYNC_STALE_MS } from "@/lib/recovery/sync-health"
 import {
   arrivalDate,
@@ -557,6 +557,9 @@ export async function syncRecoveryAccount(account: ReputationAccount, budget: Ca
   const admin = createServiceClient()
   const now = new Date()
   let next = INTERVALS.normal
+  let reason: RecoveryRoundReason = "normal"
+  let queueSize = 0
+  let processed = 0
   let lastError: string | null = null
   try {
     const { data: escudo, error: escudoError } = await admin
@@ -568,6 +571,7 @@ export async function syncRecoveryAccount(account: ReputationAccount, budget: Ca
     if (!escudo?.claims_backfilled_at) {
       await markScanWaiting(account)
       next = INTERVALS.waiting
+      reason = "aguardando"
     } else {
       const since = iso(now.getTime() - SCAN_WINDOW_DAYS * DAY)
       const claims = await fetchAllPages((from, to) => admin
@@ -593,6 +597,7 @@ export async function syncRecoveryAccount(account: ReputationAccount, budget: Ca
             synced_at: row.synced_at,
             phase: row.phase,
             mode: rowReviewMode(row),
+            deadline_at: row.deadline_at,
             return_status: row.return_status,
           },
         ])
@@ -603,7 +608,7 @@ export async function syncRecoveryAccount(account: ReputationAccount, budget: Ca
         now,
         RECOVERY_RULES_SINCE
       )
-      let processed = 0
+      queueSize = queue.length
       let stop: unknown = null
       const selected = queue.slice(0, RETURNS_PER_RUN)
       // Mantém a fila completa e os intervalos: devoluções sem mudança na reclamação também podem precisar de releitura.
@@ -634,35 +639,59 @@ export async function syncRecoveryAccount(account: ReputationAccount, budget: Ca
       await updateScan(account, windowClaims, now)
       await refreshReturnAlerts(account, now)
       if (stop) throw stop
-      if (processed < queue.length) next = INTERVALS.unfinished
-      else if ([...pollState.values()].some((row) => {
-        if (row.phase !== "needs_review" || row.mode !== "arrival") return false
-        const due = row.deadlineAt ? Date.parse(row.deadlineAt) : NaN
-        return row.newArrival || (due > now.getTime() && due <= now.getTime() + DAY)
-      })) next = INTERVALS.needsReview
+      if (processed < queue.length) {
+        next = INTERVALS.unfinished
+        reason = budget.rateLimited ? "rate_limit" : budget.exhausted || Date.now() > deadline ? "orcamento" : "inacabado"
+      } else {
+        const arrivals = [...pollState.values()].filter((row) => row.phase === "needs_review" && row.mode === "arrival")
+        const newArrival = arrivals.some((row) => row.newArrival)
+        if (newArrival || arrivals.some((row) => {
+          const due = row.deadlineAt ? Date.parse(row.deadlineAt) : NaN
+          return due > now.getTime() && due <= now.getTime() + DAY
+        })) {
+          next = INTERVALS.needsReview
+          reason = newArrival ? "chegada_nova" : "revisao_24h"
+        }
+      }
     }
   } catch (error) {
-    if (error instanceof BudgetExhaustedError) next = budget.rateLimited ? INTERVALS.rateLimited : INTERVALS.unfinished
+    if (error instanceof BudgetExhaustedError) {
+      next = budget.rateLimited ? INTERVALS.rateLimited : INTERVALS.unfinished
+      reason = budget.rateLimited ? "rate_limit" : "orcamento"
+    }
     else if (error instanceof MlApiError && error.status === 429) {
       budget.rateLimited = true
       next = INTERVALS.rateLimited
+      reason = "rate_limit"
     } else {
       lastError = errorMessage(error)
       next = error instanceof MlAccountUnavailableError ? INTERVALS.accountUnavailable : INTERVALS.error
+      reason = error instanceof MlAccountUnavailableError ? "indisponivel" : "erro"
       logRecovery({ etapa: "lido", conta: account.id, resultado: "falha", detalhe: lastError })
     }
   }
-  const { error } = await admin
-    .from("recovery_sync")
-    .update({
-      locked_until: null,
-      next_returns_at: iso(Date.now() + next),
-      last_returns_at: now.toISOString(),
-      last_error: lastError,
-      last_error_at: lastError ? now.toISOString() : null,
+  try {
+    const { error } = await admin
+      .from("recovery_sync")
+      .update({
+        locked_until: null,
+        next_returns_at: iso(Date.now() + next),
+        last_returns_at: now.toISOString(),
+        last_error: lastError,
+        last_error_at: lastError ? now.toISOString() : null,
+      })
+      .eq("ml_account_id", account.id)
+    if (error) throw error
+  } catch (error) {
+    lastError = errorMessage(error)
+    reason = "erro"
+    throw error
+  } finally {
+    logRecovery({
+      etapa: "rodada", conta: account.id, resultado: lastError ? "falha" : "ok",
+      fila: queueSize, lidas: processed, proxima_minutos: next / MINUTE, motivo: reason,
     })
-    .eq("ml_account_id", account.id)
-  if (error) throw error
+  }
 }
 
 async function releaseLock(accountId: string) {

@@ -410,8 +410,10 @@ export function returnAmount(
 // ---------------------------------------------------------------------------------------------- fila de leitura
 
 const MINUTE = 60 * 1000
-/** Devolução que chegou ao vendedor e espera a revisão (prazo de dias): lida de novo no ML a cada 10 minutos. */
+/** Revisão no endereço com prazo em até 24h, vencido ou desconhecido: reler a cada 10 minutos. */
 export const NEEDS_REVIEW_REFRESH_MS = 10 * MINUTE
+/** Revisão no endereço com mais de 24h de prazo: reler a cada 30 minutos. */
+export const NEEDS_REVIEW_FAR_REFRESH_MS = 30 * MINUTE
 /** Outras devoluções abertas: a cada 30 minutos (as mudanças da reclamação chegam antes, pela busca do Escudo). */
 export const OPEN_REFRESH_MS = 30 * MINUTE
 /** Contestação liberada (prazo de semanas), contestação em análise e devolução encerrada ainda em trânsito: a cada hora. */
@@ -425,12 +427,17 @@ export type KnownReturn = {
   synced_at: string
   phase: string
   mode?: ReviewMode | null
+  deadline_at?: string | null
   return_status?: string | null
 }
 
 /** De quanto em quanto tempo reler uma devolução já lida (null = só quando a reclamação mudar no ML). */
-export function refreshInterval(claimStatus: string, row: KnownReturn): number | null {
-  if (row.phase === "needs_review") return row.mode === "appeal" ? SLOW_REFRESH_MS : NEEDS_REVIEW_REFRESH_MS
+export function refreshInterval(claimStatus: string, row: KnownReturn, now: Date = new Date()): number | null {
+  if (row.phase === "needs_review") {
+    if (row.mode === "appeal") return SLOW_REFRESH_MS
+    const due = row.deadline_at ? Date.parse(row.deadline_at) : NaN
+    return row.mode === "arrival" && due > now.getTime() + DAY_MS ? NEEDS_REVIEW_FAR_REFRESH_MS : NEEDS_REVIEW_REFRESH_MS
+  }
   if (row.phase === "reviewed") return claimStatus === "opened" ? OPEN_REFRESH_MS : SLOW_REFRESH_MS
   if (claimStatus === "opened") return OPEN_REFRESH_MS
   if (row.return_status && !FINAL_RETURN_STATUSES.has(row.return_status)) return SLOW_REFRESH_MS
@@ -456,7 +463,7 @@ export function returnsQueue<T extends QueueClaim & { hasReviewAction?: boolean 
     if (claim.ml_updated_at && (!row.claim_updated_at || Date.parse(claim.ml_updated_at) > Date.parse(row.claim_updated_at))) return 1
     const oldRules = Number.isFinite(rulesTime) && Date.parse(row.synced_at) < rulesTime
     if (oldRules && claim.hasReviewAction) return 2
-    const interval = refreshInterval(claim.status, row)
+    const interval = refreshInterval(claim.status, row, now)
     if (interval !== null && now.getTime() - Date.parse(row.synced_at) > interval) return 3
     return oldRules ? 4 : null
   }
