@@ -421,7 +421,7 @@ export const SLOW_REFRESH_MS = 60 * MINUTE
 /** Situações finais da devolução no ML (não muda mais sozinha). */
 const FINAL_RETURN_STATUSES = new Set(["delivered", "cancelled", "expired", "closed", "not_delivered", "failed"])
 
-export type QueueClaim = { id?: string; claim_id: number; status: string; ml_updated_at: string | null; ml_created_at: string | null }
+export type QueueClaim = { claim_id: number; status: string; ml_updated_at: string | null; ml_created_at: string | null }
 export type KnownReturn = {
   claim_updated_at: string | null
   synced_at: string
@@ -444,18 +444,11 @@ export function refreshInterval(claimStatus: string, row: KnownReturn, now: Date
   return null
 }
 
-/** Revisão com prazo entre agora e 24h, inclusive nas duas bordas. Vencidas e sem prazo não são urgentes. */
-export function isUrgentReturn(known: KnownReturn | undefined, now: Date): boolean {
-  const due = known?.deadline_at ? Date.parse(known.deadline_at) : NaN
-  return known?.phase === "needs_review" && due >= now.getTime() && due <= now.getTime() + DAY_MS
-}
-
 /**
- * Mantém quem entra na fila: nunca lidas, alteradas, regras antigas ou intervalo vencido. hasReviewAction permanece na
- * regra de entrada para leituras anteriores a rulesSince; não passa por cima da nova ordem.
- * Ordena: (a) urgentes; (b) nunca lidas/alteradas; (c) demais com prazo, inclusive vencidas; (d) demais por synced_at asc.
- * Vencidas ficam em (c) mesmo quando alteradas. Nos grupos com prazo, o mais próximo vem primeiro; desempate por criação
- * desc e id asc (sem id, usa claim_id).
+ * Quais devoluções ler no ML agora. Primeiro TODAS as que o ML lista com revisão liberada (nunca lidas, alteradas, lidas
+ * antes da regra atual ou vencidas pelo intervalo): é onde o prazo corre e o dinheiro está. Depois, na ordem: nunca lidas
+ * (Raio-X), alteradas no ML, vencidas pelo intervalo e, por último, as demais lidas antes da regra atual (rulesSince). Em
+ * cada grupo: abertas antes de encerradas e as mais novas primeiro.
  */
 export function returnsQueue<T extends QueueClaim & { hasReviewAction?: boolean }>(
   claims: readonly T[],
@@ -477,22 +470,13 @@ export function returnsQueue<T extends QueueClaim & { hasReviewAction?: boolean 
   return claims
     .flatMap((claim) => {
       const value = group(claim)
-      if (value === null) return []
-      const row = known.get(claim.claim_id)
-      const due = row?.deadline_at ? Date.parse(row.deadline_at) : NaN
-      const priority = isUrgentReturn(row, now) ? 0
-        : due < now.getTime() ? 2
-        : value <= 1 ? 1
-        : Number.isFinite(due) ? 2 : 3
-      return [{ claim, priority, due, synced: Date.parse(row?.synced_at ?? "") || 0 }]
+      return value === null ? [] : [{ claim, value: claim.hasReviewAction && value < 4 ? -1 : value }]
     })
     .sort(
       (a, b) =>
-        a.priority - b.priority ||
-        ((a.priority === 0 || a.priority === 2) ? a.due - b.due : 0) ||
-        (a.priority === 3 ? a.synced - b.synced : 0) ||
-        (Date.parse(b.claim.ml_created_at ?? "") || 0) - (Date.parse(a.claim.ml_created_at ?? "") || 0) ||
-        String(a.claim.id ?? a.claim.claim_id).localeCompare(String(b.claim.id ?? b.claim.claim_id))
+        a.value - b.value ||
+        Number(a.claim.status !== "opened") - Number(b.claim.status !== "opened") ||
+        (Date.parse(b.claim.ml_created_at ?? "") || 0) - (Date.parse(a.claim.ml_created_at ?? "") || 0)
     )
     .map((item) => item.claim)
 }

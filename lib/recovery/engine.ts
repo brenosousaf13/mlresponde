@@ -26,7 +26,6 @@ import {
   cartOrderIds,
   classifyReturn,
   deadlinePassed,
-  isUrgentReturn,
   ownReviews,
   recoveredByMaanu,
   returnAmount,
@@ -561,8 +560,6 @@ export async function syncRecoveryAccount(account: ReputationAccount, budget: Ca
   let reason: RecoveryRoundReason = "normal"
   let queueSize = 0
   let processed = 0
-  let urgentCount = 0
-  let urgentRead = 0
   let lastError: string | null = null
   try {
     const { data: escudo, error: escudoError } = await admin
@@ -612,8 +609,6 @@ export async function syncRecoveryAccount(account: ReputationAccount, budget: Ca
         RECOVERY_RULES_SINCE
       )
       queueSize = queue.length
-      const urgentIds = new Set(queue.filter((claim) => isUrgentReturn(knownState.get(claim.claim_id), now)).map((claim) => claim.claim_id))
-      urgentCount = urgentIds.size
       let stop: unknown = null
       const selected = queue.slice(0, RETURNS_PER_RUN)
       // Mantém a fila completa e os intervalos: devoluções sem mudança na reclamação também podem precisar de releitura.
@@ -630,7 +625,6 @@ export async function syncRecoveryAccount(account: ReputationAccount, budget: Ca
           const state = await syncReturn(account, claim, byClaim.get(Number(claim.claim_id)), budget, now, siblings)
           pollState.set(Number(claim.claim_id), state)
           processed++
-          if (urgentIds.has(candidate.claim_id)) urgentRead++
         } catch (error) {
           if (isStopError(error)) {
             stop = error
@@ -695,8 +689,7 @@ export async function syncRecoveryAccount(account: ReputationAccount, budget: Ca
   } finally {
     logRecovery({
       etapa: "rodada", conta: account.id, resultado: lastError ? "falha" : "ok",
-      fila: queueSize, lidas: processed, urgentes: urgentCount, urgentes_lidos: urgentRead,
-      proxima_minutos: next / MINUTE, motivo: reason,
+      fila: queueSize, lidas: processed, proxima_minutos: next / MINUTE, motivo: reason,
     })
   }
 }
@@ -727,28 +720,8 @@ export async function runRecoverySync(): Promise<RecoverySyncResult> {
       p_lock_seconds: 120,
     })
     if (error) throw error
-    const reserved = rows ?? []
-    let ordered = reserved
-    if (reserved.length) {
-      try {
-        const now = Date.now()
-        const { data: urgentRows, error: urgentError } = await createServiceClient()
-          .from("recovery_returns").select("ml_account_id")
-          .in("ml_account_id", reserved.map((row) => row.ml_account_id))
-          .eq("phase", "needs_review")
-          .gte("deadline_at", iso(now)).lte("deadline_at", iso(now + DAY))
-        if (urgentError) throw new Error(urgentError.message)
-        const urgentAccounts = new Set((urgentRows ?? []).map((row) => row.ml_account_id))
-        // A urgência ganha da espera; dentro de cada grupo, a conta mais atrasada começa primeiro.
-        ordered = [...reserved].sort((a, b) => Number(urgentAccounts.has(b.ml_account_id)) - Number(urgentAccounts.has(a.ml_account_id))
-          || Date.parse(a.next_returns_at) - Date.parse(b.next_returns_at))
-      } catch (error) {
-        // Falha desta preferência não impede a rodada: preserva a ordem recebida na reserva.
-        console.error("[recuperador] prioridade das contas:", errorMessage(error))
-      }
-    }
     const accounts = await loadAccounts((rows ?? []).map((row: SyncRow) => row.ml_account_id))
-    await forEachLimit(ordered, RECOVERY_CRON_LIMITS.concurrency, async (row: SyncRow) => {
+    await forEachLimit(rows ?? [], RECOVERY_CRON_LIMITS.concurrency, async (row: SyncRow) => {
       const account = accounts.get(row.ml_account_id)
       if (!account || budget.exhausted || Date.now() > deadline) {
         await releaseLock(row.ml_account_id)

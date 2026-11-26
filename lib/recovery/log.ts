@@ -17,7 +17,7 @@ export type RecoveryLogEntry = {
   detalhe?: string | null
 } & (
   | { etapa: Exclude<RecoveryLogStage, "rodada"> }
-  | { etapa: "rodada"; fila: number; lidas: number; urgentes: number; urgentes_lidos: number; proxima_minutos: number; motivo: RecoveryRoundReason }
+  | { etapa: "rodada"; fila: number; lidas: number; proxima_minutos: number; motivo: RecoveryRoundReason }
 )
 
 const DETAIL_MAX = 200
@@ -43,8 +43,6 @@ export function formatRecoveryLog(entry: RecoveryLogEntry): string {
   if (entry.etapa === "rodada") {
     payload.fila = entry.fila
     payload.lidas = entry.lidas
-    payload.urgentes = entry.urgentes
-    payload.urgentes_lidos = entry.urgentes_lidos
     payload.proxima_minutos = entry.proxima_minutos
     payload.motivo = entry.motivo
   }

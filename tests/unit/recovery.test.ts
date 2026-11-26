@@ -410,14 +410,14 @@ describe("valor em jogo", () => {
 
 describe("returnsQueue", () => {
   const now = new Date("2026-10-20T12:00:00.000Z")
-  it("mantém a seleção anterior, ordenando novidades antes das leituras antigas sem prazo", () => {
+  it("revisão liberada primeiro; depois nunca lidas, alteradas, vencidas pelo intervalo e o resto da regra antiga", () => {
     const claims = [
       { claim_id: 1, status: "opened", ml_updated_at: "2026-10-20T10:00:00.000Z", ml_created_at: "2026-10-01T00:00:00.000Z" },
       { claim_id: 2, status: "closed", ml_updated_at: "2026-10-20T11:00:00.000Z", ml_created_at: "2026-10-02T00:00:00.000Z" },
       { claim_id: 3, status: "closed", ml_updated_at: "2026-10-10T00:00:00.000Z", ml_created_at: "2026-10-03T00:00:00.000Z" },
       { claim_id: 4, status: "opened", ml_updated_at: "2026-10-10T00:00:00.000Z", ml_created_at: "2026-10-04T00:00:00.000Z" },
       { claim_id: 5, status: "opened", ml_updated_at: "2026-10-10T00:00:00.000Z", ml_created_at: "2026-10-05T00:00:00.000Z" },
-      // Encerrada com contestação liberada e regra antiga: continua entrando na fila.
+      // Encerrada com contestação liberada, lida pela regra antiga: sobe na fila.
       { claim_id: 6, status: "closed", ml_updated_at: "2026-10-10T00:00:00.000Z", ml_created_at: "2026-10-06T00:00:00.000Z", hasReviewAction: true },
       // Contestação já na regra nova, lida há 30 min: espera a hora.
       { claim_id: 7, status: "closed", ml_updated_at: "2026-10-10T00:00:00.000Z", ml_created_at: "2026-10-07T00:00:00.000Z", hasReviewAction: true },
@@ -430,15 +430,14 @@ describe("returnsQueue", () => {
       [6, { claim_updated_at: "2026-10-10T00:00:00.000Z", synced_at: "2026-10-10T00:00:00.000Z", phase: "closed", return_status: "delivered" }],
       [7, { claim_updated_at: "2026-10-10T00:00:00.000Z", synced_at: "2026-10-20T11:30:00.000Z", phase: "needs_review", mode: "appeal" }],
     ])
-    // Novidades empatam por criação desc; sem prazo, as demais seguem synced_at asc e depois criação desc.
-    expect(returnsQueue(claims, known, now).map((claim) => claim.claim_id)).toEqual([2, 1, 5])
-    expect(returnsQueue(claims, known, now, "2026-10-20T11:50:00.000Z").map((claim) => claim.claim_id)).toEqual([2, 1, 6, 3, 7, 5])
-    // hasReviewAction preserva a seleção, mas o desempate das nunca lidas agora segue a criação desc.
+    expect(returnsQueue(claims, known, now).map((claim) => claim.claim_id)).toEqual([1, 2, 5])
+    expect(returnsQueue(claims, known, now, "2026-10-20T11:50:00.000Z").map((claim) => claim.claim_id)).toEqual([7, 6, 1, 2, 5, 3])
+    // Nunca lida com revisão liberada passa na frente das nunca lidas sem revisão (backlog do Raio-X).
     const backlog = [
       { claim_id: 20, status: "closed", ml_updated_at: null, ml_created_at: "2026-10-10T00:00:00.000Z" },
       { claim_id: 21, status: "closed", ml_updated_at: null, ml_created_at: "2026-09-10T00:00:00.000Z", hasReviewAction: true },
     ]
-    expect(returnsQueue(backlog, new Map(), now).map((claim) => claim.claim_id)).toEqual([20, 21])
+    expect(returnsQueue(backlog, new Map(), now).map((claim) => claim.claim_id)).toEqual([21, 20])
   })
   it("intervalos por situação", () => {
     expect(refreshInterval("opened", { claim_updated_at: null, synced_at: "", phase: "needs_review", mode: "arrival" })).toBe(10 * 60_000)
