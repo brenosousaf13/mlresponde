@@ -6,7 +6,8 @@ import { changedFields } from "@/lib/db-write-diff"
 import { PlatformAiPausedError } from "@/lib/ai/usage"
 import { MlAccountUnavailableError } from "@/lib/mercadolivre/accounts"
 import { MlApiError } from "@/lib/mercadolivre/api"
-import { ClaimsPause, loadClaimsPause } from "@/lib/mercadolivre/claims-pause-store"
+import { RECOVERY_POST_PURCHASE_CALLS_PER_MINUTE } from "@/lib/mercadolivre/claims-pause"
+import { ClaimsPause } from "@/lib/mercadolivre/claims-pause-store"
 import {
   BudgetExhaustedError,
   CallBudget,
@@ -81,12 +82,6 @@ export const RECOVERY_CRON_LIMITS = {
   concurrency: 1,
   budgetMs: 40_000,
 } as const
-
-/**
- * Teto compartilhado de /returns por minuto. Cada devolução usa ~2 chamadas: 4/min limitava a ~120 leituras/h sem folga
- * (meta >=119/h da E3). Com 6/min e pausa global, excesso vira pausa curta em vez de uma sequência de 429.
- */
-export const RECOVERY_RETURNS_CALLS_PER_MINUTE = 6
 
 const MINUTE = 60 * 1000
 const DAY = 24 * 60 * MINUTE
@@ -558,7 +553,7 @@ async function markScanWaiting(account: ReputationAccount) {
   if (error) throw error
 }
 
-type RecoveryCronContext = { returns: { remaining: number }; pause: ClaimsPause; previousIntervalMs: number | null }
+type RecoveryCronContext = { postPurchase: { remaining: number }; pause: ClaimsPause }
 
 /**
  * Uma conta (já reservada): lê as devoluções da fila (até 15 por rodada), atualiza o Raio-X e os alertas e solta a trava.
@@ -574,9 +569,9 @@ export async function syncRecoveryAccount(account: ReputationAccount, budget: Ca
   let urgentCount = 0
   let urgentRead = 0
   let lastError: string | null = null
-  // 429 fora de /post-purchase continua com o backoff por conta da E4a; o global substitui o horário abaixo quando existe.
+  // Fora de /post-purchase a pausa é só da conta, igualmente curta e sem memória. Manual mantém os 2 min atuais.
   const rateLimitDelay = (retryAfterMs?: number) => cron
-    ? nextRateLimitDelay({ previousIntervalMs: cron.previousIntervalMs, retryAfterMs })
+    ? nextRateLimitDelay({ retryAfterMs })
     : INTERVALS.rateLimited
   try {
     const { data: escudo, error: escudoError } = await admin
@@ -637,7 +632,7 @@ export async function syncRecoveryAccount(account: ReputationAccount, budget: Ca
       if (detailsError) throw detailsError
       const detailsById = new Map((details ?? []).map((claim) => [claim.id, claim]))
       for (const candidate of selected) {
-        if (budget.exhausted || cron?.returns.remaining === 0 || Date.now() > deadline) break
+        if (budget.exhausted || cron?.postPurchase.remaining === 0 || Date.now() > deadline) break
         const claim = detailsById.get(candidate.id)
         if (!claim) continue
         try {
@@ -659,7 +654,7 @@ export async function syncRecoveryAccount(account: ReputationAccount, budget: Ca
       await updateScan(account, windowClaims, now)
       await refreshReturnAlerts(account, now)
       if (stop) throw stop
-      if (cron?.returns.remaining === 0) {
+      if (cron?.postPurchase.remaining === 0) {
         next = INTERVALS.unfinished
         reason = "ritmo"
       } else if (processed < queue.length) {
@@ -680,7 +675,7 @@ export async function syncRecoveryAccount(account: ReputationAccount, budget: Ca
   } catch (error) {
     if (error instanceof BudgetExhaustedError) {
       next = budget.rateLimited ? rateLimitDelay() : INTERVALS.unfinished
-      reason = budget.rateLimited ? "rate_limit" : cron?.returns.remaining === 0 ? "ritmo" : "orcamento"
+      reason = budget.rateLimited ? "rate_limit" : cron?.postPurchase.remaining === 0 ? "ritmo" : "orcamento"
     }
     else if (error instanceof MlApiError && error.status === 429) {
       budget.rateLimited = true
@@ -703,7 +698,7 @@ export async function syncRecoveryAccount(account: ReputationAccount, budget: Ca
       .from("recovery_sync")
       .update({
         locked_until: null,
-        next_returns_at: pauseUntil ?? iso((cron && reason === "rate_limit" ? now.getTime() : Date.now()) + next),
+        next_returns_at: pauseUntil ?? iso(Date.now() + next),
         last_returns_at: now.toISOString(),
         last_error: lastError,
         last_error_at: lastError ? now.toISOString() : null,
@@ -742,7 +737,7 @@ export type RecoverySyncResult = { accounts: number; failures: number; rateLimit
 export async function runRecoverySync(): Promise<RecoverySyncResult> {
   const deadline = Date.now() + RECOVERY_CRON_LIMITS.budgetMs
   let remainingCalls: number = RECOVERY_CRON_LIMITS.calls
-  const returns = { remaining: RECOVERY_RETURNS_CALLS_PER_MINUTE }
+  const postPurchase = { remaining: RECOVERY_POST_PURCHASE_CALLS_PER_MINUTE }
   const result: RecoverySyncResult = { accounts: 0, failures: 0, rateLimited: false }
   try {
     const { data: rows, error } = await createServiceClient().rpc("claim_recovery_sync", {
@@ -750,7 +745,7 @@ export async function runRecoverySync(): Promise<RecoverySyncResult> {
       p_lock_seconds: 120,
     })
     if (error) throw error
-    const pause = new ClaimsPause(await loadClaimsPause())
+    const pause = new ClaimsPause()
     const now = Date.now()
     const reserved = rows ?? []
     const { data: urgentRows, error: urgentError } = reserved.length
@@ -767,19 +762,17 @@ export async function runRecoverySync(): Promise<RecoverySyncResult> {
       || Date.parse(a.next_returns_at) - Date.parse(b.next_returns_at))
     await forEachLimit(ordered, RECOVERY_CRON_LIMITS.concurrency, async (row: SyncRow) => {
       const account = accounts.get(row.ml_account_id)
-      if (!account || pause.active || remainingCalls <= 0 || returns.remaining === 0 || Date.now() > deadline) {
+      if (!account || pause.stopped || remainingCalls <= 0 || postPurchase.remaining === 0 || Date.now() > deadline) {
         await releaseLock(row.ml_account_id)
         return
       }
       const budget = new CallBudget(remainingCalls, "recuperador_cron", (path) => {
-        if (path.startsWith("/post-purchase/") && pause.active) throw new BudgetExhaustedError()
-        if (!/^\/post-purchase\/v2\/claims\/\d+\/returns(?:[/?]|$)/.test(path)) return
-        if (returns.remaining === 0) throw new BudgetExhaustedError()
-        returns.remaining--
+        if (!path.startsWith("/post-purchase/")) return
+        if (pause.stopped || postPurchase.remaining === 0) throw new BudgetExhaustedError()
+        postPurchase.remaining--
       }, (event) => pause.onRateLimit(event, "recuperador_cron"))
       try {
-        const previousIntervalMs = row.last_returns_at ? Date.parse(row.next_returns_at) - Date.parse(row.last_returns_at) : null
-        await syncRecoveryAccount(account, budget, deadline, { returns, pause, previousIntervalMs })
+        await syncRecoveryAccount(account, budget, deadline, { postPurchase, pause })
         result.accounts++
       } catch (error) {
         result.failures++

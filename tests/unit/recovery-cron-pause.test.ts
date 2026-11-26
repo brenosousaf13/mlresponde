@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
-import { decodePauseStep, encodePauseUntil } from "@/lib/mercadolivre/claims-pause"
+import { RECOVERY_POST_PURCHASE_CALLS_PER_MINUTE } from "@/lib/mercadolivre/claims-pause"
 
 import type { RecoveryLogEntry } from "@/lib/recovery/log"
 import { supabaseFixture } from "./helpers/supabase-fixture"
@@ -15,7 +15,7 @@ vi.mock("@/lib/reputation/engine", async (original) => ({
   ...await original<typeof import("@/lib/reputation/engine")>(), applyAlerts: vi.fn(), loadAccounts: mocks.accounts,
 }))
 
-const { runRecoverySync, RECOVERY_CRON_LIMITS, RECOVERY_RETURNS_CALLS_PER_MINUTE } = await import("@/lib/recovery/engine")
+const { runRecoverySync, RECOVERY_CRON_LIMITS } = await import("@/lib/recovery/engine")
 const MINUTE = 60_000
 // Fora da janela do monitor de saúde (múltiplos de 15 min).
 const NOW = new Date("2026-11-26T12:01:00.000Z")
@@ -86,12 +86,12 @@ beforeEach(() => {
 })
 afterEach(() => { vi.restoreAllMocks(); vi.useRealTimers(); vi.unstubAllGlobals() })
 
-describe("E4b: pausa global e rodízio com urgentes", () => {
+describe("E4b.1: pausa global curta e rodízio com urgentes", () => {
   it("429 em A faz exatamente um UPDATE condicional por agenda; B apenas solta a trava", async () => {
     const db = database([1, 1])
     fetchMock.mockImplementation(async () => respond(429, { error: "too_many_requests_error" }))
     await runRecoverySync()
-    const until = encodePauseUntil(NOW.getTime() + 2 * MINUTE, 0)
+    const until = new Date(NOW.getTime() + MINUTE).toISOString()
     const updates = db.requests.filter((r) => r.method === "PATCH" && !r.url.searchParams.has("ml_account_id"))
     expect(updates.map((r) => r.body)).toEqual([{ next_returns_at: until }, { next_claims_at: until }])
     expect(updates[0].url.searchParams.get("next_returns_at")).toBe("lt." + until)
@@ -104,26 +104,29 @@ describe("E4b: pausa global e rodízio com urgentes", () => {
     expect(lines).toHaveLength(1)
     expect(JSON.parse(lines[0].slice("[ml-pausa] ".length))).toEqual({
       origem: "recuperador_cron", conta: "ta-0", endpoint: "/post-purchase/v2/claims/:id/returns",
-      degrau_min: 2, ate: until, retry_after: null,
+      pausa_s: 60, ate: until, retry_after: null,
     })
   })
 
-  it("a pausa vigente pula todas as contas, sem leitura do ML nem regravação das agendas", async () => {
+  it("a agenda do RPC respeita a pausa vigente sem SELECT extra nem regravação", async () => {
     const db = database([1, 1])
-    db.syncs[0].next_returns_at = encodePauseUntil(NOW.getTime() + 8 * MINUTE, 2)
+    for (const sync of db.syncs) sync.next_returns_at = new Date(NOW.getTime() + MINUTE).toISOString()
+    // Simula a seleção de contas vencidas que claim_recovery_sync já faz no banco.
+    mocks.claim.mockImplementation(async () => ({ data: db.syncs.filter((row) => Date.parse(row.next_returns_at) <= Date.now()), error: null }))
     expect(await runRecoverySync()).toEqual({ accounts: 0, failures: 0, rateLimited: false })
     expect(fetchMock).not.toHaveBeenCalled()
-    for (const account of db.accounts) expect(db.updates(account.id)).toEqual([{ locked_until: null }])
+    expect(db.requests.filter((r) => r.url.pathname.endsWith("/recovery_sync"))).toHaveLength(0)
   })
 
-  it("reconhece o degrau deixado por outra conta mesmo com horário normal maior", async () => {
+  it("pausas antigas e agendas normais maiores não aumentam a nova pausa", async () => {
     const db = database([1])
-    db.tables.recovery_sync.push({ next_returns_at: encodePauseUntil(NOW.getTime() - MINUTE, 2) })
+    db.tables.recovery_sync.push({ next_returns_at: "2026-11-26T12:00:00.920777Z" })
     db.tables.recovery_sync.push({ next_returns_at: new Date(NOW.getTime() + 60 * MINUTE).toISOString() })
     fetchMock.mockImplementation(async () => respond(429, { error: "limited" }))
     await runRecoverySync()
-    expect(decodePauseStep(String(db.updates("conta-0")[0].next_returns_at))).toBe(3)
-    expect(round("conta-0").proxima_minutos).toBe(15)
+    expect(db.updates("conta-0")[0].next_returns_at).toBe(new Date(NOW.getTime() + MINUTE).toISOString())
+    expect(round("conta-0").proxima_minutos).toBe(1)
+    expect(db.tables.recovery_sync.at(-1)?.next_returns_at).toBe(new Date(NOW.getTime() + 60 * MINUTE).toISOString())
   })
 
   it("busca urgentes uma vez; conta urgente vai primeiro e recebe prioridade de novo após parar por ritmo", async () => {
@@ -137,11 +140,11 @@ describe("E4b: pausa global e rodízio com urgentes", () => {
     db.tables.recovery_returns.push(urgent)
     // O RPC não garante ordem. A conta mais antiga é conta-0, mas a urgente é conta-1.
     mocks.claim.mockResolvedValue({ data: [...db.syncs].reverse(), error: null })
-    expect(RECOVERY_RETURNS_CALLS_PER_MINUTE).toBe(6)
+    expect(RECOVERY_POST_PURCHASE_CALLS_PER_MINUTE).toBe(5)
     expect(RECOVERY_CRON_LIMITS.concurrency).toBe(1)
     await runRecoverySync()
     expect(paths()[0]).toBe("/post-purchase/v2/claims/200/returns")
-    expect(round("conta-1")).toMatchObject({ motivo: "ritmo", lidas: 6, urgentes: 1, urgentes_lidos: 1 })
+    expect(round("conta-1")).toMatchObject({ motivo: "ritmo", lidas: 2, urgentes: 1, urgentes_lidos: 1 })
     expect(db.updates("conta-0")).toEqual([{ locked_until: null }])
     expect(db.updates("conta-2")).toEqual([{ locked_until: null }])
     const urgentQueries = db.requests.filter((r) => r.method === "GET" && r.url.searchParams.get("select") === "ml_account_id")

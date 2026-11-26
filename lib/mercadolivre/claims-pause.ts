@@ -1,44 +1,22 @@
-import { nextRateLimitDelay, STEPS } from "@/lib/recovery/rate-limit"
+import { nextRateLimitDelay } from "@/lib/recovery/rate-limit"
 
-const MINUTE = 60_000
-export const CLAIMS_PAUSE_MEMORY_MS = 20 * MINUTE
+/**
+ * Ritmo total dos dois crons para TODO /post-purchase/, compartilhado por todas as contas do app.
+ * Em produção, na E3, o Recuperador conseguia ~4 chamadas/min e a Reputação várias dezenas por rodada antes do 429.
+ * 8/min com pausa curta de ~1 min é o ponto de partida, ajustável por esta constante.
+ */
+export const ML_POST_PURCHASE_CALLS_PER_MINUTE = 8
+/** O Recuperador roda a cada minuto e reserva 5 chamadas/min para todo /post-purchase/. */
+export const RECOVERY_POST_PURCHASE_CALLS_PER_MINUTE = 5
+/** A Reputação usa o restante: 3 chamadas/min × 2 min; cabe a busca + 1 detalhe completo por rodada. */
+export const REPUTATION_POST_PURCHASE_CALLS_PER_RUN =
+  (ML_POST_PURCHASE_CALLS_PER_MINUTE - RECOVERY_POST_PURCHASE_CALLS_PER_MINUTE) * 2
 
-/** Guarda o degrau nos microssegundos do horário, sem coluna nova. Arredonda para cima para respeitar Retry-After. */
-export function encodePauseUntil(ms: number, stepIndex: number): string {
-  if (!Number.isFinite(ms) || !Number.isInteger(stepIndex) || stepIndex < 0 || stepIndex >= STEPS.length) {
-    throw new RangeError("Horário ou degrau de pausa inválido.")
-  }
-  const fractionMs = 900 + stepIndex * 10
-  let second = Math.floor(ms / 1000) * 1000
-  if (second + fractionMs < ms) second += 1000
-  return new Date(second).toISOString().replace(/\.\d{3}Z$/, `.9${stepIndex}0777Z`)
-}
-
-/** Só reconhece a marca completa; aceita também o fuso UTC devolvido pelo PostgREST. */
-export function decodePauseStep(isoString: string): number | null {
-  const match = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.9([0-3])0777(?:Z|\+00:00)$/.exec(isoString)
-  return match && Number.isFinite(Date.parse(isoString)) ? Number(match[1]) : null
-}
-
-/** Uma coluna por conta; horários normais não escondem uma pausa marcada menor. */
-export function latestClaimsPause(rows: readonly { next_returns_at: string }[]): string | null {
-  return rows.reduce<string | null>((latest, row) => decodePauseStep(row.next_returns_at) !== null
-    && (latest === null || Date.parse(row.next_returns_at) > Date.parse(latest)) ? row.next_returns_at : latest, null)
-}
-
-export function nextClaimsPause({ nowMs, previousUntil, retryAfterMs, random }: {
+/** Pausa curta, sem memória ou degraus. A agenda de cada conta guarda o horário normalmente. */
+export function nextClaimsPause({ nowMs, retryAfterMs, random }: {
   nowMs: number
-  previousUntil: string | null
   retryAfterMs?: number
   random?: () => number
-}): { until: string; stepIndex: number } {
-  const previousStep = previousUntil ? decodePauseStep(previousUntil) : null
-  const recent = previousStep !== null && nowMs - Date.parse(previousUntil!) < CLAIMS_PAUSE_MEMORY_MS
-  const stepIndex = recent ? Math.min(previousStep + 1, STEPS.length - 1) : 0
-  const delay = nextRateLimitDelay({ previousIntervalMs: recent ? STEPS[previousStep] : null, retryAfterMs, random })
-  const until = encodePauseUntil(nowMs + delay, stepIndex)
-  // Uma pausa vigente maior continua com a marca original, inclusive seu degrau.
-  return previousStep !== null && Date.parse(previousUntil!) > Date.parse(until)
-    ? { until: previousUntil!, stepIndex: previousStep }
-    : { until, stepIndex }
+}): { until: string } {
+  return { until: new Date(nowMs + nextRateLimitDelay({ retryAfterMs, random })).toISOString() }
 }
