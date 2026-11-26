@@ -20,6 +20,7 @@ import {
 } from "@/lib/mercadolivre/reputation"
 import { returnAlerts } from "@/lib/recovery/alerts"
 import { logRecovery, shortAccount, type RecoveryRoundReason } from "@/lib/recovery/log"
+import { nextRateLimitDelay } from "@/lib/recovery/rate-limit"
 import { classifySyncHealth, organizationHasAccess, SYNC_STALE_MS } from "@/lib/recovery/sync-health"
 import {
   arrivalDate,
@@ -75,9 +76,12 @@ export const RECOVERY_CRON_LIMITS = {
   accounts: 10,
   /** Chamadas ao ML por rodada (todas as contas; cada devolução usa 2). */
   calls: 60,
-  concurrency: 2,
+  concurrency: 1,
   budgetMs: 40_000,
 } as const
+
+/** Teto compartilhado dos caminhos /post-purchase/v2/claims/:id/returns (inclusive subcaminhos), por cron de 1 min. */
+export const RECOVERY_RETURNS_CALLS_PER_MINUTE = 4
 
 const MINUTE = 60 * 1000
 const DAY = 24 * 60 * MINUTE
@@ -549,11 +553,13 @@ async function markScanWaiting(account: ReputationAccount) {
   if (error) throw error
 }
 
+type RecoveryCronContext = { returns: { remaining: number }; previousIntervalMs: number | null }
+
 /**
  * Uma conta (já reservada): lê as devoluções da fila (até 15 por rodada), atualiza o Raio-X e os alertas e solta a trava.
  * O Raio-X espera o Escudo terminar a busca inicial das reclamações (reputation_sync.claims_backfilled_at).
  */
-export async function syncRecoveryAccount(account: ReputationAccount, budget: CallBudget, deadline: number) {
+export async function syncRecoveryAccount(account: ReputationAccount, budget: CallBudget, deadline: number, cron?: RecoveryCronContext) {
   const admin = createServiceClient()
   const now = new Date()
   let next = INTERVALS.normal
@@ -561,6 +567,9 @@ export async function syncRecoveryAccount(account: ReputationAccount, budget: Ca
   let queueSize = 0
   let processed = 0
   let lastError: string | null = null
+  const rateLimitDelay = (retryAfterMs?: number) => cron
+    ? nextRateLimitDelay({ previousIntervalMs: cron.previousIntervalMs, retryAfterMs })
+    : INTERVALS.rateLimited
   try {
     const { data: escudo, error: escudoError } = await admin
       .from("reputation_sync")
@@ -618,7 +627,7 @@ export async function syncRecoveryAccount(account: ReputationAccount, budget: Ca
       if (detailsError) throw detailsError
       const detailsById = new Map((details ?? []).map((claim) => [claim.id, claim]))
       for (const candidate of selected) {
-        if (budget.exhausted || Date.now() > deadline) break
+        if (budget.exhausted || cron?.returns.remaining === 0 || Date.now() > deadline) break
         const claim = detailsById.get(candidate.id)
         if (!claim) continue
         try {
@@ -639,7 +648,10 @@ export async function syncRecoveryAccount(account: ReputationAccount, budget: Ca
       await updateScan(account, windowClaims, now)
       await refreshReturnAlerts(account, now)
       if (stop) throw stop
-      if (processed < queue.length) {
+      if (cron?.returns.remaining === 0) {
+        next = INTERVALS.unfinished
+        reason = "ritmo"
+      } else if (processed < queue.length) {
         next = INTERVALS.unfinished
         reason = budget.rateLimited ? "rate_limit" : budget.exhausted || Date.now() > deadline ? "orcamento" : "inacabado"
       } else {
@@ -656,12 +668,12 @@ export async function syncRecoveryAccount(account: ReputationAccount, budget: Ca
     }
   } catch (error) {
     if (error instanceof BudgetExhaustedError) {
-      next = budget.rateLimited ? INTERVALS.rateLimited : INTERVALS.unfinished
-      reason = budget.rateLimited ? "rate_limit" : "orcamento"
+      next = budget.rateLimited ? rateLimitDelay() : INTERVALS.unfinished
+      reason = budget.rateLimited ? "rate_limit" : cron?.returns.remaining === 0 ? "ritmo" : "orcamento"
     }
     else if (error instanceof MlApiError && error.status === 429) {
       budget.rateLimited = true
-      next = INTERVALS.rateLimited
+      next = rateLimitDelay(error.retryAfterMs)
       reason = "rate_limit"
     } else {
       lastError = errorMessage(error)
@@ -675,7 +687,8 @@ export async function syncRecoveryAccount(account: ReputationAccount, budget: Ca
       .from("recovery_sync")
       .update({
         locked_until: null,
-        next_returns_at: iso(Date.now() + next),
+        // O backoff precisa ser medido desde o mesmo instante salvo em last_returns_at.
+        next_returns_at: iso((cron && reason === "rate_limit" ? now.getTime() : Date.now()) + next),
         last_returns_at: now.toISOString(),
         last_error: lastError,
         last_error_at: lastError ? now.toISOString() : null,
@@ -689,7 +702,7 @@ export async function syncRecoveryAccount(account: ReputationAccount, budget: Ca
   } finally {
     logRecovery({
       etapa: "rodada", conta: account.id, resultado: lastError ? "falha" : "ok",
-      fila: queueSize, lidas: processed, proxima_minutos: next / MINUTE, motivo: reason,
+      fila: queueSize, lidas: processed, proxima_minutos: Math.round(next / MINUTE * 10) / 10, motivo: reason,
     })
   }
 }
@@ -712,7 +725,8 @@ export type RecoverySyncResult = { accounts: number; failures: number; rateLimit
 /** Cron do Recuperador (1 vez por minuto): contas com rodada vencida, até 60 chamadas ao ML. */
 export async function runRecoverySync(): Promise<RecoverySyncResult> {
   const deadline = Date.now() + RECOVERY_CRON_LIMITS.budgetMs
-  const budget = new CallBudget(RECOVERY_CRON_LIMITS.calls, "recuperador_cron")
+  let remainingCalls: number = RECOVERY_CRON_LIMITS.calls
+  const returns = { remaining: RECOVERY_RETURNS_CALLS_PER_MINUTE }
   const result: RecoverySyncResult = { accounts: 0, failures: 0, rateLimited: false }
   try {
     const { data: rows, error } = await createServiceClient().rpc("claim_recovery_sync", {
@@ -721,19 +735,30 @@ export async function runRecoverySync(): Promise<RecoverySyncResult> {
     })
     if (error) throw error
     const accounts = await loadAccounts((rows ?? []).map((row: SyncRow) => row.ml_account_id))
-    await forEachLimit(rows ?? [], RECOVERY_CRON_LIMITS.concurrency, async (row: SyncRow) => {
+    // UPDATE ... RETURNING do claim não garante a ordem: começa por quem está esperando há mais tempo.
+    const ordered = [...(rows ?? [])].sort((a, b) => Date.parse(a.next_returns_at) - Date.parse(b.next_returns_at))
+    await forEachLimit(ordered, RECOVERY_CRON_LIMITS.concurrency, async (row: SyncRow) => {
       const account = accounts.get(row.ml_account_id)
-      if (!account || budget.exhausted || Date.now() > deadline) {
+      if (!account || remainingCalls <= 0 || returns.remaining === 0 || Date.now() > deadline) {
         await releaseLock(row.ml_account_id)
         return
       }
+      const budget = new CallBudget(remainingCalls, "recuperador_cron", (path) => {
+        if (!/^\/post-purchase\/v2\/claims\/\d+\/returns(?:[/?]|$)/.test(path)) return
+        if (returns.remaining === 0) throw new BudgetExhaustedError()
+        returns.remaining--
+      })
       try {
-        await syncRecoveryAccount(account, budget, deadline)
+        const previousIntervalMs = row.last_returns_at ? Date.parse(row.next_returns_at) - Date.parse(row.last_returns_at) : null
+        await syncRecoveryAccount(account, budget, deadline, { returns, previousIntervalMs })
         result.accounts++
       } catch (error) {
         result.failures++
         logRecovery({ etapa: "lido", conta: row.ml_account_id, resultado: "falha", detalhe: errorMessage(error) })
         await releaseLock(row.ml_account_id)
+      } finally {
+        remainingCalls -= budget.limit - budget.remaining
+        result.rateLimited ||= budget.rateLimited
       }
     })
   } catch (error) {
@@ -745,7 +770,6 @@ export async function runRecoverySync(): Promise<RecoverySyncResult> {
   } catch (error) {
     console.error("[recuperador] monitor de contas paradas:", errorMessage(error))
   }
-  result.rateLimited = budget.rateLimited
   return result
 }
 

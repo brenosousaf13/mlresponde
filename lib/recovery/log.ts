@@ -7,7 +7,7 @@
 
 export type RecoveryLogStage = "lido" | "elegivel" | "avisado" | "enviado" | "decidido" | "recuperado" | "sync_parado" | "sem_acesso" | "rodada"
 export type RecoveryLogResult = "ok" | "falha" | "pulado"
-export type RecoveryRoundReason = "normal" | "revisao_24h" | "chegada_nova" | "inacabado" | "aguardando" | "erro" | "rate_limit" | "indisponivel" | "orcamento"
+export type RecoveryRoundReason = "normal" | "revisao_24h" | "chegada_nova" | "inacabado" | "aguardando" | "erro" | "rate_limit" | "indisponivel" | "orcamento" | "ritmo"
 
 export type RecoveryLogEntry = {
   /** Id da conta do ML na maanu (só os 4 últimos caracteres vão para o log). */
