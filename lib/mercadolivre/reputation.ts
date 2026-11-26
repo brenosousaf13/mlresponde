@@ -3,7 +3,6 @@ import "server-only"
 import { forgetAccessToken, getValidAccessToken } from "@/lib/mercadolivre/accounts"
 import { ML_API_URL, MlApiError } from "@/lib/mercadolivre/api"
 import { logMlRateLimit } from "@/lib/mercadolivre/rate-limit-log"
-import { parseRetryAfterMs } from "@/lib/recovery/rate-limit"
 import { orderSummaryFromMl, type MlClaimMessage, type OrderLike } from "@/lib/reputation/claim-details"
 import { parseReturn, parseReturnReviews, type MlReturn, type MlReturnReviews } from "@/lib/recovery/returns"
 import { parseReturnReasons } from "@/lib/recovery/review"
@@ -21,19 +20,14 @@ import type { MlShipmentCosts, MlShipmentInfo, MlShipmentSla } from "@/lib/reput
 const TOKEN_REUSE_MS = 4 * 60 * 1000
 
 /**
- * Limite de chamadas ao ML; um 429 esgota só este orçamento (o cron do Recuperador usa um por conta). Guarda o token de acesso
+ * Limite de chamadas ao ML de uma rodada; um 429 encerra a rodada para todas as contas. Também guarda o token de acesso
  * de cada conta durante a rodada: antes, cada chamada ao ML lia o token no banco (metade das idas ao Supabase do Escudo).
  */
 export class CallBudget {
   rateLimited = false
   readonly limit: number
   private readonly tokens = new Map<string, { token: Promise<string>; until: number }>()
-  constructor(
-    public remaining: number,
-    readonly origem: string = "desconhecida",
-    /** Trava opcional por caminho, usada só pelo cron do Recuperador. */
-    private readonly beforeRequest?: (path: string) => void
-  ) {
+  constructor(public remaining: number, readonly origem: string = "desconhecida") {
     this.limit = remaining
   }
 
@@ -41,9 +35,8 @@ export class CallBudget {
     return this.rateLimited || this.remaining <= 0
   }
 
-  take(path?: string) {
+  take() {
     if (this.exhausted) throw new BudgetExhaustedError()
-    if (path !== undefined) this.beforeRequest?.(path)
     this.remaining--
   }
 
@@ -75,7 +68,7 @@ export class BudgetExhaustedError extends Error {
 const TIMEOUT_MS = 15_000
 
 async function reputationRequest<T>(accountId: string, path: string, budget: CallBudget, init: RequestInit = {}): Promise<T> {
-  budget.take(path)
+  budget.take()
   const accessToken = await budget.accessToken(accountId)
   const headers = new Headers(init.headers)
   headers.set("authorization", "Bearer " + accessToken)
@@ -111,8 +104,7 @@ async function reputationRequest<T>(accountId: string, path: string, budget: Cal
       (typeof data?.error === "string" && data.error) ||
       "HTTP " + response.status
     const code = typeof data?.error === "string" ? data.error : undefined
-    throw new MlApiError("Mercado Livre: " + message, response.status, code,
-      response.status === 429 ? parseRetryAfterMs(response.headers.get("retry-after"), Date.now()) : undefined)
+    throw new MlApiError("Mercado Livre: " + message, response.status, code)
   }
   return data as T
 }

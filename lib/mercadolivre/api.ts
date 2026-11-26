@@ -12,8 +12,7 @@ export class MlApiError extends Error {
   constructor(
     message: string,
     readonly status: number,
-    readonly code?: string,
-    readonly retryAfterMs?: number
+    readonly code?: string
   ) {
     super(message)
     this.name = "MlApiError"
