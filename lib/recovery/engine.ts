@@ -712,7 +712,7 @@ export type RecoverySyncResult = { accounts: number; failures: number; rateLimit
 /** Cron do Recuperador (1 vez por minuto): contas com rodada vencida, até 60 chamadas ao ML. */
 export async function runRecoverySync(): Promise<RecoverySyncResult> {
   const deadline = Date.now() + RECOVERY_CRON_LIMITS.budgetMs
-  const budget = new CallBudget(RECOVERY_CRON_LIMITS.calls)
+  const budget = new CallBudget(RECOVERY_CRON_LIMITS.calls, "recuperador_cron")
   const result: RecoverySyncResult = { accounts: 0, failures: 0, rateLimited: false }
   try {
     const { data: rows, error } = await createServiceClient().rpc("claim_recovery_sync", {
@@ -834,7 +834,7 @@ export async function syncRecoveryNow(accountId: string): Promise<"done" | "busy
     await releaseLock(accountId)
     return "unavailable"
   }
-  await syncRecoveryAccount(account, new CallBudget(30), Date.now() + 25_000)
+  await syncRecoveryAccount(account, new CallBudget(30, "recuperador_conta"), Date.now() + 25_000)
   return "done"
 }
 
@@ -870,7 +870,7 @@ export async function syncReturnNow(organizationId: string, returnRowId: string)
   const { data: row } = await createServiceClient().from("recovery_returns").select(RETURN_COLUMNS).eq("id", returnRowId).single()
   const current = row ?? loaded.row
   const siblings = await loadSiblings(loaded.account.id, current.return_id === null ? null : Number(current.return_id))
-  await syncReturn(loaded.account, claim, current, new CallBudget(5), new Date(), siblings)
+  await syncReturn(loaded.account, claim, current, new CallBudget(5, "recuperador_devolucao"), new Date(), siblings)
   await refreshReturnAlerts(loaded.account, new Date())
 }
 
@@ -880,7 +880,7 @@ export async function returnReasonsFor(organizationId: string, returnRowId: stri
   if (!loaded) return null
   let reasons: ReturnReason[] = [...FALLBACK_REASONS]
   try {
-    reasons = await fetchReturnFailReasons(loaded.account.id, Number(loaded.row.claim_id), new CallBudget(1))
+    reasons = await fetchReturnFailReasons(loaded.account.id, Number(loaded.row.claim_id), new CallBudget(1, "recuperador_devolucao"))
   } catch (error) {
     console.error("[recuperador] motivos da devolução " + loaded.row.claim_id + ":", errorMessage(error))
   }
@@ -1013,7 +1013,7 @@ export async function submitReturnReviewFor(input: ReviewInput): Promise<ReviewR
   const { row, account } = loaded
   if (row.review_submitted_at) return { ok: false, message: "Esta devolução já foi revisada pela maanu." }
 
-  const budget = new CallBudget(15)
+  const budget = new CallBudget(15, "recuperador_acao")
   const claimId = Number(row.claim_id)
   const details: Record<string, unknown> = { decision: input.decision, photos_count: input.photos.length }
   let submitted: { returnId: number; result: { status: number; body: unknown } } | null = null

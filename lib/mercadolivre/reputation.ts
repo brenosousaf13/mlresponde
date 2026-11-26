@@ -2,6 +2,7 @@ import "server-only"
 
 import { forgetAccessToken, getValidAccessToken } from "@/lib/mercadolivre/accounts"
 import { ML_API_URL, MlApiError } from "@/lib/mercadolivre/api"
+import { logMlRateLimit } from "@/lib/mercadolivre/rate-limit-log"
 import { orderSummaryFromMl, type MlClaimMessage, type OrderLike } from "@/lib/reputation/claim-details"
 import { parseReturn, parseReturnReviews, type MlReturn, type MlReturnReviews } from "@/lib/recovery/returns"
 import { parseReturnReasons } from "@/lib/recovery/review"
@@ -24,8 +25,11 @@ const TOKEN_REUSE_MS = 4 * 60 * 1000
  */
 export class CallBudget {
   rateLimited = false
+  readonly limit: number
   private readonly tokens = new Map<string, { token: Promise<string>; until: number }>()
-  constructor(public remaining: number) {}
+  constructor(public remaining: number, readonly origem: string = "desconhecida") {
+    this.limit = remaining
+  }
 
   get exhausted() {
     return this.rateLimited || this.remaining <= 0
@@ -81,6 +85,19 @@ async function reputationRequest<T>(accountId: string, path: string, budget: Cal
   if (response.status === 429) budget.rateLimited = true
   if (response.status === 401) budget.forgetToken(accountId)
   const data = (await response.json().catch(() => null)) as (Record<string, unknown> & T) | null
+  if (response.status === 429) {
+    logMlRateLimit({
+      origem: budget.origem,
+      conta: accountId,
+      metodo: init.method ?? "GET",
+      path,
+      status: response.status,
+      headers: response.headers,
+      codigo: data?.error,
+      chamadasRodada: budget.limit - budget.remaining,
+      limiteRodada: budget.limit,
+    })
+  }
   if (!response.ok) {
     const message =
       (typeof data?.message === "string" && data.message) ||

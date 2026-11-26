@@ -2,6 +2,7 @@ import "server-only"
 
 import { MlAccountUnavailableError, forgetAccessToken, getValidAccessToken, markTokenInvalid } from "@/lib/mercadolivre/accounts"
 import { ML_API_URL, MlApiError } from "@/lib/mercadolivre/api"
+import { logMlRateLimit } from "@/lib/mercadolivre/rate-limit-log"
 
 /**
  * Chamada autenticada ao ML. O token pode vir guardado na instância (lib/mercadolivre/accounts.ts): num 401, tenta 1 vez
@@ -27,6 +28,17 @@ async function authorizedFetch(accountId: string, path: string, init: RequestIni
 export async function mlRequest<T>(accountId: string, path: string, init: RequestInit = {}): Promise<T> {
   const response = await authorizedFetch(accountId, path, init, true)
   const data = (await response.json().catch(() => null)) as (Record<string, unknown> & T) | null
+  if (response.status === 429) {
+    logMlRateLimit({
+      origem: "geral",
+      conta: accountId,
+      metodo: init.method ?? "GET",
+      path,
+      status: response.status,
+      headers: response.headers,
+      codigo: data?.error,
+    })
+  }
   if (!response.ok) {
     const message =
       (typeof data?.message === "string" && data.message) ||
@@ -40,5 +52,16 @@ export async function mlRequest<T>(accountId: string, path: string, init: Reques
 
 /** Resposta bruta do ML (para arquivos, como anexos de mensagens). 401 (2 vezes) marca o token como inválido. */
 export async function mlFetchRaw(accountId: string, path: string, init: RequestInit = {}): Promise<Response> {
-  return authorizedFetch(accountId, path, init, false)
+  const response = await authorizedFetch(accountId, path, init, false)
+  if (response.status === 429) {
+    logMlRateLimit({
+      origem: "geral",
+      conta: accountId,
+      metodo: init.method ?? "GET",
+      path,
+      status: response.status,
+      headers: response.headers,
+    })
+  }
+  return response
 }

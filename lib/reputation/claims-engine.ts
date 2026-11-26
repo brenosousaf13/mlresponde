@@ -554,7 +554,7 @@ async function loadClaim(organizationId: string, claimRowId: string): Promise<Lo
 export async function syncClaimNow(organizationId: string, claimRowId: string) {
   const loaded = await loadClaim(organizationId, claimRowId)
   if (!loaded) return
-  const budget = new CallBudget(12)
+  const budget = new CallBudget(12, "reclamacoes_acao")
   await syncClaimDetails(loaded.account, loaded.claim, budget, new Date())
   const affects = await optional(() => fetchClaimAffects(loaded.account.id, Number(loaded.claim.claim_id), budget))
   if (affects) {
@@ -632,7 +632,7 @@ export async function executeClaimAction(input: {
     if (invalid) return { ok: false, message: invalid }
   }
 
-  const budget = new CallBudget(15)
+  const budget = new CallBudget(15, "reclamacoes_acao")
   const claimId = Number(claim.claim_id)
   let mlStatus: number | null = null
   try {
@@ -721,7 +721,7 @@ export async function partialRefundOffersFor(organizationId: string, claimRowId:
   const loaded = await loadClaim(organizationId, claimRowId)
   if (!loaded) return null
   return parsePartialRefundOffers(
-    await fetchPartialRefundOffers(loaded.account.id, Number(loaded.claim.claim_id), new CallBudget(2))
+    await fetchPartialRefundOffers(loaded.account.id, Number(loaded.claim.claim_id), new CallBudget(2, "reclamacoes_acao"))
   )
 }
 

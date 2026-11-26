@@ -816,7 +816,7 @@ export type ReputationSyncResult = { accounts: number; emails: number; failures:
 /** Cron do Escudo (a cada 2 min): contas com rodada vencida (até 140 chamadas ao ML) e os e-mails pendentes. */
 export async function runReputationSync(options: { claimsHook?: ClaimsHook } = {}): Promise<ReputationSyncResult> {
   const deadline = Date.now() + REPUTATION_CRON_LIMITS.budgetMs
-  const budget = new CallBudget(REPUTATION_CRON_LIMITS.calls)
+  const budget = new CallBudget(REPUTATION_CRON_LIMITS.calls, "reputacao_cron")
   const result: ReputationSyncResult = { accounts: 0, emails: 0, failures: 0, rateLimited: false }
 
   try {
@@ -874,6 +874,6 @@ export async function syncAccountNow(
     await releaseLock(accountId)
     return "unavailable"
   }
-  await syncAccount(row, account, new CallBudget(40), Date.now() + 25_000, { force: true, claimsHook: options.claimsHook })
+  await syncAccount(row, account, new CallBudget(40, "reputacao_conta"), Date.now() + 25_000, { force: true, claimsHook: options.claimsHook })
   return "done"
 }
