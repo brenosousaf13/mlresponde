@@ -100,7 +100,7 @@ describe("intervalo de releitura das revisões", () => {
     expect(returnsQueue([updated], new Map([[1, known({ mode, synced_at: NOW.toISOString() })]]), NOW)).toEqual([updated])
   })
 
-  it("preserva a prioridade de nunca lidas, alteradas, regras antigas com ação e intervalos", () => {
+  it("preserva a seleção por novidade, regras antigas com ação e intervalos, na nova ordem", () => {
     const claims = [5, 4, 3, 2, 1].map((claim_id) => ({ ...claim, claim_id, hasReviewAction: claim_id === 3 }))
     const state = new Map([
       [2, known({ synced_at: NOW.toISOString(), claim_updated_at: null })],
@@ -108,7 +108,8 @@ describe("intervalo de releitura das revisões", () => {
       [4, known({ synced_at: "2026-11-04T11:29:00.000Z" })],
       [5, known()],
     ])
-    expect(returnsQueue(claims, state, NOW, "2026-11-04T11:59:00.000Z").map((row) => row.claim_id)).toEqual([3, 1, 2, 4, 5])
+    // Nunca lida/alterada antes dos prazos iguais; hasReviewAction não antecipa o grupo de prazos.
+    expect(returnsQueue(claims, state, NOW, "2026-11-04T11:59:00.000Z").map((row) => row.claim_id)).toEqual([1, 2, 3, 4, 5])
   })
 })
 
@@ -152,11 +153,12 @@ function database(total = 1, minutesSinceSync = 15) {
 }
 
 type RoundLog = Extract<RecoveryLogEntry, { etapa: "rodada" }>
-function expectRound(db: ReturnType<typeof database>, expected: Pick<RoundLog, "fila" | "lidas" | "proxima_minutos" | "motivo"> & { resultado?: "ok" | "falha" }) {
+function expectRound(db: ReturnType<typeof database>, expected: Pick<RoundLog, "fila" | "lidas" | "proxima_minutos" | "motivo"> & Partial<Pick<RoundLog, "resultado" | "urgentes" | "urgentes_lidos">>) {
   const rounds = lines.filter((line) => line.startsWith("[recuperador] "))
     .map((line) => JSON.parse(line.slice("[recuperador] ".length)))
     .filter((entry) => entry.etapa === "rodada")
-  expect(rounds).toEqual([{ etapa: "rodada", conta: "1234", resultado: "ok", ...expected }])
+  // As rodadas sem urgência mantêm os campos antigos e passam a explicitar os dois contadores zerados.
+  expect(rounds).toEqual([{ etapa: "rodada", conta: "1234", resultado: "ok", urgentes: 0, urgentes_lidos: 0, ...expected }])
   const update = db.requests.filter((r) => r.method === "PATCH" && r.url.pathname.endsWith("/recovery_sync")).at(-1)!
   expect(Date.parse(String((update.body as Record<string, unknown>).next_returns_at)) - Date.now()).toBe(expected.proxima_minutos * MINUTE)
 }
@@ -182,7 +184,7 @@ describe("rodada da conta: prazo gravado e log estruturado sem dados pessoais", 
     db.claims[0].seller_actions[0].due_date = at(10)
     await db.run()
     expect(mocks.readReturn).toHaveBeenCalledTimes(1)
-    expectRound(db, { fila: 1, lidas: 1, proxima_minutos: 2, motivo: "revisao_24h" })
+    expectRound(db, { fila: 1, lidas: 1, urgentes: 1, urgentes_lidos: 1, proxima_minutos: 2, motivo: "revisao_24h" })
   })
 
   it("registra chegada_nova ao descobrir chegada sem prazo", async () => {
@@ -206,6 +208,33 @@ describe("rodada da conta: prazo gravado e log estruturado sem dados pessoais", 
     await db.run()
     expect(mocks.readReturn).toHaveBeenCalledTimes(15)
     expectRound(db, { fila: 16, lidas: 15, proxima_minutos: 1, motivo: "inacabado" })
+  })
+
+  it("conta todas as urgentes da fila, inclusive além das 15 selecionadas, e só as lidas com sucesso", async () => {
+    const db = database(16, 31)
+    for (const row of db.rows) row.deadline_at = at(24)
+    for (const candidate of db.claims) candidate.seller_actions[0].due_date = at(24)
+    await db.run()
+    expectRound(db, { fila: 16, lidas: 15, urgentes: 16, urgentes_lidos: 15, proxima_minutos: 1, motivo: "inacabado" })
+  })
+
+  it.each([false, true])("urgente com falha não conta como lida com sucesso (429=%s)", async (limited) => {
+    const db = database(2, 31)
+    for (const row of db.rows) row.deadline_at = at(10)
+    for (const candidate of db.claims) candidate.seller_actions[0].due_date = at(10)
+    mocks.readReturn.mockRejectedValueOnce(limited ? new MlApiError("limite", 429) : new Error("Falha simulada"))
+    await db.run()
+    expectRound(db, {
+      fila: 2, lidas: limited ? 0 : 2, urgentes: 2, urgentes_lidos: limited ? 0 : 1,
+      proxima_minutos: 2, motivo: limited ? "rate_limit" : "revisao_24h",
+    })
+  })
+
+  it("urgente recente fora da fila não infla os contadores", async () => {
+    const db = database(1, 5)
+    db.rows[0].deadline_at = at(1)
+    await db.run()
+    expectRound(db, { fila: 0, lidas: 0, proxima_minutos: 2, motivo: "revisao_24h" })
   })
 
   it.each(["chamadas", "tempo"])("registra orcamento ao esgotar %s antes da primeira leitura", async (kind) => {
@@ -265,7 +294,7 @@ describe("rodada da conta: prazo gravado e log estruturado sem dados pessoais", 
     const rounds = lines.filter((line) => line.includes('"etapa":"rodada"'))
     expect(rounds).toHaveLength(1)
     expect(JSON.parse(rounds[0].slice("[recuperador] ".length))).toEqual({
-      etapa: "rodada", conta: "1234", resultado: "falha", fila: 0, lidas: 0, proxima_minutos: 5, motivo: "erro",
+      etapa: "rodada", conta: "1234", resultado: "falha", fila: 0, lidas: 0, urgentes: 0, urgentes_lidos: 0, proxima_minutos: 5, motivo: "erro",
     })
   })
 })
