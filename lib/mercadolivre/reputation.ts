@@ -40,11 +40,6 @@ export class CallBudget {
     this.remaining--
   }
 
-  /** Retoma após um 429 de item que o cron adiou, sem devolver a chamada consumida. */
-  clearRateLimit() {
-    this.rateLimited = false
-  }
-
   accessToken(accountId: string, load: (accountId: string) => Promise<string> = getValidAccessToken): Promise<string> {
     const cached = this.tokens.get(accountId)
     if (cached && cached.until > Date.now()) return cached.token
@@ -109,7 +104,7 @@ async function reputationRequest<T>(accountId: string, path: string, budget: Cal
       (typeof data?.error === "string" && data.error) ||
       "HTTP " + response.status
     const code = typeof data?.error === "string" ? data.error : undefined
-    throw new MlApiError("Mercado Livre: " + message, response.status, code, path)
+    throw new MlApiError("Mercado Livre: " + message, response.status, code)
   }
   return data as T
 }

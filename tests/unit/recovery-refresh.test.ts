@@ -156,7 +156,7 @@ function expectRound(db: ReturnType<typeof database>, expected: Pick<RoundLog, "
   const rounds = lines.filter((line) => line.startsWith("[recuperador] "))
     .map((line) => JSON.parse(line.slice("[recuperador] ".length)))
     .filter((entry) => entry.etapa === "rodada")
-  expect(rounds).toEqual([{ etapa: "rodada", conta: "1234", resultado: "ok", pulados_429: 0, adiados: 0, ...expected }])
+  expect(rounds).toEqual([{ etapa: "rodada", conta: "1234", resultado: "ok", ...expected }])
   const update = db.requests.filter((r) => r.method === "PATCH" && r.url.pathname.endsWith("/recovery_sync")).at(-1)!
   expect(Date.parse(String((update.body as Record<string, unknown>).next_returns_at)) - Date.now()).toBe(expected.proxima_minutos * MINUTE)
 }
@@ -266,7 +266,6 @@ describe("rodada da conta: prazo gravado e log estruturado sem dados pessoais", 
     expect(rounds).toHaveLength(1)
     expect(JSON.parse(rounds[0].slice("[recuperador] ".length))).toEqual({
       etapa: "rodada", conta: "1234", resultado: "falha", fila: 0, lidas: 0, proxima_minutos: 5, motivo: "erro",
-      pulados_429: 0, adiados: 0,
     })
   })
 })

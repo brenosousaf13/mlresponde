@@ -1,5 +1,3 @@
-import { createHash } from "node:crypto"
-
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
 import { formatMlRateLimitLog, logMlRateLimit, normalizeMlEndpoint, pickRateLimitHeaders } from "@/lib/mercadolivre/rate-limit-log"
@@ -98,35 +96,11 @@ describe("log estruturado do limite do Mercado Livre", () => {
       ...entry(), chamadasRodada: 4, limiteRodada: 60,
       ...{ token: "segredo-extra", message: "Mensagem livre", body: { email: "cliente@exemplo.com" } },
     })
-    expect(JSON.parse(line.slice(9))).toEqual({
-      origem: "recuperador_cron", conta: "ab12", metodo: "GET",
-      endpoint: "/post-purchase/v1/claims/:id?access_token&email",
-      recurso: createHash("sha256").update("maanu-ml-429:123").digest("hex").slice(0, 8),
-      status: 429, retry_after: "120", cabecalhos: { "x-ratelimit-remaining": "0" },
-      codigo: "local_rate_limited", chamadas_rodada: 4, limite_rodada: 60,
-    })
+    expect(line).toBe('[ml-429] {"origem":"recuperador_cron","conta":"ab12","metodo":"GET","endpoint":"/post-purchase/v1/claims/:id?access_token&email","status":429,"retry_after":"120","cabecalhos":{"x-ratelimit-remaining":"0"},"codigo":"local_rate_limited","chamadas_rodada":4,"limite_rodada":60}')
     for (const secret of [ACCOUNT_ID, "123", "APP_USR", "cliente", "exemplo.com", "segredo", "Mensagem livre", "Bearer"]) {
       expect(line).not.toContain(secret)
     }
     expect(line).not.toMatch(/[\r\n]/)
-  })
-
-  it("identifica só o primeiro segmento numérico com hash estável e sem expor o id real", () => {
-    const resource = (path: string) => JSON.parse(formatMlRateLimitLog({ ...entry(), path }).slice(9)).recurso
-    const id = "9876543210123"
-    const path = "/post-purchase/v2/claims/" + id + "/returns/222"
-    expect(resource(path)).toBe(createHash("sha256").update("maanu-ml-429:" + id).digest("hex").slice(0, 8))
-    expect(resource(path)).toMatch(/^[a-f0-9]{8}$/)
-    expect(resource(path)).toBe(resource("/post-purchase/v1/returns/" + id + "/reviews?outro=333"))
-    expect(resource(path)).not.toBe(resource("/post-purchase/v2/claims/9876543210124/returns"))
-    expect(formatMlRateLimitLog({ ...entry(), path })).not.toContain(id)
-  })
-
-  it.each([
-    "/post-purchase/v1/claims/search?player_user_id=123",
-    "/post-purchase/v2/claims#123", "/items/MLB123", "/users/%31%32%33", "/claims/abc123",
-  ])("usa recurso nulo sem segmento totalmente numérico: %s", (path) => {
-    expect(JSON.parse(formatMlRateLimitLog({ ...entry(), path }).slice(9)).recurso).toBeNull()
   })
 
   it("omite as contagens ausentes e inclui zero quando informado", () => {
@@ -169,7 +143,6 @@ describe("log estruturado do limite do Mercado Livre", () => {
 
     await expect(fetchClaim(ACCOUNT_ID, 123, budget)).rejects.toMatchObject({
       name: "MlApiError", status: 429, code: "local_rate_limited", message: "Mercado Livre: Mensagem livre do ML",
-      path: "/post-purchase/v1/claims/123",
     })
     expect(json).toHaveBeenCalledTimes(1)
     expect(console.warn).toHaveBeenCalledExactlyOnceWith(formatMlRateLimitLog({

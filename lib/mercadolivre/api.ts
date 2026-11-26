@@ -12,9 +12,7 @@ export class MlApiError extends Error {
   constructor(
     message: string,
     readonly status: number,
-    readonly code?: string,
-    /** Caminho da chamada, usado apenas para classificar o erro; não entra na mensagem nem no log. */
-    readonly path?: string
+    readonly code?: string
   ) {
     super(message)
     this.name = "MlApiError"

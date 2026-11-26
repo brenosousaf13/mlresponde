@@ -1,5 +1,3 @@
-import { createHash } from "node:crypto"
-
 import { shortAccount } from "@/lib/recovery/log"
 
 export type MlRateLimitLogEntry = {
@@ -54,10 +52,6 @@ export function formatMlRateLimitLog(entry: MlRateLimitLogEntry): string {
     conta: shortAccount(entry.conta),
     metodo: entry.metodo,
     endpoint: normalizeMlEndpoint(entry.path),
-    recurso: (() => {
-      const id = entry.path.split(/[?#]/, 1)[0].split("/").find((segment) => /^\d+$/.test(segment))
-      return id ? createHash("sha256").update("maanu-ml-429:" + id).digest("hex").slice(0, 8) : null
-    })(),
     status: entry.status,
     retry_after: retryAfter,
     cabecalhos: headers,

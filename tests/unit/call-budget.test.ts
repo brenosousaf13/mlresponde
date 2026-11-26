@@ -78,20 +78,4 @@ describe("CallBudget (limite de chamadas e token da rodada)", () => {
     expect(fetchMock).not.toHaveBeenCalled()
     expect(mocks.getValidAccessToken).not.toHaveBeenCalled()
   })
-
-  it("limpa somente o sinal de 429, sem devolver chamadas nem renovar o limite", () => {
-    const budget = new CallBudget(2)
-    budget.take()
-    budget.rateLimited = true
-    expect(budget.exhausted).toBe(true)
-    budget.clearRateLimit()
-    expect(budget.rateLimited).toBe(false)
-    expect(budget.remaining).toBe(1)
-    expect(budget.limit).toBe(2)
-    budget.take()
-    budget.rateLimited = true
-    budget.clearRateLimit()
-    expect(budget.exhausted).toBe(true)
-    expect(() => budget.take()).toThrow(BudgetExhaustedError)
-  })
 })
