@@ -20,6 +20,7 @@ import {
 } from "@/lib/mercadolivre/reputation"
 import { returnAlerts } from "@/lib/recovery/alerts"
 import { logRecovery, shortAccount, type RecoveryRoundReason } from "@/lib/recovery/log"
+import { Recovery429Deferrals } from "@/lib/recovery/rate-limit-deferrals"
 import { classifySyncHealth, organizationHasAccess, SYNC_STALE_MS } from "@/lib/recovery/sync-health"
 import {
   arrivalDate,
@@ -81,7 +82,7 @@ export const RECOVERY_CRON_LIMITS = {
 
 const MINUTE = 60 * 1000
 const DAY = 24 * 60 * MINUTE
-const INTERVALS = {
+export const INTERVALS = {
   normal: 5 * MINUTE,
   needsReview: 2 * MINUTE,
   unfinished: MINUTE,
@@ -93,6 +94,10 @@ const INTERVALS = {
 /** Raio-X: devoluções abertas nos últimos 90 dias (as abertas antes disso também entram, enquanto estiverem abertas). */
 export const SCAN_WINDOW_DAYS = 90
 const RETURNS_PER_RUN = 15
+export const RECOVERY_429_SKIPS_PER_ACCOUNT = 3
+const deferredReturns = new Recovery429Deferrals()
+/** Compartilhado só pelas contas de uma execução do cron; a parada definitiva não pode ser desfeita por outra conta. */
+type RecoveryCronRound = { rateLimitStopped: boolean }
 /**
  * Mudança das regras do Recuperador (Sessão 31): devoluções lidas antes disso são lidas de novo no ritmo normal (as com
  * revisão liberada primeiro), para fase, prazo, carrinho e Raio-X seguirem a regra nova. Atualizar ao mudar as regras.
@@ -553,13 +558,15 @@ async function markScanWaiting(account: ReputationAccount) {
  * Uma conta (já reservada): lê as devoluções da fila (até 15 por rodada), atualiza o Raio-X e os alertas e solta a trava.
  * O Raio-X espera o Escudo terminar a busca inicial das reclamações (reputation_sync.claims_backfilled_at).
  */
-export async function syncRecoveryAccount(account: ReputationAccount, budget: CallBudget, deadline: number) {
+export async function syncRecoveryAccount(account: ReputationAccount, budget: CallBudget, deadline: number, cronRound?: RecoveryCronRound) {
   const admin = createServiceClient()
   const now = new Date()
   let next = INTERVALS.normal
   let reason: RecoveryRoundReason = "normal"
   let queueSize = 0
   let processed = 0
+  let skipped429 = 0
+  let deferred = 0
   let lastError: string | null = null
   try {
     const { data: escudo, error: escudoError } = await admin
@@ -610,7 +617,14 @@ export async function syncRecoveryAccount(account: ReputationAccount, budget: Ca
       )
       queueSize = queue.length
       let stop: unknown = null
-      const selected = queue.slice(0, RETURNS_PER_RUN)
+      // Só o cron usa o adiamento: ações manuais e demais erros mantêm o comportamento da E3.
+      if (cronRound) deferredReturns.prune(Date.now())
+      const selectable = cronRound ? queue.filter((claim) => {
+        if (!deferredReturns.isDeferred(Number(claim.claim_id), Date.now())) return true
+        deferred++
+        return false
+      }) : queue
+      const selected = selectable.slice(0, RETURNS_PER_RUN)
       // Mantém a fila completa e os intervalos: devoluções sem mudança na reclamação também podem precisar de releitura.
       const { data: details, error: detailsError } = selected.length && !budget.exhausted && Date.now() <= deadline
         ? await admin.from("reputation_claims").select(CLAIM_COLUMNS).eq("ml_account_id", account.id).in("id", selected.map((claim) => claim.id))
@@ -626,6 +640,17 @@ export async function syncRecoveryAccount(account: ReputationAccount, budget: Ca
           pollState.set(Number(claim.claim_id), state)
           processed++
         } catch (error) {
+          if (cronRound && error instanceof MlApiError && error.status === 429) {
+            if (error.path?.startsWith("/post-purchase/") && !cronRound.rateLimitStopped && skipped429 < RECOVERY_429_SKIPS_PER_ACCOUNT) {
+              deferredReturns.defer(Number(claim.claim_id), Date.now())
+              skipped429++
+              budget.clearRateLimit()
+              // O item continua não lido; a chamada que recebeu 429 continua no orçamento.
+              continue
+            }
+            cronRound.rateLimitStopped = true
+            budget.rateLimited = true
+          }
           if (isStopError(error)) {
             stop = error
             break
@@ -660,6 +685,7 @@ export async function syncRecoveryAccount(account: ReputationAccount, budget: Ca
       reason = budget.rateLimited ? "rate_limit" : "orcamento"
     }
     else if (error instanceof MlApiError && error.status === 429) {
+      if (cronRound) cronRound.rateLimitStopped = true
       budget.rateLimited = true
       next = INTERVALS.rateLimited
       reason = "rate_limit"
@@ -690,6 +716,7 @@ export async function syncRecoveryAccount(account: ReputationAccount, budget: Ca
     logRecovery({
       etapa: "rodada", conta: account.id, resultado: lastError ? "falha" : "ok",
       fila: queueSize, lidas: processed, proxima_minutos: next / MINUTE, motivo: reason,
+      pulados_429: skipped429, adiados: deferred,
     })
   }
 }
@@ -713,6 +740,7 @@ export type RecoverySyncResult = { accounts: number; failures: number; rateLimit
 export async function runRecoverySync(): Promise<RecoverySyncResult> {
   const deadline = Date.now() + RECOVERY_CRON_LIMITS.budgetMs
   const budget = new CallBudget(RECOVERY_CRON_LIMITS.calls, "recuperador_cron")
+  const cronRound: RecoveryCronRound = { rateLimitStopped: false }
   const result: RecoverySyncResult = { accounts: 0, failures: 0, rateLimited: false }
   try {
     const { data: rows, error } = await createServiceClient().rpc("claim_recovery_sync", {
@@ -728,7 +756,7 @@ export async function runRecoverySync(): Promise<RecoverySyncResult> {
         return
       }
       try {
-        await syncRecoveryAccount(account, budget, deadline)
+        await syncRecoveryAccount(account, budget, deadline, cronRound)
         result.accounts++
       } catch (error) {
         result.failures++
