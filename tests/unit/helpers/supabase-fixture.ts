@@ -20,8 +20,6 @@ export function supabaseFixture(tables: Record<string, Row[]>) {
       if (value.startsWith("in.(")) rows = rows.filter((row) => value.slice(4, -1).split(",").includes(String(row[key])))
       if (value === "not.is.null") rows = rows.filter((row) => row[key] != null)
       if (value.startsWith("gte.")) rows = rows.filter((row) => String(row[key]) >= value.slice(4))
-      if (value.startsWith("lte.")) rows = rows.filter((row) => row[key] != null && String(row[key]) <= value.slice(4))
-      if (value.startsWith("lt.")) rows = rows.filter((row) => row[key] != null && String(row[key]) < value.slice(3))
     }
     if (method === "HEAD") return new Response(null, { headers: { "content-range": `0-0/${rows.length}` } })
     if (method === "POST") rows = (Array.isArray(body) ? body : [body ?? {}]).map((row) => ({ id: "salvo", ...row }))

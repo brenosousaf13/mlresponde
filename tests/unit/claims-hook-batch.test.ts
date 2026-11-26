@@ -170,7 +170,7 @@ describe("claimsHook (gravações agrupadas)", () => {
     expect(mocks.state.calls.filter((call) => call.table === "ml_orders")).toHaveLength(1)
   })
 
-  it("seleciona a fila com colunas leves e carrega linhas completas somente das 6 escolhidas (metade, E4b), na ordem da fila", async () => {
+  it("seleciona a fila com colunas leves e carrega linhas completas somente das 12 escolhidas, na ordem da fila", async () => {
     mocks.state.candidates = Array.from({ length: 20 }, (_, i) => candidate(i + 1))
     const pending = await claimsHook(account, [], new CallBudget(300), now)
     expect(pending).toBe(true)
@@ -178,8 +178,8 @@ describe("claimsHook (gravações agrupadas)", () => {
     expect(reads[0].columns).not.toMatch(/\*|order_summary|shipping|ai_result|detail,/)
     expect(reads[0].columns?.split(",").map((column) => column.trim())).toEqual(expect.arrayContaining(["id", "status", "details_synced_at", "ml_updated_at", "next_due_at"]))
     expect(reads.filter((call) => call.columns === "*")).toHaveLength(1)
-    expect(reads[1].filters).toContainEqual(["id", Array.from({ length: 6 }, (_, i) => `row-${i + 1}`)])
-    expect(writes().filter((call) => call.table === "reputation_claims")).toHaveLength(6)
+    expect(reads[1].filters).toContainEqual(["id", Array.from({ length: 12 }, (_, i) => `row-${i + 1}`)])
+    expect(writes().filter((call) => call.table === "reputation_claims")).toHaveLength(12)
   })
 
   it("não carrega linhas completas quando o detalhe já está atualizado", async () => {

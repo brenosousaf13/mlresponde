@@ -64,8 +64,8 @@ const DAY = 24 * 60 * MINUTE
 const RECENT_DAYS = 7
 /** Reclamações abertas: detalhe e mensagens de novo a cada 30 minutos (mesmo sem mudança na busca). */
 const OPEN_REFRESH_MS = 30 * MINUTE
-/** Metade das 12 leituras anteriores: detalhe/mensagens/expectativas disputam o limite /post-purchase com o Recuperador. */
-export const DETAILS_PER_RUN = 6
+/** Detalhes por conta em cada rodada do cron (a cada 2 min), 3 ao mesmo tempo. */
+const DETAILS_PER_RUN = 12
 const DETAILS_CONCURRENCY = 3
 const ANALYSES_PER_RUN = 3
 const AI_LOCK_MS = 3 * MINUTE
