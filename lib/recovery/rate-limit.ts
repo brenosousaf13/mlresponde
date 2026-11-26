@@ -1,5 +1,5 @@
 const MINUTE = 60_000
-const STEPS = [2, 4, 8, 15].map((minutes) => minutes * MINUTE)
+export const STEPS = [2, 4, 8, 15].map((minutes) => minutes * MINUTE)
 
 /** Converte Retry-After (segundos ou data HTTP) em atraso relativo ao recebimento da resposta. */
 export function parseRetryAfterMs(value: string | null, nowMs: number): number | undefined {

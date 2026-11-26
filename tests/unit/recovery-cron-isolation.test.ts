@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
+import { decodePauseStep, encodePauseUntil } from "@/lib/mercadolivre/claims-pause"
 
 import type { MlApiError } from "@/lib/mercadolivre/api"
 import type { RecoveryLogEntry } from "@/lib/recovery/log"
@@ -43,7 +44,7 @@ function database(counts: number[]) {
     order_summary: null, resource_id: null, reason_id: null, reason_detail: null, sale_at: null,
   })))
   const db = supabaseFixture({
-    reputation_claims: claims, recovery_returns: [],
+    recovery_sync: syncs, reputation_claims: claims, recovery_returns: [],
     reputation_sync: accounts.map((account) => ({ ml_account_id: account.id, claims_backfilled_at: OLD })),
     recovery_scans: accounts.map((account) => ({ ml_account_id: account.id, status: "done", started_at: OLD })),
   })
@@ -88,35 +89,38 @@ beforeEach(() => {
 afterEach(() => { vi.restoreAllMocks(); vi.useRealTimers(); vi.unstubAllGlobals() })
 
 describe("cron do Recuperador: isolamento e ritmo", () => {
-  it("429 em A não impede B; grava o backoff desde last_returns_at mesmo após uma chamada demorada", async () => {
+  // E4b troca o isolamento por conta pela pausa do app, contada desde o recebimento do 429.
+  it("429 em A pausa B; grava o horário marcado após uma chamada demorada", async () => {
     const db = database([1, 1])
     vi.mocked(Math.random).mockReturnValue(0.5)
     fetchMock.mockImplementationOnce(async () => {
       vi.setSystemTime(new Date(NOW.getTime() + 12_000))
       return respond(429, { error: "too_many_requests_error" })
     })
-    expect(await runRecoverySync()).toEqual({ accounts: 2, failures: 0, rateLimited: true })
-    expect(paths()).toEqual(["/post-purchase/v2/claims/100/returns", "/post-purchase/v2/claims/200/returns", "/post-purchase/v1/returns/777/reviews"])
-    expect(db.updates("conta-0")[0]).toMatchObject({ last_returns_at: NOW.toISOString(), next_returns_at: new Date(NOW.getTime() + 2.2 * MINUTE).toISOString(), last_error: null })
+    expect(await runRecoverySync()).toEqual({ accounts: 1, failures: 0, rateLimited: true })
+    expect(paths()).toEqual(["/post-purchase/v2/claims/100/returns"])
+    expect(db.updates("conta-0")[0]).toMatchObject({ last_returns_at: NOW.toISOString(), next_returns_at: encodePauseUntil(NOW.getTime() + 12_000 + 2.2 * MINUTE, 0), last_error: null })
     expect(round("conta-0")).toMatchObject({ motivo: "rate_limit", proxima_minutos: 2.2 })
-    expect(round("conta-1")).toMatchObject({ motivo: "normal", proxima_minutos: 5, lidas: 1 })
-    expect(mocks.token.mock.calls.map(([id]) => id)).toEqual(["conta-0", "conta-1"])
-    expect(db.requests.filter((request) => request.method === "GET" && request.url.pathname.endsWith("/recovery_sync"))).toHaveLength(0)
+    expect(db.updates("conta-1")).toEqual([{ locked_until: null }])
+    expect(round("conta-1")).toBeUndefined()
+    expect(mocks.token.mock.calls.map(([id]) => id)).toEqual(["conta-0"])
+    expect(db.requests.filter((request) => request.method === "GET" && request.url.pathname.endsWith("/recovery_sync"))).toHaveLength(2)
   })
 
-  it("compartilha as 4 leituras em ordem; a conta atual volta por ritmo e as seguintes só soltam a trava", async () => {
-    const db = database([2, 3, 1])
+  it("E4b: compartilha as 6 leituras; a conta atual volta por ritmo e as seguintes só soltam a trava", async () => {
+    const db = database([2, 5, 1])
     // O retorno do UPDATE do claim pode vir fora de ordem.
     mocks.claim.mockResolvedValue({ data: [...db.syncs].reverse(), error: null })
-    expect(RECOVERY_RETURNS_CALLS_PER_MINUTE).toBe(4)
+    expect(RECOVERY_RETURNS_CALLS_PER_MINUTE).toBe(6)
     expect(RECOVERY_CRON_LIMITS.concurrency).toBe(1)
     expect(await runRecoverySync()).toEqual({ accounts: 2, failures: 0, rateLimited: false })
     expect(paths().filter((path) => path.includes("/v2/claims/"))).toEqual([
       "/post-purchase/v2/claims/100/returns", "/post-purchase/v2/claims/101/returns",
       "/post-purchase/v2/claims/200/returns", "/post-purchase/v2/claims/201/returns",
+      "/post-purchase/v2/claims/202/returns", "/post-purchase/v2/claims/203/returns",
     ])
-    expect(paths().filter((path) => path.endsWith("/reviews"))).toHaveLength(4)
-    expect(round("conta-1")).toMatchObject({ motivo: "ritmo", proxima_minutos: 1, fila: 3, lidas: 2, resultado: "ok" })
+    expect(paths().filter((path) => path.endsWith("/reviews"))).toHaveLength(6)
+    expect(round("conta-1")).toMatchObject({ motivo: "ritmo", proxima_minutos: 1, fila: 5, lidas: 4, resultado: "ok" })
     expect(db.updates("conta-1")[0]).toMatchObject({ next_returns_at: new Date(NOW.getTime() + MINUTE).toISOString(), last_error: null })
     expect(db.updates("conta-2")).toEqual([{ locked_until: null }])
     expect(round("conta-2")).toBeUndefined()
@@ -135,7 +139,8 @@ describe("cron do Recuperador: isolamento e ritmo", () => {
     fetchMock.mockImplementation(async () => respond(429, { error: "too_many_requests_error" }))
     await runRecoverySync()
     const second = db.updates("conta-0")[1]
-    expect(Date.parse(String(second.next_returns_at)) - Date.parse(String(second.last_returns_at))).toBe(4 * MINUTE)
+    expect(decodePauseStep(String(second.next_returns_at))).toBe(1)
+    expect(Date.parse(String(second.next_returns_at)) - Date.parse(String(second.last_returns_at))).toBeGreaterThanOrEqual(4 * MINUTE)
     expect(round("conta-0")).toMatchObject({ motivo: "rate_limit", proxima_minutos: 4 })
   })
 
@@ -145,27 +150,27 @@ describe("cron do Recuperador: isolamento e ritmo", () => {
     fetchMock.mockImplementation(async () => respond(429, { error: "too_many_requests_error" }, header))
     await runRecoverySync()
     const minutes = header === "180" ? 3 : 8
-    expect(db.updates("conta-0")[0]).toMatchObject({ next_returns_at: new Date(NOW.getTime() + minutes * MINUTE).toISOString() })
+    expect(db.updates("conta-0")[0]).toMatchObject({ next_returns_at: encodePauseUntil(NOW.getTime() + minutes * MINUTE, 0) })
     expect(round("conta-0")).toMatchObject({ motivo: "rate_limit", proxima_minutos: minutes })
   })
 
-  it("um 429 em /reviews também fica só na conta que o recebeu", async () => {
+  it("E4b: um 429 em /reviews também pausa as demais contas", async () => {
     const db = database([1, 1])
     fetchMock.mockImplementationOnce(async () => respond(200, { id: 777, status: "pending" }))
       .mockImplementationOnce(async () => respond(429, { error: "too_many_requests_error" }))
     expect((await runRecoverySync()).rateLimited).toBe(true)
     expect(round("conta-0").motivo).toBe("rate_limit")
-    expect(round("conta-1")).toMatchObject({ motivo: "normal", lidas: 1 })
-    expect(db.updates("conta-1")).toHaveLength(1)
+    expect(round("conta-1")).toBeUndefined()
+    expect(db.updates("conta-1")).toEqual([{ locked_until: null }])
   })
 
-  it("conta chamadas recusadas no teto; o quarto 429 conserva rate_limit e a quinta conta espera", async () => {
+  it("E4b: conta a chamada recusada e interrompe no primeiro 429, antes do teto", async () => {
     const db = database([1, 1, 1, 1, 1])
     fetchMock.mockImplementation(async () => respond(429, { error: "too_many_requests_error" }))
-    expect(await runRecoverySync()).toEqual({ accounts: 4, failures: 0, rateLimited: true })
-    expect(fetchMock).toHaveBeenCalledTimes(4)
-    for (let index = 0; index < 4; index++) expect(round("conta-" + index).motivo).toBe("rate_limit")
-    expect(db.updates("conta-4")).toEqual([{ locked_until: null }])
+    expect(await runRecoverySync()).toEqual({ accounts: 1, failures: 0, rateLimited: true })
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    expect(round("conta-0").motivo).toBe("rate_limit")
+    for (let index = 1; index < 5; index++) expect(db.updates("conta-" + index)).toEqual([{ locked_until: null }])
   })
 
   it("preserva o teto geral de 60 chamadas somando os orçamentos de cada conta", async () => {
@@ -184,10 +189,10 @@ describe("cron do Recuperador: isolamento e ritmo", () => {
   })
 
   it("recomeça o contador de devoluções a cada execução do cron", async () => {
-    database([5])
+    database([7])
     await runRecoverySync()
     await runRecoverySync()
-    expect(paths().filter((path) => path.includes("/v2/claims/"))).toHaveLength(8)
+    expect(paths().filter((path) => path.includes("/v2/claims/"))).toHaveLength(12)
   })
 
   it("não inclui Retry-After em erros de outros status", async () => {

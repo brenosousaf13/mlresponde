@@ -5,6 +5,7 @@ import { emailEnabled, sendEmail } from "@/lib/email/resend"
 import { dayKey } from "@/lib/format"
 import { MlAccountUnavailableError } from "@/lib/mercadolivre/accounts"
 import { MlApiError } from "@/lib/mercadolivre/api"
+import { ClaimsPause, loadClaimsPause } from "@/lib/mercadolivre/claims-pause-store"
 import {
   BudgetExhaustedError,
   CallBudget,
@@ -620,13 +621,15 @@ export async function syncAccount(
   account: ReputationAccount,
   budget: CallBudget,
   deadline: number,
-  options: { force?: boolean; claimsHook?: ClaimsHook } = {}
+  options: { force?: boolean; claimsHook?: ClaimsHook; claimsPause?: ClaimsPause } = {}
 ) {
   const now = new Date()
   const update: SyncUpdate = { locked_until: null }
   let lastError: string | null = null
 
   for (const part of PARTS) {
+    // A pausa só vale para o cron. Não sobrescreve a agenda empurrada pelo UPDATE global.
+    if (part.key === "claims" && options.claimsPause?.active) continue
     const due = options.force || Date.parse(row[part.next]) <= now.getTime()
     if (!due) continue
     if (budget.exhausted || Date.now() > deadline) {
@@ -646,6 +649,9 @@ export async function syncAccount(
       update[part.last] = now.toISOString()
       update[part.next] = iso(now.getTime() + (complete ? part.interval : INTERVALS.unfinished))
     } catch (error) {
+      if (part.key === "claims" && options.claimsPause?.stopped && isStopError(error)) {
+        continue
+      }
       if (error instanceof BudgetExhaustedError) {
         update[part.next] = iso(now.getTime() + (budget.rateLimited ? INTERVALS.rateLimited : INTERVALS.unfinished))
         continue
@@ -666,6 +672,10 @@ export async function syncAccount(
   }
   update.last_error = lastError
   update.last_error_at = lastError ? now.toISOString() : null
+  // Outra conta pode ter iniciado a pausa enquanto esta aguardava o ML; não encurta o horário global no fim.
+  if (options.claimsPause?.active) {
+    delete update.next_claims_at
+  }
   const { error } = await createServiceClient().from("reputation_sync").update(update).eq("ml_account_id", account.id)
   if (error) throw error
 }
@@ -816,7 +826,10 @@ export type ReputationSyncResult = { accounts: number; emails: number; failures:
 /** Cron do Escudo (a cada 2 min): contas com rodada vencida (até 140 chamadas ao ML) e os e-mails pendentes. */
 export async function runReputationSync(options: { claimsHook?: ClaimsHook } = {}): Promise<ReputationSyncResult> {
   const deadline = Date.now() + REPUTATION_CRON_LIMITS.budgetMs
-  const budget = new CallBudget(REPUTATION_CRON_LIMITS.calls, "reputacao_cron")
+  const pause = new ClaimsPause(null)
+  const budget = new CallBudget(REPUTATION_CRON_LIMITS.calls, "reputacao_cron", (path) => {
+    if (path.startsWith("/post-purchase/") && pause.active) throw new BudgetExhaustedError()
+  }, (event) => pause.onRateLimit(event, "reputacao_cron"))
   const result: ReputationSyncResult = { accounts: 0, emails: 0, failures: 0, rateLimited: false }
 
   try {
@@ -825,6 +838,7 @@ export async function runReputationSync(options: { claimsHook?: ClaimsHook } = {
       p_lock_seconds: 120,
     })
     if (error) throw error
+    pause.until = await loadClaimsPause()
     const accounts = await loadAccounts((rows ?? []).map((row) => row.ml_account_id))
     await forEachLimit(rows ?? [], REPUTATION_CRON_LIMITS.concurrency, async (row) => {
       const account = accounts.get(row.ml_account_id)
@@ -833,7 +847,7 @@ export async function runReputationSync(options: { claimsHook?: ClaimsHook } = {
         return
       }
       try {
-        await syncAccount(row, account, budget, deadline, { claimsHook: options.claimsHook })
+        await syncAccount(row, account, budget, deadline, { claimsHook: options.claimsHook, claimsPause: pause })
         result.accounts++
       } catch (error) {
         result.failures++
@@ -852,7 +866,7 @@ export async function runReputationSync(options: { claimsHook?: ClaimsHook } = {
     result.failures++
     console.error("[reputação] e-mails:", errorMessage(error))
   }
-  result.rateLimited = budget.rateLimited
+  result.rateLimited = budget.rateLimited || budget.postPurchaseRateLimited
   return result
 }
 

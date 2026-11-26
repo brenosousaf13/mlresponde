@@ -444,11 +444,16 @@ export function refreshInterval(claimStatus: string, row: KnownReturn, now: Date
   return null
 }
 
+/** Urgência da fila: revisão com prazo futuro estritamente menor que 24h (vencida e exatamente 24h ficam fora). */
+export function isUrgentReturn(row: KnownReturn | undefined, now: Date): boolean {
+  const due = row?.deadline_at ? Date.parse(row.deadline_at) : NaN
+  return row?.phase === "needs_review" && due > now.getTime() && due < now.getTime() + DAY_MS
+}
+
 /**
- * Quais devoluções ler no ML agora. Primeiro TODAS as que o ML lista com revisão liberada (nunca lidas, alteradas, lidas
- * antes da regra atual ou vencidas pelo intervalo): é onde o prazo corre e o dinheiro está. Depois, na ordem: nunca lidas
- * (Raio-X), alteradas no ML, vencidas pelo intervalo e, por último, as demais lidas antes da regra atual (rulesSince). Em
- * cada grupo: abertas antes de encerradas e as mais novas primeiro.
+ * Mantém a elegibilidade anterior. Ordena: urgentes; nunca lidas/alteradas; demais com prazo; demais por última leitura.
+ * hasReviewAction continua priorizando dentro de cada grupo, depois do prazo nos grupos com prazo (a/c).
+ * Exatamente 24h fica em (c); no rodízio de contas a janela inclusiva de 24h também garante a vez no próximo minuto.
  */
 export function returnsQueue<T extends QueueClaim & { hasReviewAction?: boolean }>(
   claims: readonly T[],
@@ -457,26 +462,38 @@ export function returnsQueue<T extends QueueClaim & { hasReviewAction?: boolean 
   rulesSince?: string | null
 ): T[] {
   const rulesTime = rulesSince ? Date.parse(rulesSince) : NaN
-  const group = (claim: T): number | null => {
+  const eligible = (claim: T): boolean => {
     const row = known.get(claim.claim_id)
-    if (!row) return 0
-    if (claim.ml_updated_at && (!row.claim_updated_at || Date.parse(claim.ml_updated_at) > Date.parse(row.claim_updated_at))) return 1
+    if (!row) return true
+    if (claim.ml_updated_at && (!row.claim_updated_at || Date.parse(claim.ml_updated_at) > Date.parse(row.claim_updated_at))) return true
     const oldRules = Number.isFinite(rulesTime) && Date.parse(row.synced_at) < rulesTime
-    if (oldRules && claim.hasReviewAction) return 2
+    if (oldRules && claim.hasReviewAction) return true
     const interval = refreshInterval(claim.status, row, now)
-    if (interval !== null && now.getTime() - Date.parse(row.synced_at) > interval) return 3
-    return oldRules ? 4 : null
+    return oldRules || (interval !== null && now.getTime() - Date.parse(row.synced_at) > interval)
   }
+  const due = (row: KnownReturn | undefined) => (row?.deadline_at ? Date.parse(row.deadline_at) : NaN)
+  const priority = (claim: T, row: KnownReturn | undefined) => {
+    if (isUrgentReturn(row, now)) return 0
+    // Prazo já vencido nunca disputa o grupo de novidades, mesmo se a reclamação mudou.
+    if (due(row) <= now.getTime()) return 2
+    if (!row || (claim.ml_updated_at && (!row.claim_updated_at || Date.parse(claim.ml_updated_at) > Date.parse(row.claim_updated_at)))) return 1
+    return Number.isFinite(due(row)) ? 2 : 3
+  }
+  const synced = (row: KnownReturn | undefined) => row ? Date.parse(row.synced_at) || 0 : Number.NEGATIVE_INFINITY
   return claims
-    .flatMap((claim) => {
-      const value = group(claim)
-      return value === null ? [] : [{ claim, value: claim.hasReviewAction && value < 4 ? -1 : value }]
+    .filter(eligible)
+    .map((claim) => {
+      const row = known.get(claim.claim_id)
+      return { claim, row, value: priority(claim, row) }
     })
     .sort(
       (a, b) =>
         a.value - b.value ||
-        Number(a.claim.status !== "opened") - Number(b.claim.status !== "opened") ||
-        (Date.parse(b.claim.ml_created_at ?? "") || 0) - (Date.parse(a.claim.ml_created_at ?? "") || 0)
+        ((a.value === 0 || a.value === 2) ? due(a.row) - due(b.row) : 0) ||
+        Number(Boolean(b.claim.hasReviewAction)) - Number(Boolean(a.claim.hasReviewAction)) ||
+        (synced(a.row) === synced(b.row) ? 0 : synced(a.row) - synced(b.row)) ||
+        (Date.parse(b.claim.ml_created_at ?? "") || 0) - (Date.parse(a.claim.ml_created_at ?? "") || 0) ||
+        String((a.claim as T & { id?: string }).id ?? a.claim.claim_id).localeCompare(String((b.claim as T & { id?: string }).id ?? b.claim.claim_id))
     )
     .map((item) => item.claim)
 }

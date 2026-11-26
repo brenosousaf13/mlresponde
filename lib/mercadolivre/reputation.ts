@@ -4,6 +4,7 @@ import { forgetAccessToken, getValidAccessToken } from "@/lib/mercadolivre/accou
 import { ML_API_URL, MlApiError } from "@/lib/mercadolivre/api"
 import { logMlRateLimit } from "@/lib/mercadolivre/rate-limit-log"
 import { parseRetryAfterMs } from "@/lib/recovery/rate-limit"
+import type { ClaimsRateLimit } from "@/lib/mercadolivre/claims-pause-store"
 import { orderSummaryFromMl, type MlClaimMessage, type OrderLike } from "@/lib/reputation/claim-details"
 import { parseReturn, parseReturnReviews, type MlReturn, type MlReturnReviews } from "@/lib/recovery/returns"
 import { parseReturnReasons } from "@/lib/recovery/review"
@@ -21,18 +22,22 @@ import type { MlShipmentCosts, MlShipmentInfo, MlShipmentSla } from "@/lib/reput
 const TOKEN_REUSE_MS = 4 * 60 * 1000
 
 /**
- * Limite de chamadas ao ML; um 429 esgota só este orçamento (o cron do Recuperador usa um por conta). Guarda o token de acesso
+ * Limite de chamadas ao ML; os crons compartilham a pausa de /post-purchase e os demais 429 esgotam este orçamento.
+ * Guarda o token de acesso
  * de cada conta durante a rodada: antes, cada chamada ao ML lia o token no banco (metade das idas ao Supabase do Escudo).
  */
 export class CallBudget {
   rateLimited = false
+  postPurchaseRateLimited = false
   readonly limit: number
   private readonly tokens = new Map<string, { token: Promise<string>; until: number }>()
   constructor(
     public remaining: number,
     readonly origem: string = "desconhecida",
-    /** Trava opcional por caminho, usada só pelo cron do Recuperador. */
-    private readonly beforeRequest?: (path: string) => void
+    /** Trava opcional por caminho, usada pelos crons do Recuperador e da Reputação. */
+    private readonly beforeRequest?: (path: string) => void,
+    /** Só os crons fornecem este gancho; ações manuais mantêm o tratamento original. */
+    private readonly onPostPurchaseRateLimit?: (event: ClaimsRateLimit) => Promise<void>
   ) {
     this.limit = remaining
   }
@@ -63,6 +68,16 @@ export class CallBudget {
     this.tokens.delete(accountId)
     forgetAccessToken(accountId)
   }
+
+  async recordRateLimit(accountId: string, path: string, headers: Headers) {
+    const retryAfter = headers.get("retry-after")
+    const retryAfterMs = parseRetryAfterMs(retryAfter, Date.now())
+    if (path.startsWith("/post-purchase/") && this.onPostPurchaseRateLimit) {
+      this.postPurchaseRateLimited = true
+      await this.onPostPurchaseRateLimit({ accountId, path, retryAfterMs, retryAfter })
+    } else this.rateLimited = true
+    return retryAfterMs
+  }
 }
 
 export class BudgetExhaustedError extends Error {
@@ -77,6 +92,8 @@ const TIMEOUT_MS = 15_000
 async function reputationRequest<T>(accountId: string, path: string, budget: CallBudget, init: RequestInit = {}): Promise<T> {
   budget.take(path)
   const accessToken = await budget.accessToken(accountId)
+  // Outra chamada desta rodada pode ter recebido 429 enquanto o token era carregado.
+  if (budget.postPurchaseRateLimited && path.startsWith("/post-purchase/")) throw new BudgetExhaustedError()
   const headers = new Headers(init.headers)
   headers.set("authorization", "Bearer " + accessToken)
   headers.set("accept", "application/json")
@@ -89,7 +106,7 @@ async function reputationRequest<T>(accountId: string, path: string, budget: Cal
     cache: "no-store",
     signal: AbortSignal.timeout(TIMEOUT_MS),
   })
-  if (response.status === 429) budget.rateLimited = true
+  const retryAfterMs = response.status === 429 ? await budget.recordRateLimit(accountId, path, response.headers) : undefined
   if (response.status === 401) budget.forgetToken(accountId)
   const data = (await response.json().catch(() => null)) as (Record<string, unknown> & T) | null
   if (response.status === 429) {
@@ -112,7 +129,7 @@ async function reputationRequest<T>(accountId: string, path: string, budget: Cal
       "HTTP " + response.status
     const code = typeof data?.error === "string" ? data.error : undefined
     throw new MlApiError("Mercado Livre: " + message, response.status, code,
-      response.status === 429 ? parseRetryAfterMs(response.headers.get("retry-after"), Date.now()) : undefined)
+      retryAfterMs)
   }
   return data as T
 }

@@ -100,7 +100,7 @@ describe("intervalo de releitura das revisões", () => {
     expect(returnsQueue([updated], new Map([[1, known({ mode, synced_at: NOW.toISOString() })]]), NOW)).toEqual([updated])
   })
 
-  it("preserva a prioridade de nunca lidas, alteradas, regras antigas com ação e intervalos", () => {
+  it("E4b: novidades antes das regras antigas com ação; mantém a elegibilidade dos intervalos", () => {
     const claims = [5, 4, 3, 2, 1].map((claim_id) => ({ ...claim, claim_id, hasReviewAction: claim_id === 3 }))
     const state = new Map([
       [2, known({ synced_at: NOW.toISOString(), claim_updated_at: null })],
@@ -108,7 +108,7 @@ describe("intervalo de releitura das revisões", () => {
       [4, known({ synced_at: "2026-11-04T11:29:00.000Z" })],
       [5, known()],
     ])
-    expect(returnsQueue(claims, state, NOW, "2026-11-04T11:59:00.000Z").map((row) => row.claim_id)).toEqual([3, 1, 2, 4, 5])
+    expect(returnsQueue(claims, state, NOW, "2026-11-04T11:59:00.000Z").map((row) => row.claim_id)).toEqual([1, 2, 3, 4, 5])
   })
 })
 
@@ -156,7 +156,7 @@ function expectRound(db: ReturnType<typeof database>, expected: Pick<RoundLog, "
   const rounds = lines.filter((line) => line.startsWith("[recuperador] "))
     .map((line) => JSON.parse(line.slice("[recuperador] ".length)))
     .filter((entry) => entry.etapa === "rodada")
-  expect(rounds).toEqual([{ etapa: "rodada", conta: "1234", resultado: "ok", ...expected }])
+  expect(rounds).toEqual([{ etapa: "rodada", conta: "1234", resultado: "ok", urgentes: expected.motivo === "revisao_24h" ? 1 : 0, urgentes_lidos: expected.motivo === "revisao_24h" ? 1 : 0, ...expected }])
   const update = db.requests.filter((r) => r.method === "PATCH" && r.url.pathname.endsWith("/recovery_sync")).at(-1)!
   expect(Date.parse(String((update.body as Record<string, unknown>).next_returns_at)) - Date.now()).toBe(expected.proxima_minutos * MINUTE)
 }
@@ -265,7 +265,7 @@ describe("rodada da conta: prazo gravado e log estruturado sem dados pessoais", 
     const rounds = lines.filter((line) => line.includes('"etapa":"rodada"'))
     expect(rounds).toHaveLength(1)
     expect(JSON.parse(rounds[0].slice("[recuperador] ".length))).toEqual({
-      etapa: "rodada", conta: "1234", resultado: "falha", fila: 0, lidas: 0, proxima_minutos: 5, motivo: "erro",
+      etapa: "rodada", conta: "1234", resultado: "falha", fila: 0, lidas: 0, urgentes: 0, urgentes_lidos: 0, proxima_minutos: 5, motivo: "erro",
     })
   })
 })

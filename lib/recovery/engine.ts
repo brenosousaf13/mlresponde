@@ -6,6 +6,7 @@ import { changedFields } from "@/lib/db-write-diff"
 import { PlatformAiPausedError } from "@/lib/ai/usage"
 import { MlAccountUnavailableError } from "@/lib/mercadolivre/accounts"
 import { MlApiError } from "@/lib/mercadolivre/api"
+import { ClaimsPause, loadClaimsPause } from "@/lib/mercadolivre/claims-pause-store"
 import {
   BudgetExhaustedError,
   CallBudget,
@@ -27,6 +28,7 @@ import {
   cartOrderIds,
   classifyReturn,
   deadlinePassed,
+  isUrgentReturn,
   ownReviews,
   recoveredByMaanu,
   returnAmount,
@@ -80,8 +82,11 @@ export const RECOVERY_CRON_LIMITS = {
   budgetMs: 40_000,
 } as const
 
-/** Teto compartilhado dos caminhos /post-purchase/v2/claims/:id/returns (inclusive subcaminhos), por cron de 1 min. */
-export const RECOVERY_RETURNS_CALLS_PER_MINUTE = 4
+/**
+ * Teto compartilhado de /returns por minuto. Cada devolução usa ~2 chamadas: 4/min limitava a ~120 leituras/h sem folga
+ * (meta >=119/h da E3). Com 6/min e pausa global, excesso vira pausa curta em vez de uma sequência de 429.
+ */
+export const RECOVERY_RETURNS_CALLS_PER_MINUTE = 6
 
 const MINUTE = 60 * 1000
 const DAY = 24 * 60 * MINUTE
@@ -553,7 +558,7 @@ async function markScanWaiting(account: ReputationAccount) {
   if (error) throw error
 }
 
-type RecoveryCronContext = { returns: { remaining: number }; previousIntervalMs: number | null }
+type RecoveryCronContext = { returns: { remaining: number }; pause: ClaimsPause; previousIntervalMs: number | null }
 
 /**
  * Uma conta (já reservada): lê as devoluções da fila (até 15 por rodada), atualiza o Raio-X e os alertas e solta a trava.
@@ -566,7 +571,10 @@ export async function syncRecoveryAccount(account: ReputationAccount, budget: Ca
   let reason: RecoveryRoundReason = "normal"
   let queueSize = 0
   let processed = 0
+  let urgentCount = 0
+  let urgentRead = 0
   let lastError: string | null = null
+  // 429 fora de /post-purchase continua com o backoff por conta da E4a; o global substitui o horário abaixo quando existe.
   const rateLimitDelay = (retryAfterMs?: number) => cron
     ? nextRateLimitDelay({ previousIntervalMs: cron.previousIntervalMs, retryAfterMs })
     : INTERVALS.rateLimited
@@ -618,6 +626,8 @@ export async function syncRecoveryAccount(account: ReputationAccount, budget: Ca
         RECOVERY_RULES_SINCE
       )
       queueSize = queue.length
+      const urgentIds = new Set(queue.filter((claim) => isUrgentReturn(knownState.get(claim.claim_id), now)).map((claim) => claim.claim_id))
+      urgentCount = urgentIds.size
       let stop: unknown = null
       const selected = queue.slice(0, RETURNS_PER_RUN)
       // Mantém a fila completa e os intervalos: devoluções sem mudança na reclamação também podem precisar de releitura.
@@ -634,6 +644,7 @@ export async function syncRecoveryAccount(account: ReputationAccount, budget: Ca
           const state = await syncReturn(account, claim, byClaim.get(Number(claim.claim_id)), budget, now, siblings)
           pollState.set(Number(claim.claim_id), state)
           processed++
+          if (urgentIds.has(candidate.claim_id)) urgentRead++
         } catch (error) {
           if (isStopError(error)) {
             stop = error
@@ -673,7 +684,7 @@ export async function syncRecoveryAccount(account: ReputationAccount, budget: Ca
     }
     else if (error instanceof MlApiError && error.status === 429) {
       budget.rateLimited = true
-      next = rateLimitDelay(error.retryAfterMs)
+      next = cron?.pause.stopped ? INTERVALS.rateLimited : rateLimitDelay(error.retryAfterMs)
       reason = "rate_limit"
     } else {
       lastError = errorMessage(error)
@@ -682,13 +693,17 @@ export async function syncRecoveryAccount(account: ReputationAccount, budget: Ca
       logRecovery({ etapa: "lido", conta: account.id, resultado: "falha", detalhe: lastError })
     }
   }
+  const pauseUntil = cron?.pause.stopped ? cron.pause.until : null
+  if (pauseUntil) {
+    reason = "rate_limit"
+    next = Math.max(0, Date.parse(pauseUntil) - Date.now())
+  }
   try {
     const { error } = await admin
       .from("recovery_sync")
       .update({
         locked_until: null,
-        // O backoff precisa ser medido desde o mesmo instante salvo em last_returns_at.
-        next_returns_at: iso((cron && reason === "rate_limit" ? now.getTime() : Date.now()) + next),
+        next_returns_at: pauseUntil ?? iso((cron && reason === "rate_limit" ? now.getTime() : Date.now()) + next),
         last_returns_at: now.toISOString(),
         last_error: lastError,
         last_error_at: lastError ? now.toISOString() : null,
@@ -702,7 +717,8 @@ export async function syncRecoveryAccount(account: ReputationAccount, budget: Ca
   } finally {
     logRecovery({
       etapa: "rodada", conta: account.id, resultado: lastError ? "falha" : "ok",
-      fila: queueSize, lidas: processed, proxima_minutos: Math.round(next / MINUTE * 10) / 10, motivo: reason,
+      fila: queueSize, lidas: processed, urgentes: urgentCount, urgentes_lidos: urgentRead,
+      proxima_minutos: Math.round(next / MINUTE * 10) / 10, motivo: reason,
     })
   }
 }
@@ -734,23 +750,36 @@ export async function runRecoverySync(): Promise<RecoverySyncResult> {
       p_lock_seconds: 120,
     })
     if (error) throw error
+    const pause = new ClaimsPause(await loadClaimsPause())
+    const now = Date.now()
+    const reserved = rows ?? []
+    const { data: urgentRows, error: urgentError } = reserved.length
+      ? await createServiceClient().from("recovery_returns").select("ml_account_id")
+        .in("ml_account_id", reserved.map((row) => row.ml_account_id))
+        .eq("phase", "needs_review")
+        .gte("deadline_at", iso(now)).lte("deadline_at", iso(now + DAY))
+      : { data: [], error: null }
+    if (urgentError) throw urgentError
+    const urgentAccounts = new Set((urgentRows ?? []).map((row) => row.ml_account_id))
     const accounts = await loadAccounts((rows ?? []).map((row: SyncRow) => row.ml_account_id))
-    // UPDATE ... RETURNING do claim não garante a ordem: começa por quem está esperando há mais tempo.
-    const ordered = [...(rows ?? [])].sort((a, b) => Date.parse(a.next_returns_at) - Date.parse(b.next_returns_at))
+    // Urgência ganha de idade; se parar por ritmo, a mesma consulta dá a vez de novo no próximo minuto.
+    const ordered = [...reserved].sort((a, b) => Number(urgentAccounts.has(b.ml_account_id)) - Number(urgentAccounts.has(a.ml_account_id))
+      || Date.parse(a.next_returns_at) - Date.parse(b.next_returns_at))
     await forEachLimit(ordered, RECOVERY_CRON_LIMITS.concurrency, async (row: SyncRow) => {
       const account = accounts.get(row.ml_account_id)
-      if (!account || remainingCalls <= 0 || returns.remaining === 0 || Date.now() > deadline) {
+      if (!account || pause.active || remainingCalls <= 0 || returns.remaining === 0 || Date.now() > deadline) {
         await releaseLock(row.ml_account_id)
         return
       }
       const budget = new CallBudget(remainingCalls, "recuperador_cron", (path) => {
+        if (path.startsWith("/post-purchase/") && pause.active) throw new BudgetExhaustedError()
         if (!/^\/post-purchase\/v2\/claims\/\d+\/returns(?:[/?]|$)/.test(path)) return
         if (returns.remaining === 0) throw new BudgetExhaustedError()
         returns.remaining--
-      })
+      }, (event) => pause.onRateLimit(event, "recuperador_cron"))
       try {
         const previousIntervalMs = row.last_returns_at ? Date.parse(row.next_returns_at) - Date.parse(row.last_returns_at) : null
-        await syncRecoveryAccount(account, budget, deadline, { returns, previousIntervalMs })
+        await syncRecoveryAccount(account, budget, deadline, { returns, pause, previousIntervalMs })
         result.accounts++
       } catch (error) {
         result.failures++
@@ -758,7 +787,7 @@ export async function runRecoverySync(): Promise<RecoverySyncResult> {
         await releaseLock(row.ml_account_id)
       } finally {
         remainingCalls -= budget.limit - budget.remaining
-        result.rateLimited ||= budget.rateLimited
+        result.rateLimited ||= budget.rateLimited || budget.postPurchaseRateLimited
       }
     })
   } catch (error) {
